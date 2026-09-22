@@ -1,0 +1,192 @@
+/* VERSION 4 · "Stellarium-style" — LIGHT, outside the locked guideline (client request).
+   Replication pass 2: no hero photo; large irregular watercolour splashes; grey speckled watercolour band for
+   Forecasts + Subscribe; ink-style blog images with offset washes; planets row; Follow Us. Original code/copy/imagery. */
+:root{
+  --bg:#FFFFFF;--bg-2:#F7F6F3;--bg-3:#EFEDE8;
+  --gold:#1A1A1A;--gold-2:#1A1A1A;--line:rgba(0,0,0,.14);--line-strong:rgba(0,0,0,.35);
+  --ink:#1B1B1B;--muted:#606060;--danger:#B23B3B;
+  --wash-y:#F3E7A9;--wash-b:#BFDDF0;--wash-p:#F3CFDD;--wash-g:#CFE3CB;--wash-v:#D8CFEE;--wash-r:#F1B9C4;
+  --serif:"Playfair Display",Georgia,serif;--sans:Lato,Inter,system-ui,sans-serif;
+}
+body{background:var(--bg);color:var(--ink);font-size:15px}
+h1,h2,h3{font-weight:400;letter-spacing:0}
+h1 em,h2 em{color:var(--ink);font-style:italic}
+.eyebrow{font-size:10px;letter-spacing:.32em;font-weight:700;color:var(--ink)}
+.lead,.sec-head p,.svc p,.step p,.t cite,.post p,.about p,.prose p,.detail p,.news p,.cta-box p,.foot p,.info p,.faq details p,.field label,.form small,.field .hint,.crumbs,.summary dl,.panel .sub,.opt span{color:var(--muted)}
+
+/* Underlined text buttons (reference style) */
+.btn{border:0;background:linear-gradient(var(--ink),var(--ink)) no-repeat 0 100%/100% 2px;color:var(--ink);padding:10px 0;font-family:var(--sans);font-weight:700;font-size:10px;letter-spacing:.32em;text-transform:uppercase;min-height:0;border-radius:0;transition:background-size .35s}
+.btn:hover{background-size:0 2px;color:var(--ink)}
+.btn-solid{background:var(--ink);color:#fff;padding:16px 30px}
+.btn-solid:hover{background:#333;color:#fff}
+.link{color:var(--ink);border-color:var(--ink);font-weight:700;font-size:10px;letter-spacing:.32em}
+:focus-visible{outline-color:var(--ink)}
+
+/* Nav: medallion logo + tiny tracked caps, no CTA button */
+.nav{background:rgba(255,255,255,.92);border-bottom:0}
+.nav .wrap{height:84px}
+.brand{font-family:var(--serif);letter-spacing:.22em;text-transform:uppercase;font-size:17px;font-weight:400;display:flex;align-items:center;gap:12px}
+.brand::before{content:"L";font-family:var(--serif);display:inline-grid;place-items:center;width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#F5E6B8,#C9A75B 60%,#8E6F2E);color:#fff;font-size:20px;letter-spacing:0;box-shadow:inset 0 0 0 2px rgba(255,255,255,.5)}
+.nav ul{gap:30px}
+.nav ul a{font-family:var(--sans);font-size:9px;letter-spacing:.3em;text-transform:uppercase;font-weight:700;color:var(--ink)}
+.nav ul a:hover,.nav ul a[aria-current]{border-bottom:2px solid var(--ink)}
+.nav .btn-nav{display:none}
+.menu-btn{color:var(--ink);border-color:var(--ink)}
+@media(max-width:900px){.nav ul{background:#fff;top:84px}.nav .btn-nav{display:none!important}}
+
+/* Watercolour paint (layered irregular blobs) */
+.paint{position:absolute;pointer-events:none;z-index:0}
+.paint i{position:absolute;display:block;border-radius:63% 37% 54% 46%/55% 48% 52% 45%;filter:blur(6px);opacity:.85;mix-blend-mode:multiply}
+.paint i:nth-child(2){border-radius:38% 62% 45% 55%/60% 35% 65% 40%;opacity:.55;transform:rotate(25deg) scale(.8) translate(10%,-6%);filter:blur(10px)}
+.paint i:nth-child(3){border-radius:52% 48% 63% 37%/42% 58% 42% 58%;opacity:.35;transform:rotate(-30deg) scale(1.15) translate(-8%,8%);filter:blur(18px)}
+.paint-y i{background:var(--wash-y)}.paint-b i{background:var(--wash-b)}.paint-p i{background:var(--wash-p)}.paint-g i{background:var(--wash-g)}.paint-v i{background:var(--wash-v)}.paint-r i{background:var(--wash-r)}
+
+/* Hero: text right, paint left/top, no photo */
+.stel-hero{position:relative;overflow:hidden;background:#fff}
+.stel-hero .slides{position:relative;z-index:1}
+.stel-hero .slide{display:none}
+.stel-hero .slide.on{display:block}
+.stel-hero .slide.wrap{min-height:min(calc(100vh - 84px),720px);padding-top:120px;padding-bottom:120px;display:flex;align-items:center;justify-content:flex-end}
+.stel-hero .copy{max-width:420px;text-align:left}
+.stel-hero .copy .eyebrow{display:block;margin-bottom:22px}
+.stel-hero .copy h1{font-size:clamp(40px,4.6vw,62px);line-height:1.12;margin:0 0 22px}
+.stel-hero .copy .lead{font-size:14px;line-height:1.8;margin:0 0 34px;max-width:none}
+.stel-hero .ctrls{position:absolute;right:var(--pad);bottom:36px;z-index:2;display:flex;gap:18px;align-items:center}
+.stel-hero .ctrls button{background:none;border:0;color:var(--ink);font:inherit;font-size:9px;letter-spacing:.3em;text-transform:uppercase;font-weight:700;cursor:pointer;padding:8px 0;min-height:44px}
+.dots{display:flex;gap:10px}
+.dots button{width:9px!important;height:9px;border-radius:50%;border:1px solid var(--ink)!important;padding:0!important;min-height:0!important;min-width:0}
+.dots button[aria-current=true]{background:var(--ink)}
+@media(max-width:860px){.stel-hero .slide.wrap{justify-content:flex-start;padding-top:80px;padding-bottom:110px;min-height:0}}
+
+/* Divider motif —•  •— */
+.divider{display:flex;justify-content:center;align-items:center;gap:14px;padding:40px 0 10px}
+.divider::before,.divider::after{content:"";width:56px;height:1px;background:var(--ink)}
+.divider i{width:4px;height:4px;background:var(--ink);border-radius:50%;display:block}
+.divider i+i{margin-left:6px}
+
+/* Grey speckled watercolour band */
+.grey-band{position:relative;overflow:hidden;background:
+ radial-gradient(1px 1px at 12% 22%,#fff 60%,transparent 61%),radial-gradient(1px 1px at 33% 71%,#fff 60%,transparent 61%),radial-gradient(1.5px 1.5px at 58% 44%,#fff 60%,transparent 61%),radial-gradient(1px 1px at 76% 18%,#fff 60%,transparent 61%),radial-gradient(1px 1px at 88% 66%,#fff 60%,transparent 61%),radial-gradient(1px 1px at 21% 90%,#fff 60%,transparent 61%),radial-gradient(1px 1px at 66% 86%,#fff 60%,transparent 61%),radial-gradient(1px 1px at 45% 12%,#fff 60%,transparent 61%),
+ radial-gradient(900px 500px at 15% 10%,rgba(0,0,0,.05),transparent 60%),radial-gradient(700px 600px at 85% 90%,rgba(0,0,0,.12),transparent 60%),
+ linear-gradient(180deg,#FFFFFF 0%,#EDEDED 18%,#E3E3E3 55%,#D2D2D2 100%)}
+.grey-band .wrap{position:relative;z-index:1}
+.grey-band section{padding:clamp(56px,7vw,88px) 0}
+
+/* Section heads centred */
+.sec-head{flex-direction:column;align-items:center;text-align:center;gap:10px;margin-bottom:40px}
+.sec-head h2{margin-top:6px;font-size:clamp(30px,3.4vw,40px)}
+.sec-head p{max-width:60ch;font-size:14px}
+section{padding:clamp(56px,7vw,96px) 0}
+.tint{background:var(--bg-2);border-color:var(--line)}
+
+/* Zodiac grid: outlined glyph with offset wash behind (illustration-like) */
+.zodiac{display:grid;grid-template-columns:repeat(6,1fr);gap:40px 20px;text-align:center}
+.z{text-decoration:none;color:var(--ink);display:grid;justify-items:center;gap:6px}
+.z .glyph{position:relative;width:110px;height:110px;display:grid;place-items:center;font-size:54px;line-height:1;font-family:"Segoe UI Symbol","Noto Sans Symbols2","Apple Symbols",serif;color:#2B2B2B;font-weight:300}
+.z .glyph::before{content:"";position:absolute;width:82px;height:82px;left:6px;top:14px;border-radius:63% 37% 54% 46%/55% 48% 52% 45%;background:var(--w,var(--wash-y));z-index:-1;filter:blur(2px);opacity:.9;transition:transform .5s,border-radius .6s}
+.z .glyph::after{content:"";position:absolute;inset:14px;border-radius:50%;border:1px solid rgba(0,0,0,.18)}
+.z:hover .glyph::before{transform:scale(1.15) rotate(-12deg);border-radius:45% 55% 40% 60%/50% 45% 55% 50%}
+.z b{font-family:var(--serif);font-weight:400;font-size:17px}
+.z span{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink);font-weight:700}
+@media(max-width:900px){.zodiac{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:560px){.zodiac{grid-template-columns:repeat(3,1fr);gap:24px 8px}.z .glyph{width:84px;height:84px;font-size:40px}.z .glyph::before{width:62px;height:62px}}
+
+/* Subscribe: inline underlined fields */
+.inline-form{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:40px;align-items:end;margin-top:12px}
+.inline-form .field label{font-size:9px;letter-spacing:.24em;font-weight:700;color:var(--ink)}
+.inline-form .field input,.inline-form .field select{background:transparent;border:0;border-bottom:1px solid var(--ink);padding:10px 0;border-radius:0;color:var(--ink);min-height:40px}
+.inline-form .field input:focus,.inline-form .field select:focus{box-shadow:none;border-bottom-width:2px}
+.inline-form .field select{background-image:linear-gradient(45deg,transparent 50%,var(--ink) 50%),linear-gradient(135deg,var(--ink) 50%,transparent 50%);background-position:calc(100% - 12px) 16px,calc(100% - 7px) 16px}
+.inline-form .btn{justify-self:end}
+@media(max-width:760px){.inline-form{grid-template-columns:1fr;gap:24px}}
+
+/* Circle ink images row (overlapping band edge) */
+.circles{display:flex;justify-content:center;gap:clamp(24px,7vw,120px);flex-wrap:wrap;position:relative;z-index:2;margin:-48px auto 0}
+.circles a{width:96px;height:96px;border-radius:50%;overflow:hidden;display:block;background:#fff;box-shadow:0 0 0 6px #fff}
+.circles img{width:100%;height:100%;object-fit:cover;filter:grayscale(1) contrast(1.4)}
+
+/* Blog: ink image with offset wash */
+.post-grid{gap:48px}
+.post{text-align:center}
+.post figure{position:relative;border:0;background:transparent;aspect-ratio:1;max-width:250px;margin:0 auto 22px;overflow:visible}
+.post figure::before{content:"";position:absolute;width:78%;height:78%;left:-6%;top:12%;border-radius:63% 37% 54% 46%/55% 48% 52% 45%;background:var(--w,var(--wash-b));filter:blur(4px);z-index:0}
+.post:nth-child(2) figure::before{left:auto;right:-8%;top:-4%;background:var(--wash-v);border-radius:38% 62% 45% 55%/60% 35% 65% 40%}
+.post:nth-child(3) figure::before{left:8%;top:20%;background:var(--wash-y)}
+.post img{position:relative;z-index:1;border-radius:50%;filter:grayscale(1) contrast(1.35);mix-blend-mode:multiply;width:84%;height:84%;margin:8% auto 0}
+.post:hover img{transform:none}
+.post .eyebrow{color:var(--ink);font-size:9px;letter-spacing:.24em;margin:0 0 8px}
+.post h3{font-size:20px;margin-bottom:10px}
+.post p{font-size:13px;line-height:1.8;max-width:34ch;margin:0 auto}
+.post::after{content:"";display:block;width:56px;height:1px;background:var(--ink);margin:18px auto 0}
+.view-more{text-align:center;margin-top:56px}
+
+/* Planets ink row over pink paint + Follow Us */
+.follow{text-align:center;position:relative;overflow:hidden;padding-top:40px}
+.follow .wrap{position:relative;z-index:1}
+.planets{display:flex;justify-content:center;align-items:center;gap:clamp(10px,3vw,44px);padding:24px 0 40px}
+.planets i{display:block;border-radius:50%;border:1.5px solid var(--ink);background:radial-gradient(circle at 30% 30%,#fff 0 30%,#e9e9e9 31% 60%,#cfcfcf 61%),repeating-radial-gradient(circle at 60% 60%,transparent 0 3px,rgba(0,0,0,.08) 3px 4px)}
+.planets i:nth-child(1){width:22px;height:22px}.planets i:nth-child(2){width:48px;height:48px}.planets i:nth-child(3){width:30px;height:30px}.planets i:nth-child(4){width:96px;height:96px;box-shadow:0 0 0 14px #fff,0 0 0 15px var(--ink)}.planets i:nth-child(5){width:64px;height:64px}.planets i:nth-child(6){width:40px;height:40px}.planets i:nth-child(7){width:18px;height:18px}
+.follow h2{font-size:clamp(28px,3vw,36px)}
+.social{display:flex;justify-content:center;gap:18px;margin-top:26px}
+.social a{width:44px;height:44px;border:1.5px solid var(--ink);border-radius:50%;display:grid;place-items:center;text-decoration:none;font-size:10px;letter-spacing:.1em;font-weight:700;background:#fff}
+.social a:hover{background:var(--ink);color:#fff}
+
+/* Inner pages on light */
+.page-hero{position:relative;overflow:hidden;border-bottom:0}
+.page-hero .wrap{position:relative;z-index:1}
+.svc,.t,.panel,.summary,.values div,.cta-box{background:#fff}
+.svc.featured{background:var(--bg-2)}
+.svc.featured::before{background:var(--ink);color:#fff}
+.svc .price a{font-weight:700;font-size:10px;letter-spacing:.3em}
+.portrait{background:var(--bg-2)}
+.portrait .stat{background:#fff}
+.portrait .stat b,.step b,.t .q,.opt .p,.summary .total b{color:var(--ink)}
+.step b{font-family:var(--serif)}
+blockquote{border-color:var(--ink)}
+.field input,.field select,.field textarea{background:#fff}
+.opt:has(input:checked){background:var(--bg-2);border-color:var(--ink)}
+.cal button,.slots button,.cal-head button{background:#fff}
+.cal button[aria-pressed=true],.slots button[aria-pressed=true],.pager a[aria-current]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.filters a[aria-current],.filters a:hover{color:var(--ink);border-color:var(--ink)}
+.summary .btn[disabled]{border:1px solid var(--line);color:var(--muted);background:transparent}
+.summary .btn,.form .btn-solid,.detail .btn-solid,.cta-box .btn-solid{padding:16px 30px}
+.hero-media::after{background:linear-gradient(180deg,rgba(255,255,255,0) 60%,rgba(255,255,255,.7))}
+.hero-caption{color:var(--ink)}
+.article p{color:#333}
+.foot h4{color:var(--ink)}
+footer{border-top:1px solid var(--line)}
+.detail-media,.article-hero{border:0}
+.detail-media img,.article-hero img{filter:grayscale(1) contrast(1.2)}
+
+/* fixes */
+.stel-hero .slide.wrap:not(.on){display:none}
+.inline-form .field select{background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+.paint i{opacity:.6}
+.paint i:nth-child(2){opacity:.4}.paint i:nth-child(3){opacity:.25}
+
+/* ---- Pass 3: real watercolour textures (procedural PNGs in assets/) + ink-bleed glyph filter ---- */
+.paint i{display:none}
+.paint{background:center/contain no-repeat;opacity:.95;mix-blend-mode:multiply}
+.paint-y{background-image:url(assets/wash-yellow.png)}
+.paint-b{background-image:url(assets/wash-blue.png)}
+.paint-p{background-image:url(assets/wash-pink.png)}
+.paint-r{background-image:url(assets/wash-rose.png)}
+.paint-g{background-image:url(assets/wash-green.png)}
+.paint-v{background-image:url(assets/wash-violet.png)}
+.grey-band{background:url(assets/band-grey.png) center/cover no-repeat}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;background:url(assets/grain.png) repeat;opacity:.5;mix-blend-mode:multiply}
+.z .glyph::before{background:var(--wimg,url(assets/wash-yellow.png)) center/cover no-repeat;filter:none;opacity:1;border-radius:0;width:100px;height:100px;left:-2px;top:8px;mix-blend-mode:multiply}
+.z .glyph::after{display:none}
+.z .glyph{filter:url(#ink);color:#111}
+.z:hover .glyph::before{transform:scale(1.12) rotate(-8deg)}
+.post figure::before{background:var(--wimg,url(assets/wash-blue.png)) center/cover no-repeat;filter:none;border-radius:0;width:96%;height:96%;left:-10%;top:4%;mix-blend-mode:multiply}
+.post:nth-child(2) figure::before{background-image:url(assets/wash-violet.png);left:auto;right:-12%;top:-6%}
+.post:nth-child(3) figure::before{background-image:url(assets/wash-yellow.png);left:6%;top:14%}
+.post img{filter:grayscale(1) contrast(1.5) brightness(1.05)}
+.planets{filter:url(#ink)}
+.circles img{filter:grayscale(1) contrast(1.6)}
+body::after{opacity:.35}
+.post figure::before,.z .glyph::before{background-size:contain}
+.post:nth-child(3) figure::before{width:110%;height:110%;left:-2%;top:6%}
+
+.post:nth-child(2) figure::before,.post:nth-child(3) figure::before{background-color:transparent}

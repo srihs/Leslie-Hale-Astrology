@@ -1,0 +1,63 @@
+# Static site project: hand-written HTML/CSS/JS, with a Python helper
+# under versions/v4-stellarium/assets/ for generating wash textures.
+
+# --- OS cruft (Windows primary, macOS for collaborators) ---
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# --- Editors / IDEs ---
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+
+# --- Python (asset generation scripts) ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.Python
+*.egg-info/
+
+# --- Node, if a build step is ever added ---
+node_modules/
+dist/
+build/
+.cache/
+.parcel-cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Secrets and local config ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Logs and scratch ---
+*.log
+logs/
+tmp/
+temp/
+*.bak
+*.orig
+
+# --- Local Claude Code settings (shared config stays tracked) ---
+.claude/settings.local.json

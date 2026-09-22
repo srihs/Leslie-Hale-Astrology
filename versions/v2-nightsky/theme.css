@@ -1,0 +1,63 @@
+/* VERSION 2 · "Night Sky" — immersive, centred, cinematic. Overrides on top of the shared base.
+   Design skill followed: atmosphere-background + cinematic-gsap-lenis-motion-system. Palette locked (navy/gold). */
+:root{--serif:"Playfair Display","Cormorant Garamond",Georgia,serif;--bg:#080F1D;--bg-2:#0C1729;--bg-3:#111F38}
+body{background:var(--bg) radial-gradient(1200px 600px at 50% -10%,rgba(217,192,138,.10),transparent 60%) no-repeat}
+h1,h2,h3{font-weight:400;letter-spacing:-.01em}
+h1{font-size:clamp(38px,6vw,78px);line-height:1.05}
+.eyebrow{letter-spacing:.3em}
+.btn{border-radius:999px;padding:16px 32px}
+.nav .btn{border-radius:999px}
+.nav{background:linear-gradient(180deg,rgba(8,15,29,.9),rgba(8,15,29,.6));border-bottom-color:transparent}
+.nav.scrolled{border-bottom-color:var(--line);background:rgba(8,15,29,.9)}
+
+/* Sky hero */
+.sky{position:relative;min-height:100vh;display:grid;place-items:center;text-align:center;overflow:hidden;padding:120px 0 96px}
+.sky canvas,.sky .poster{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+.sky .poster{background:radial-gradient(1px 1px at 12% 20%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 78% 14%,#fff 50%,transparent 51%),radial-gradient(1.5px 1.5px at 66% 62%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 30% 74%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 88% 82%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 48% 40%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 22% 50%,#fff 50%,transparent 51%);opacity:.5}
+.sky .poster.off{display:none}
+.sky::after{content:"";position:absolute;inset:auto 0 0 0;height:40%;background:linear-gradient(180deg,transparent,var(--bg));z-index:1;pointer-events:none}
+.sky .wrap{position:relative;z-index:2;max-width:900px}
+.sky .hero-tag{margin-bottom:28px}
+.sky h1{margin:0 auto 24px;max-width:18ch}
+.sky .lead{margin:0 auto 40px;max-width:52ch}
+.sky .hero-cta{justify-content:center}
+.sky .hero-meta{justify-content:center;gap:48px;margin-top:56px;border-top:1px solid var(--line);padding-top:28px;display:inline-flex}
+.moon{position:absolute;left:50%;top:14%;transform:translateX(-50%);width:min(52vw,520px);aspect-ratio:1;border-radius:50%;z-index:0;opacity:.55;background:var(--bg-2);overflow:hidden;box-shadow:0 0 120px rgba(217,192,138,.15)}
+.moon img{width:100%;height:100%;object-fit:cover;filter:saturate(.4) brightness(.8)}
+.moon::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,transparent 45%,var(--bg) 72%)}
+.scroll-cue{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:2;font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:10px}
+.scroll-cue i{display:block;width:1px;height:40px;background:linear-gradient(180deg,var(--gold),transparent)}
+@media(max-width:700px){.sky{padding:96px 0 80px;min-height:92vh}.sky .hero-meta{gap:24px;flex-direction:column;align-items:center}}
+
+/* centred section heads */
+.sec-head.center{flex-direction:column;align-items:center;text-align:center}
+.sec-head.center p{max-width:52ch}
+
+/* cards: soft glow border */
+.svc,.t,.panel,.summary,.cta-box,.values div{border-radius:14px}
+.svc-grid,.values{gap:18px;background:transparent;border:0}
+.svc,.values div{border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.02),transparent)}
+.svc.featured{background:linear-gradient(180deg,rgba(217,192,138,.10),rgba(217,192,138,.02));border-color:var(--line-strong)}
+.svc.featured::before{border-radius:0 14px 0 10px}
+.svc:hover,.values div:hover{border-color:var(--line-strong)}
+.hero-media,.detail-media,.post figure,.portrait,.article-hero{border-radius:14px}
+.portrait .stat{border-radius:12px}
+.t{background:linear-gradient(180deg,rgba(255,255,255,.03),transparent)}
+.cta-box{background:radial-gradient(600px 300px at 50% 0%,rgba(217,192,138,.12),transparent 70%),var(--bg-2)}
+.cta-box::before{border-radius:10px}
+.field input,.field select,.field textarea{border-radius:10px}
+.opt,.cal button,.slots button,.filters a,.pager a{border-radius:10px}
+.tint{background:linear-gradient(180deg,var(--bg-2),var(--bg));border-color:var(--line)}
+
+/* Ring band (stats) */
+.band{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;text-align:center}
+.band div{border:1px solid var(--line);border-radius:14px;padding:28px 16px}
+.band b{display:block;font-family:var(--serif);font-size:clamp(34px,4vw,48px);color:var(--gold);font-weight:400;line-height:1}
+.band span{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:block;margin-top:10px}
+@media(max-width:720px){.band{grid-template-columns:1fr 1fr}}
+
+/* ---- Review fixes (C1, N2) ---- */
+.sky{min-height:min(100vh,940px)}
+.moon{width:min(52vw,460px,60vh);top:clamp(64px,12%,140px)}
+
+@media(max-width:700px){.sky{padding-bottom:128px}}

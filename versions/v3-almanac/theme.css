@@ -1,0 +1,98 @@
+/* VERSION 3 · "Almanac" — modern/traditional. Navy chapters alternate with ivory "paper" sections; mono eyebrows; large book-serif.
+   Design skill followed: book-serif-index + light-mode-paper-technical (paper sections). Palette locked (navy/gold) with ivory as paper. */
+:root{--serif:"EB Garamond","Cormorant Garamond",Georgia,serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;--paper:#F2EEE6;--paper-2:#E9E3D6;--ink-on-paper:#0B1526;--muted-on-paper:#4E5868;--line-on-paper:rgba(11,21,38,.16)}
+h1,h2,h3{font-weight:400;letter-spacing:0}
+h1{font-size:clamp(44px,7.4vw,104px);line-height:.98}
+h2{font-size:clamp(34px,4.8vw,64px)}
+.eyebrow,.crumbs,.hero-caption,.svc .num,.field label,.filters a,.foot h4,.hero-tag,.info div span,.summary dl dt,.step b{font-family:var(--mono);letter-spacing:.12em}
+.btn{border-radius:0;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;font-size:12px}
+.link{font-family:var(--mono)}
+.brand{letter-spacing:.12em;font-size:18px;font-weight:500;text-transform:none}
+.nav{background:var(--bg);backdrop-filter:none;border-bottom:1px solid var(--line-strong)}
+.nav ul a{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.hero-tag{border-radius:0}
+
+/* Almanac hero */
+.almanac{position:relative;overflow:hidden;border-bottom:1px solid var(--line-strong)}
+.almanac .wrap{display:grid;grid-template-columns:1.25fr .75fr;gap:clamp(24px,5vw,64px);align-items:end;padding-top:clamp(56px,8vw,112px);padding-bottom:clamp(48px,6vw,80px);min-height:calc(100vh - 72px)}
+.almanac .index{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);display:flex;gap:28px;margin-bottom:36px;flex-wrap:wrap}
+.almanac h1{margin-bottom:28px}
+.almanac h1 em{font-style:italic;color:var(--gold)}
+.almanac .lead{margin-bottom:36px}
+.almanac .hero-cta{gap:12px}
+.moonframe{position:relative;aspect-ratio:1;border-radius:50%;overflow:hidden;border:1px solid var(--line-strong);background:var(--bg-2);max-width:460px;margin-left:auto}
+.moonframe img{width:100%;height:100%;object-fit:cover;filter:saturate(.35) brightness(.9)}
+.moonframe::after{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 80px rgba(11,21,38,.9)}
+.moonframe figcaption{position:absolute;inset:auto 0 0 0;text-align:center;font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);padding:14px;background:linear-gradient(transparent,rgba(11,21,38,.9))}
+.hero-foot{display:flex;justify-content:space-between;gap:16px;border-top:1px solid var(--line);margin-top:44px;padding-top:18px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);flex-wrap:wrap}
+@media(max-width:900px){.almanac .wrap{grid-template-columns:1fr;min-height:0;align-items:start}.moonframe{max-width:260px;margin:0 0 8px}}
+
+/* Marquee of reading names */
+.marquee{overflow:hidden;border-bottom:1px solid var(--line-strong);background:var(--bg-2);padding:18px 0;white-space:nowrap}
+.marquee .track{display:inline-flex;gap:56px;font-family:var(--serif);font-size:clamp(22px,2.6vw,32px);color:var(--ink);will-change:transform}
+.marquee .track span::before{content:"✦";color:var(--gold);margin-right:56px;font-size:.6em;vertical-align:middle}
+.reduced .marquee .track,.no-js .marquee .track{animation:none}
+
+/* Paper chapters */
+.paper{background:var(--paper);color:var(--ink-on-paper);border-top:1px solid var(--line-strong);border-bottom:1px solid var(--line-strong)}
+.paper .eyebrow{color:var(--gold-2)}
+.paper p,.paper .lead,.paper .sec-head p,.paper .svc p,.paper .step p,.paper .post p,.paper .t cite,.paper .values p,.paper .prose p{color:var(--muted-on-paper)}
+.paper .svc,.paper .values div,.paper .t{background:var(--paper);border-color:var(--line-on-paper)}
+.paper .svc-grid,.paper .values{background:var(--line-on-paper);border-color:var(--line-on-paper)}
+.paper .svc:hover,.paper .values div:hover{background:var(--paper-2)}
+.paper .svc.featured{background:var(--paper-2)}
+.paper .svc .price{border-color:var(--line-on-paper)}
+.paper .svc .price a,.paper .link,.paper .post:hover h3{color:var(--gold-2)}
+.paper .link{border-color:rgba(184,155,94,.5)}
+.paper .btn-ghost{color:var(--ink-on-paper);border-color:var(--ink-on-paper)}
+.paper .btn-ghost:hover{background:rgba(11,21,38,.06)}
+.paper .btn-solid{background:var(--ink-on-paper);color:var(--paper);border-color:var(--ink-on-paper)}
+.paper .btn-solid:hover{background:#1A2B4B}
+.paper .t .q{color:var(--gold-2)}
+.paper .t cite b{color:var(--ink-on-paper)}
+.paper .post figure,.paper .detail-media,.paper .article-hero{border-color:var(--line-on-paper)}
+.paper .step b{color:var(--gold-2)}
+.paper blockquote{color:var(--ink-on-paper);border-color:var(--gold-2)}
+.paper .field input,.paper .field select,.paper .field textarea{background:#fff;color:var(--ink-on-paper);border-color:var(--line-on-paper)}
+.paper .field label,.paper .form small,.paper .field .hint{color:var(--muted-on-paper)}
+.paper .faq details,.paper .faq{border-color:var(--line-on-paper)}
+.paper .faq details p{color:var(--muted-on-paper)}
+.paper .cta-box{background:var(--paper-2);border-color:var(--line-on-paper)}
+.paper .cta-box::before{border-color:var(--line-on-paper)}
+.paper .sec-head h2 .w{color:inherit}
+.paper .tint{background:var(--paper-2)}
+.paper .filters a,.paper .pager a{color:var(--muted-on-paper);border-color:var(--line-on-paper)}
+.paper .filters a[aria-current],.paper .filters a:hover{color:var(--gold-2);border-color:var(--gold-2)}
+.paper .pager a[aria-current]{background:var(--ink-on-paper);color:var(--paper);border-color:var(--ink-on-paper)}
+.paper .portrait{border-color:var(--line-on-paper);background:var(--paper-2);color:var(--muted-on-paper)}
+.paper .portrait .stat{background:var(--paper);border-color:var(--line-on-paper)}
+.paper .portrait .stat b{color:var(--gold-2)}
+.paper .info a{color:var(--ink-on-paper)}
+.paper .panel,.paper .summary{background:var(--paper);border-color:var(--line-on-paper)}
+.paper .opt{border-color:var(--line-on-paper)}
+.paper .opt:has(input:checked){background:var(--paper-2);border-color:var(--gold-2)}
+.paper .opt .p{color:var(--gold-2)}
+.paper .cal button,.paper .slots button,.paper .cal-head button{background:#fff;color:var(--ink-on-paper);border-color:var(--line-on-paper)}
+.paper .cal button[disabled]{color:rgba(78,88,104,.35)}
+.paper .cal button[aria-pressed=true],.paper .slots button[aria-pressed=true]{background:var(--ink-on-paper);color:var(--paper);border-color:var(--ink-on-paper)}
+.paper .summary .total b{color:var(--gold-2)}
+.paper .summary dd{color:var(--ink-on-paper)}
+.paper .summary .total,.paper .summary dl{border-color:var(--line-on-paper)}
+.paper .article p{color:#2A3444}
+.paper .err{color:#B23B3B}
+.paper .form .ok{color:var(--gold-2);border-color:var(--gold-2)}
+.paper :focus-visible{outline-color:var(--ink-on-paper)}
+
+/* Chapter numbering on section heads */
+.sec-head .eyebrow::before{content:"§ ";color:var(--gold)}
+.paper .sec-head .eyebrow::before{color:var(--gold-2)}
+
+/* Editorial rules under headings */
+.page-hero{border-bottom:1px solid var(--line-strong)}
+.page-hero h1{max-width:16ch}
+.detail{border-color:var(--line-on-paper)}
+
+/* ---- Review fixes (C1, A1, A2) ---- */
+.almanac .wrap{min-height:min(calc(100vh - 72px),860px)}
+@media(max-width:600px){.hide-sm{display:none}}
+.paper .eyebrow{font-size:12px;font-weight:500}

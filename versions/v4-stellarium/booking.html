@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book a Reading — Leslie Hale Astrology</title>
+<meta name="description" content="Choose a reading, pick a time and pay securely online.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="theme.css">
+</head>
+<body class="no-js">
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav"><div class="wrap">
+  <a class="brand" href="index.html" aria-label="Leslie Hale Astrology home">Leslie Hale</a>
+  <nav aria-label="Primary"><ul id="menu">
+    <li><a href="index.html">Home</a></li><li><a href="about.html">About</a></li><li><a href="readings.html">Readings</a></li><li><a href="blog.html">Blog</a></li><li><a href="booking.html" aria-current="page">Book</a></li><li><a href="contact.html">Contact</a></li>
+  </ul></nav>
+  <div class="nav-right"><a class="btn btn-solid btn-nav" href="booking.html">Book a Reading</a><button class="menu-btn" aria-expanded="false" aria-controls="menu">Menu</button></div>
+</div></header>
+
+<main id="main">
+<section class="page-hero" aria-labelledby="h">
+  <div class="wrap">
+    <p class="crumbs"><a href="index.html">Home</a> / Book a reading</p>
+    <span class="eyebrow">Booking</span>
+    <h1 id="h" data-split>Book your <em>reading</em>.</h1>
+    <p class="lead" data-reveal>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+  </div>
+</section>
+
+<section aria-label="Booking form">
+  <div class="wrap booking" data-booking>
+    <div>
+      <div class="panel" style="margin-bottom:20px">
+        <span class="eyebrow">Step 1</span><h3>Choose your reading</h3><p class="sub">Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+        <div class="options" role="radiogroup" aria-label="Reading type">
+          <label class="opt"><input type="radio" name="reading" data-label="Birth Chart Reading" data-price="120" checked><div><b>Birth Chart Reading</b><span>60 minutes · the foundation</span></div><span class="p">$120</span></label>
+          <label class="opt"><input type="radio" name="reading" data-label="Year Ahead" data-price="150"><div><b>Year Ahead</b><span>75 minutes · timing for the next 12 months</span></div><span class="p">$150</span></label>
+          <label class="opt"><input type="radio" name="reading" data-label="One Question" data-price="75"><div><b>One Question, Answered</b><span>30 minutes · focused session</span></div><span class="p">$75</span></label>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:20px">
+        <span class="eyebrow">Step 2</span><h3>Pick a date and time</h3><p class="sub">Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
+        <div class="cal-head"><button type="button" aria-label="Previous month">‹</button><b>September 2026</b><button type="button" aria-label="Next month">›</button></div>
+        <div class="cal" role="group" aria-label="Choose a day in September 2026">
+          <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+          <button disabled aria-hidden="true"></button><button disabled>1</button><button disabled>2</button><button>3</button><button>4</button><button disabled>5</button><button disabled>6</button>
+          <button>7</button><button>8</button><button disabled>9</button><button>10</button><button>11</button><button disabled>12</button><button disabled>13</button>
+          <button>14</button><button>15</button><button>16</button><button disabled>17</button><button>18</button><button disabled>19</button><button disabled>20</button>
+          <button>21</button><button>22</button><button>23</button><button>24</button><button>25</button><button disabled>26</button><button disabled>27</button>
+          <button>28</button><button>29</button><button>30</button>
+        </div>
+        <span class="eyebrow">Available times</span>
+        <div class="slots" style="margin-top:10px"><button type="button">10:00 am</button><button type="button">11:30 am</button><button type="button">2:00 pm</button><button type="button">3:30 pm</button><button type="button">7:00 pm</button></div>
+      </div>
+
+      <form class="panel form" novalidate>
+        <span class="eyebrow">Step 3</span><h3>Your details</h3><p class="sub">Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+        <div class="form-row">
+          <div class="field"><label for="fn">First name</label><input id="fn" required autocomplete="given-name"></div>
+          <div class="field"><label for="ln">Last name</label><input id="ln" required autocomplete="family-name"></div>
+        </div>
+        <div class="field"><label for="em">Email</label><input id="em" type="email" required autocomplete="email"><span class="err">Please enter a valid email.</span></div>
+        <div class="form-row">
+          <div class="field"><label for="dob">Date of birth</label><input id="dob" type="date" required></div>
+          <div class="field"><label for="tob">Time of birth</label><input id="tob" type="time"><span class="hint">Leave blank if unknown</span></div>
+        </div>
+        <div class="field"><label for="pob">Place of birth</label><input id="pob" required placeholder="City, country"></div>
+        <div class="field"><label for="q">Anything you'd like to focus on? (optional)</label><textarea id="q"></textarea></div>
+        <p class="ok" role="status">Thank you — your details are saved. Continue to payment on the right.</p>
+        <button class="btn btn-ghost" type="submit">Save details</button>
+      </form>
+    </div>
+
+    <aside class="summary" aria-label="Booking summary">
+      <span class="eyebrow">Your booking</span>
+      <dl><dt>Reading</dt><dd data-sum-reading>—</dd><dt>Date</dt><dd data-sum-date>—</dd><dt>Time</dt><dd data-sum-time>—</dd><dt>Format</dt><dd>Online or phone</dd></dl>
+      <div class="total"><span>Total</span><b data-sum-price>$0</b></div>
+      <button class="btn btn-solid" type="button" data-sum-btn disabled>Choose a reading, date and time</button>
+      <p class="secure">🔒 Secure payment · Free reschedule up to 24h before</p>
+    </aside>
+  </div>
+</section>
+
+<section class="tint" aria-labelledby="faq-h">
+  <div class="wrap two-col">
+    <div><span class="eyebrow">Before you book</span><h2 id="faq-h" data-split>Good to know</h2></div>
+    <div class="faq" data-reveal>
+      <details><summary>What happens after I pay?</summary><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p></details>
+      <details><summary>What if I don't know my birth time?</summary><p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p></details>
+      <details><summary>Can I get a refund?</summary><p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p></details>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer><div class="wrap">
+  <div class="foot">
+    <div><span class="brand" style="font-size:13px">Leslie Hale Astrology</span><p>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p></div>
+    <div><h4>Explore</h4><ul><li><a href="about.html">About Leslie</a></li><li><a href="readings.html">Readings</a></li><li><a href="blog.html">Blog</a></li></ul></div>
+    <div><h4>Book</h4><ul><li><a href="booking.html">Book a reading</a></li><li><a href="contact.html">Contact</a></li><li><a href="contact.html#newsletter">Newsletter</a></li></ul></div>
+    <div><h4>Contact</h4><ul><li><a href="mailto:hello@lesliehale-astrology.com">hello@lesliehale‑astrology.com</a></li><li><a href="#">Instagram</a></li><li><a href="#">Facebook</a></li></ul></div>
+  </div>
+  <div class="foot-bottom"><span>© 2026 Leslie Hale. Readings are for guidance and reflection.</span><span><a href="#">Privacy</a> · <a href="#">Terms</a></span></div>
+</div></footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+<script src="main.js"></script><script src="effects.js"></script>
+</body>
+</html>
