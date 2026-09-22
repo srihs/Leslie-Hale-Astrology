@@ -37,6 +37,9 @@ from datetime import datetime
 from email.utils import parsedate_to_datetime
 from xml.etree import ElementTree as ET
 
+import defusedxml.ElementTree as DefusedET
+from defusedxml.common import DefusedXmlException
+
 ATOM_NS = "http://www.w3.org/2005/Atom"
 APP_NS = "http://purl.org/atom/app#"
 GKIND_SCHEME = "http://schemas.google.com/g/2005#kind"
@@ -48,9 +51,12 @@ CONTENT_NS = "http://purl.org/rss/1.0/modules/content/"
 #: Refuse to read a response/file larger than this. A Blogger export full
 #: of years of posts is realistically a few MB of text; this is a generous
 #: ceiling against a runaway or hostile response, not a tuned production
-#: limit — see the importer's final report for this as a known limitation
-#: (no XML entity-expansion hardening beyond this size cap; that needs
-#: `defusedxml`, which is outside this app's allowed dependency set).
+#: limit. This is a *volumetric* guard only — it stops a merely huge feed,
+#: not a small crafted one. The structural attacks (entity-expansion
+#: "billion laughs", XXE reading local/external resources) are handled
+#: separately below: all parsing goes through `defusedxml`, which refuses
+#: DOCTYPEs, entity declarations and external entity references outright,
+#: regardless of size.
 DEFAULT_MAX_BYTES = 100 * 1024 * 1024
 
 DEFAULT_TIMEOUT = 20
@@ -61,6 +67,18 @@ DEFAULT_USER_AGENT = "LeslieHaleAstrology-BloggerImporter/1.0 (+wagtail import c
 #: unbounded loop if a feed's "next" link is ever malformed into pointing
 #: at itself.
 MAX_FEED_PAGES = 200
+
+
+#: What "this document did not parse" can raise now that parsing goes
+#: through defusedxml: ordinary malformed XML still raises stdlib's
+#: `ET.ParseError` (defusedxml re-exports the very same class rather than
+#: replacing it), while a document attempting a DOCTYPE, an entity
+#: declaration (billion-laughs-style expansion) or an external entity
+#: reference (XXE) raises a `DefusedXmlException` subclass instead. Both
+#: are treated the same way as any other malformed document: logged as one
+#: error for that document/page and skipped, never allowed to abort the
+#: whole run or raise past the caller.
+XML_PARSE_ERRORS = (ET.ParseError, DefusedXmlException)
 
 
 class FeedFetchError(Exception):
@@ -170,8 +188,8 @@ def _find_next_link(xml_bytes: bytes) -> str | None:
     """Look for an Atom `<link rel="next" href="...">` at the feed/channel
     level, whether the document is Atom or Blogger's atom-namespaced-RSS."""
     try:
-        root = ET.fromstring(xml_bytes)
-    except ET.ParseError:
+        root = DefusedET.fromstring(xml_bytes, forbid_dtd=True)
+    except XML_PARSE_ERRORS:
         return None
 
     for link in root.iter(f"{{{ATOM_NS}}}link"):
@@ -201,8 +219,8 @@ def parse_documents(documents: list[bytes]) -> tuple[list[BloggerEntry], list[st
 
     for index, doc in enumerate(documents):
         try:
-            root = ET.fromstring(doc)
-        except ET.ParseError as exc:
+            root = DefusedET.fromstring(doc, forbid_dtd=True)
+        except XML_PARSE_ERRORS as exc:
             errors.append(f"document {index + 1}: not valid XML ({exc})")
             continue
 

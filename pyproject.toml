@@ -25,6 +25,8 @@ dependencies = [
     "gunicorn==23.0.0",
     # Payments
     "stripe==15.6.1",
+    # XML parsing (Blogger feed import) — hardened against XXE/entity expansion
+    "defusedxml==0.7.1",
 ]
 
 # This project is app code, not a distributable library — there is no
