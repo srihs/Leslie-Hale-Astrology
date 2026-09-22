@@ -131,7 +131,6 @@ class HomePage(Page):
             BlogPost.objects.live()
             .public()
             .order_by("-published_date")
-            .select_related("featured_image")
-            .prefetch_related("tags")[:2]
+            .select_related("featured_image", "category")[:2]
         )
         return context
