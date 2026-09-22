@@ -138,3 +138,28 @@ Two cautions, both learned the hard way:
   accent colours or generic startup copy; all four are defects here. Every
   design-touching agent carries a Precedence section saying so, and agents must
   report which skill they overrode when this happens.
+
+### Local environment
+
+Never edit a committed file to work around something local to this machine.
+This has already happened twice: `docker-compose.yml`'s web port was changed
+from 8000 to 8005 by two different agents on separate occasions, and
+`.env.example` was renamed to `.env`, destroying the committed template that
+documents every required variable.
+
+Both are the same mistake. A committed file describes the project; a local
+conflict is yours, not the project's.
+
+- **Port or service conflicts** go in `docker-compose.override.yml`, which
+  Compose auto-merges with no `-f` flag and which is gitignored. Copy
+  `docker-compose.override.yml.example` to start. Note that a plain `ports:`
+  override *concatenates* with the base file rather than replacing it, so the
+  original port is still published and still conflicts — use the `!override`
+  merge tag, as the example does.
+- **Environment values** go in `.env`, which is gitignored. `.env.example` is
+  the committed template: add a key to it when you add a required variable,
+  and never rename, move or consume it.
+
+If a committed file genuinely needs changing, say so and change it
+deliberately as project work. Do not change it in passing to make a command
+run.

@@ -1,0 +1,34 @@
+# Local port-conflict workaround — template.
+#
+# Docker Compose auto-merges docker-compose.override.yml into
+# docker-compose.yml with NO -f flag needed: `docker compose up` reads
+# docker-compose.yml and, if present, docker-compose.override.yml, and
+# merges them. That merge is the intended mechanism for machine-local
+# tweaks like a host port remap — it means docker-compose.yml itself never
+# needs to change (and never should) just because port 8000 is taken on
+# someone's laptop.
+#
+# The `!override` tag on `ports` below matters. Compose's default list
+# merge for `ports` CONCATENATES rather than replaces — an override file
+# with a plain `ports: ["8005:8000"]` publishes the container on BOTH 8000
+# and 8005, and still fails to start if 8000 is already taken locally
+# (verified against docker compose v5.5.1 on 2026-09-22). `!override` tells
+# Compose to replace the base file's `ports` list outright instead of
+# appending to it. See:
+# https://docs.docker.com/reference/compose-file/merge/#override-a-value
+#
+# To use this:
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+# then edit the host-side port below (left of the colon) to whatever is
+# free on your machine. docker-compose.override.yml is gitignored — it
+# will never be committed, so this is safe to customise freely per
+# machine.
+#
+# The container-internal port (right-hand side, 8000) must NOT change: the
+# image's healthcheck and gunicorn/runserver both bind to 127.0.0.1:8000
+# inside the container regardless of how the host side is mapped.
+
+services:
+  web:
+    ports: !override
+      - "8005:8000"

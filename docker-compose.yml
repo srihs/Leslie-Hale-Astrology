@@ -31,6 +31,12 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      # The "dev" stage layers pytest/pytest-django/factory_boy/freezegun
+      # on top of the runtime image so the suite runs in-container without
+      # ad-hoc `pip install`. Production builds omit --target and get the
+      # "runtime" stage (the Dockerfile's last stage), which never sees
+      # these packages — see docker/Dockerfile.
+      target: dev
     restart: unless-stopped
     env_file:
       - .env
@@ -44,6 +50,10 @@ services:
       - .:/app
       - media:/app/media
     ports:
+      # Committed default. If port 8000 conflicts on your machine, do not
+      # edit this file — copy docker-compose.override.yml.example to
+      # docker-compose.override.yml (gitignored) and remap the host port
+      # there instead. See that file for why.
       - "8000:8000"
     depends_on:
       db:

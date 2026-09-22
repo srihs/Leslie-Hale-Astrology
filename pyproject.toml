@@ -29,6 +29,21 @@ dependencies = [
     "defusedxml==0.7.1",
 ]
 
+# Test tooling — installed in the "dev" Dockerfile stage only (`pip install
+# .[dev]`), never in the production "runtime" stage. A test framework is
+# unnecessary attack surface in a production image. beautifulsoup4 is not
+# listed here: wagtail==6.3.1 already pins it as an unconditional runtime
+# dependency (beautifulsoup4<4.13,>=4.8, verified via the PyPI JSON API —
+# not an extra, so it resolves transitively in every install of this
+# project, dev or prod).
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.4",
+    "pytest-django==4.9.0",
+    "factory_boy==3.3.1",
+    "freezegun==1.5.1",
+]
+
 # This project is app code, not a distributable library — there is no
 # top-level importable package matching the project name, so we tell
 # setuptools to ship metadata only. `pip install .` in docker/Dockerfile

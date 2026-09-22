@@ -51,6 +51,11 @@ pnpm-debug.log*
 *.pem
 *.key
 
+# Machine-local Compose overrides (e.g. host port remaps for local
+# conflicts) — auto-merged by `docker compose` with no -f flag. Never
+# commit; see docker-compose.override.yml.example for the template.
+docker-compose.override.yml
+
 # --- Logs and scratch ---
 *.log
 logs/
