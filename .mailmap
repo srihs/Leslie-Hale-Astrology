@@ -1,0 +1,22 @@
+# Canonical author identity for this repository.
+#
+# This repository is research data for a PhD on human oversight in agentic
+# software development. Analysis attributes every oversight episode to the
+# human who caught it, so each author must resolve to exactly one identity
+# regardless of which machine or git config produced the commit.
+#
+# .mailmap only changes how names are DISPLAYED (git log, git shortlog,
+# git blame). It rewrites nothing. The commits themselves are untouched.
+#
+# Verify after any change:
+#     git shortlog -sne --all     # should list one line per real person
+#
+# Format: Canonical Name <canonical@email> Commit Name <commit@email>
+#
+# As of 22 September 2026, `git shortlog -sne --all` reports exactly one
+# identity across all history, so there are no variants to fold in yet. The
+# line below fixes that identity as canonical; add a mapping line for each
+# new variant as it appears (a different machine, a work email, a changed
+# display name).
+
+srimalhs <srimalhs@gmail.com>
