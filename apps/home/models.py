@@ -112,6 +112,7 @@ class HomePage(Page):
         empty StreamField.
         """
         context = super().get_context(request, *args, **kwargs)
+        context["active_nav"] = "home"
 
         def section(stream_field):
             return stream_field[0].value if stream_field else None

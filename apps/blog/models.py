@@ -1,5 +1,21 @@
 """
-The blog (§4/§5): index page, post page, and categorisation via tags.
+The blog (§4/§5): index page, post page, and categorisation.
+
+Tags vs categories (2026-09-22 gap-closure task): §5 explicitly names
+"categories" as an in-scope feature ("Blog (articles database, categories,
+Blogger import)"), and the locked design (versions/v1-ephemeris/blog.html,
+post.html) shows exactly one category per post — a single eyebrow tag
+("Transits", "Everyday astrology", ...) and a single-select filter bar
+("All / Transits / Everyday astrology / Signs / ..."), never a
+comma-separated list. That is a categories model, not a tags model: one
+value per post, editor-curated, filterable. The previous `tags`
+(django-taggit ClusterTaggableManager) implementation let a post carry
+any number of free-typed labels, which doesn't match that single-select
+filter bar and isn't what §5 asked for, so it is replaced here with a
+`BlogCategory` snippet and a single ForeignKey on BlogPost. `category` is
+left optional (null/blank) rather than required, so blog-migration can
+import Blogger posts in bulk before every one has been individually
+categorised.
 
 `source_url` and the ability to set `published_date` explicitly exist so
 the eventual Blogger migration (owned by blog-migration; the Blogger URL
@@ -8,15 +24,62 @@ itself is unconfirmed per §8) can preserve each post's original address
 post appearing to have been written today.
 """
 
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db import models
-from modelcluster.contrib.taggit import ClusterTaggableManager
-from modelcluster.fields import ParentalKey
-from taggit.models import TaggedItemBase
+from django.utils.text import slugify
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.fields import StreamField
 from wagtail.models import Page
+from wagtail.snippets.models import register_snippet
 
 from apps.core.blocks import BodyTextBlock, CaptionedImageBlock
+
+
+@register_snippet
+class BlogCategory(models.Model):
+    """
+    A blog category (§5), e.g. 'Transits' or 'Everyday astrology'. Kept as
+    a snippet — rather than a free-text field on each post — so the
+    category filter on the blog index always shows a short, curated list
+    Leslie controls, instead of growing one entry per typo.
+    """
+
+    name = models.CharField(
+        max_length=60,
+        unique=True,
+        help_text="The category name as visitors will see it, e.g. 'Transits'.",
+    )
+    slug = models.SlugField(
+        max_length=60,
+        unique=True,
+        blank=True,
+        help_text="Used in the category filter's web address. Leave blank to "
+        "generate this automatically from the name.",
+    )
+    order = models.PositiveIntegerField(
+        default=0,
+        help_text="Controls the order categories appear in the filter bar. "
+        "Lower numbers show first.",
+    )
+
+    panels = [
+        FieldPanel("name"),
+        FieldPanel("slug"),
+        FieldPanel("order"),
+    ]
+
+    class Meta:
+        verbose_name = "Blog category"
+        verbose_name_plural = "Blog categories"
+        ordering = ["order", "name"]
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
 
 
 class BlogIndexPage(Page):
@@ -24,6 +87,11 @@ class BlogIndexPage(Page):
 
     # templates/blog/index.html is the real file (FINDING 3).
     template = "blog/index.html"
+
+    #: A technical display default, not a §8 business fact — chosen to
+    #: read comfortably as three rows of the design's 3-up post grid.
+    #: Safe for htmx-frontend to change without touching this model.
+    POSTS_PER_PAGE = 9
 
     intro = models.TextField(
         blank=True,
@@ -41,40 +109,67 @@ class BlogIndexPage(Page):
 
     def get_context(self, request, *args, **kwargs):
         """
-        FINDING 4 note: `posts` is a queryset of real `BlogPost` pages —
-        each has `.title`, `.url` (both from Page), `.published_date` (not
-        `date`), `.excerpt`, `.featured_image` (an Image object, not
-        `image_url` — render with {% image %}), and `.tags` (a taggable
-        manager; there is no single `category` field on this model, only
-        tags — see the module docstring). The queryset itself was already
-        correctly scoped and prefetched; nothing here needed to change,
-        only the field names templates read off each post.
+        Supplies everything templates/blog/partials/_post_list.html needs
+        for category filtering and pagination (both deferred pending the
+        tags-vs-categories decision — see the module docstring; that
+        decision is now made).
 
-        The category-filter/pagination htmx contract documented in
-        templates/blog/partials/_post_list.html (`categories`, `pager`) is
-        out of scope for this fix — it needs a decision about mapping tags
-        to "categories" and paginating this same queryset, which belongs
-        with whoever builds that htmx endpoint against this page's own
-        URL, not a model/context change.
+        `posts` is a queryset of real `BlogPost` pages — each has
+        `.title`, `.url` (both from Page), `.published_date` (not
+        `.date`), `.excerpt`, `.featured_image` (an Image object, not
+        `.image_url` — render with {% image %}), and `.category` (a
+        BlogCategory or None, with `.name` / `.slug` — there is no
+        `.tags` any more, see the module docstring).
+
+        Read from the query string:
+          ?category=<slug>  filters to that category, if it exists
+          ?page=<n>         which page of results to show
+
+          categories        every BlogCategory, for the filter bar
+          active_category   the BlogCategory matching ?category=, or None
+                             (compare `category.slug == active_category.slug`
+                             for aria-current, guarding for None)
+          posts_page        a django.core.paginator Page: `.object_list`,
+                             `.has_previous`/`.has_next`,
+                             `.previous_page_number`/`.next_page_number`,
+                             `.number`, `.paginator.num_pages`,
+                             `.paginator.page_range`
+          posts             convenience alias for `posts_page.object_list`,
+                             for anywhere that only needs the post list and
+                             not the pager controls
         """
         context = super().get_context(request, *args, **kwargs)
-        context["posts"] = (
+        context["active_nav"] = "blog"
+
+        posts = (
             BlogPost.objects.child_of(self)
             .live()
             .public()
+            .select_related("featured_image", "category")
             .order_by("-published_date")
-            .select_related("featured_image")
-            .prefetch_related("tags")
         )
+
+        categories = BlogCategory.objects.all().order_by("order", "name")
+        active_category = None
+        category_slug = request.GET.get("category", "").strip()
+        if category_slug:
+            active_category = categories.filter(slug=category_slug).first()
+            if active_category:
+                posts = posts.filter(category=active_category)
+
+        paginator = Paginator(posts, self.POSTS_PER_PAGE)
+        try:
+            posts_page = paginator.page(request.GET.get("page", 1))
+        except PageNotAnInteger:
+            posts_page = paginator.page(1)
+        except EmptyPage:
+            posts_page = paginator.page(paginator.num_pages)
+
+        context["categories"] = categories
+        context["active_category"] = active_category
+        context["posts_page"] = posts_page
+        context["posts"] = posts_page.object_list
         return context
-
-
-class BlogPostTag(TaggedItemBase):
-    """Through model connecting BlogPost to taggit's shared Tag table."""
-
-    content_object = ParentalKey(
-        "blog.BlogPost", on_delete=models.CASCADE, related_name="tagged_items"
-    )
 
 
 class BlogPost(Page):
@@ -99,6 +194,16 @@ class BlogPost(Page):
         related_name="+",
         help_text="Image shown with this post on the blog index and homepage.",
     )
+    category = models.ForeignKey(
+        "blog.BlogCategory",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="posts",
+        help_text="Which category this post belongs to — shown as its tag "
+        "and used by the blog's category filter. Set the category up first "
+        "in Snippets → Blog categories, then choose it here.",
+    )
     body = StreamField(
         [
             ("text", BodyTextBlock()),
@@ -117,26 +222,23 @@ class BlogPost(Page):
         help_text="If this post was migrated from the old Blogger blog, paste "
         "its original address here so old links can be redirected to this page.",
     )
-    tags = ClusterTaggableManager(
-        through=BlogPostTag,
-        blank=True,
-        help_text="Categories/tags for this post, e.g. 'Mercury Retrograde', "
-        "'Relationships'. Used to group related posts.",
-    )
 
     # templates/blog/post.html is the real file (FINDING 3).
     template = "blog/post.html"
 
     content_panels = Page.content_panels + [
         MultiFieldPanel(
-            [FieldPanel("published_date"), FieldPanel("excerpt"), FieldPanel("featured_image")],
+            [
+                FieldPanel("published_date"),
+                FieldPanel("category"),
+                FieldPanel("excerpt"),
+                FieldPanel("featured_image"),
+            ],
             heading="Post details",
         ),
         FieldPanel("body"),
         FieldPanel("author_name"),
     ]
-
-    promote_panels = Page.promote_panels + [FieldPanel("tags")]
 
     settings_panels = Page.settings_panels + [FieldPanel("source_url")]
 
@@ -149,18 +251,18 @@ class BlogPost(Page):
     def get_context(self, request, *args, **kwargs):
         """
         FINDING 4 fix: this post's own fields are already on `page`
-        (title, published_date, author_name, featured_image, tags, body —
-        Wagtail puts `self` there automatically); no shadow context is
-        added for those. `related_posts` is the one thing the template
-        can't get any other way.
+        (title, published_date, author_name, featured_image, category,
+        body — Wagtail puts `self` there automatically); no shadow
+        context is added for those. `related_posts` is the one thing the
+        template can't get any other way.
         """
         context = super().get_context(request, *args, **kwargs)
+        context["active_nav"] = "blog"
         context["related_posts"] = (
             BlogPost.objects.live()
             .public()
             .exclude(pk=self.pk)
             .order_by("-published_date")
-            .select_related("featured_image")
-            .prefetch_related("tags")[:2]
+            .select_related("featured_image", "category")[:2]
         )
         return context

@@ -41,6 +41,11 @@ class ContactPage(Page):
     class Meta:
         verbose_name = "Contact page"
 
+    def get_context(self, request, *args, **kwargs):
+        context = super().get_context(request, *args, **kwargs)
+        context["active_nav"] = "contact"
+        return context
+
 
 class ContactSubmission(models.Model):
     """

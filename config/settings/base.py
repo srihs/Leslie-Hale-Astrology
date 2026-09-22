@@ -114,6 +114,10 @@ WAGTAIL_APPS = [
     "wagtail.admin",
     "wagtail",
     "modelcluster",
+    # Not used directly by any of our own models any more (the blog uses
+    # BlogCategory, not tags — see apps/blog/models.py), but Wagtail's own
+    # built-in Image and Document models each have a `tags` field that
+    # depends on taggit's Tag model being installed, so this stays.
     "taggit",
 ]
 

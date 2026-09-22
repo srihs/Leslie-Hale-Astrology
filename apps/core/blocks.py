@@ -106,3 +106,77 @@ class BodyTextBlock(blocks.RichTextBlock):
     class Meta:
         label = "Paragraph Text"
         icon = "pilcrow"
+
+
+class PromiseBlock(blocks.StructBlock):
+    """One of the About page's 'Three promises' — a short claim plus what it means."""
+
+    title = blocks.CharBlock(
+        max_length=60,
+        help_text="A short promise, e.g. 'No judgement'.",
+    )
+    description = blocks.TextBlock(
+        max_length=250,
+        help_text="One or two sentences explaining what this promise means for a client.",
+    )
+
+    class Meta:
+        label = "Promise"
+        icon = "success"
+
+
+class ThreePromisesBlock(blocks.StructBlock):
+    """
+    The About page's 'Three promises' section (versions/v1-ephemeris/about.html):
+    a heading plus exactly three promises. The list is fixed at three (not a
+    free-for-all repeatable list) because the design is a fixed 3-column
+    row — a fourth promise would have nowhere to go.
+    """
+
+    eyebrow = blocks.CharBlock(
+        max_length=60,
+        default="What you can expect",
+        help_text="Small label shown above the heading.",
+    )
+    heading = blocks.CharBlock(max_length=100, default="Three promises")
+    promises = blocks.ListBlock(
+        PromiseBlock(),
+        min_num=3,
+        max_num=3,
+        help_text="Exactly three promises, in the order they should appear.",
+    )
+
+    class Meta:
+        label = "Three Promises"
+        icon = "success"
+
+
+class TrainingBackgroundBlock(blocks.StructBlock):
+    """
+    The About page's 'Training & background' section
+    (versions/v1-ephemeris/about.html): qualifications, study and
+    experience, in Leslie's own words — never invented here (§8).
+    """
+
+    eyebrow = blocks.CharBlock(
+        max_length=60,
+        default="Training & background",
+        help_text="Small label shown above the heading.",
+    )
+    heading = blocks.CharBlock(
+        max_length=100,
+        default="Where the knowledge comes from",
+        help_text="Heading for this section.",
+    )
+    body = blocks.RichTextBlock(
+        features=["bold", "italic", "link", "ol", "ul"],
+        help_text="Your training, qualifications and background as an astrologer.",
+    )
+    link = CTALinkBlock(
+        required=False,
+        help_text="Optional link at the end of this section, e.g. through to the Readings page.",
+    )
+
+    class Meta:
+        label = "Training & Background"
+        icon = "form"

@@ -15,6 +15,7 @@ short summary and price still come from the linked `Reading` snippet.
 """
 
 from django.db import models
+from wagtail import blocks
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.fields import StreamField
 from wagtail.models import Page
@@ -38,6 +39,13 @@ class Reading(models.Model):
         help_text="The name of this reading as visitors will see it, e.g. "
         "'Natal Chart Reading'.",
     )
+    tag_label = models.CharField(
+        max_length=40,
+        blank=True,
+        help_text="A short category tag shown next to this reading's number "
+        "on the Services and Readings pages, e.g. 'Natal chart' or 'Year "
+        "ahead'. Leave blank to show just the number.",
+    )
     summary = models.CharField(
         max_length=220,
         help_text="A one- or two-sentence description shown on cards on the "
@@ -47,6 +55,13 @@ class Reading(models.Model):
         blank=True,
         help_text="A longer description for this reading's own page. Leave "
         "blank to show just the summary above.",
+    )
+    features = StreamField(
+        [("item", blocks.CharBlock(max_length=150, label="Feature"))],
+        blank=True,
+        help_text="Short bullet points describing what's included, e.g. '60 "
+        "minutes, online or by phone' or 'Recording sent afterwards'. Shown "
+        "as a checklist on this reading's own page.",
     )
     duration_minutes = models.PositiveIntegerField(
         null=True,
@@ -82,6 +97,11 @@ class Reading(models.Model):
         help_text="Untick to hide this reading from the site without "
         "deleting it (e.g. while it's temporarily unavailable).",
     )
+    is_most_booked = models.BooleanField(
+        default=False,
+        help_text="Tick to show a 'Most booked' highlight on this reading's "
+        "card. Only tick this for one reading at a time.",
+    )
     order = models.PositiveIntegerField(
         default=0,
         help_text="Controls the order readings are listed in. Lower numbers "
@@ -90,12 +110,18 @@ class Reading(models.Model):
 
     panels = [
         MultiFieldPanel(
-            [FieldPanel("name"), FieldPanel("summary"), FieldPanel("image")],
+            [FieldPanel("name"), FieldPanel("tag_label"), FieldPanel("summary"), FieldPanel("image")],
             heading="Basics",
         ),
-        MultiFieldPanel([FieldPanel("description"), FieldPanel("duration_minutes")], heading="Details"),
+        MultiFieldPanel(
+            [FieldPanel("description"), FieldPanel("features"), FieldPanel("duration_minutes")],
+            heading="Details",
+        ),
         MultiFieldPanel([FieldPanel("price"), FieldPanel("price_note")], heading="Pricing"),
-        MultiFieldPanel([FieldPanel("order"), FieldPanel("is_active")], heading="Display"),
+        MultiFieldPanel(
+            [FieldPanel("order"), FieldPanel("is_active"), FieldPanel("is_most_booked")],
+            heading="Display",
+        ),
     ]
 
     class Meta:
@@ -116,8 +142,18 @@ class ReadingsIndexPage(Page):
         blank=True,
         help_text="Optional introduction shown above the list of readings.",
     )
+    faq = StreamField(
+        [("faq", FAQListBlock())],
+        blank=True,
+        max_num=1,
+        help_text="Optional FAQ section shown below the list of readings "
+        "(§7 includes FAQ as content that supports bookings).",
+    )
 
-    content_panels = Page.content_panels + [FieldPanel("intro")]
+    content_panels = Page.content_panels + [
+        FieldPanel("intro"),
+        FieldPanel("faq", heading="FAQ"),
+    ]
 
     parent_page_types = ["home.HomePage"]
     subpage_types = ["readings.ReadingDetailPage"]
@@ -131,15 +167,22 @@ class ReadingsIndexPage(Page):
         FINDING 4 fix: `readings` is a queryset of `Reading` snippets, not
         Page objects — a Reading has no `slug`, `title`, `bullets` or
         `image_url` (see the model above). The real fields are `name`,
-        `summary`, `description`, `duration_minutes`, `price`,
+        `tag_label`, `summary`, `description`, `features` (a StreamField
+        of short bullet strings), `duration_minutes`, `price`,
         `price_note`, `image` (a wagtailimages.Image, render with
-        {% image %}, not a bare URL). For linking to a reading's own page,
-        use `reading.detail_page.url` / `.title` (the reverse side of
-        ReadingDetailPage.reading) — `select_related("detail_page")` below
-        avoids a query per card for that lookup; it will be None for any
-        reading that doesn't have its own detail page yet.
+        {% image %}, not a bare URL), `is_most_booked`. For linking to a
+        reading's own page, use `reading.detail_page.url` / `.title` (the
+        reverse side of ReadingDetailPage.reading) — `select_related
+        ("detail_page")` below avoids a query per card for that lookup;
+        it will be None for any reading that doesn't have its own detail
+        page yet. The card's number label is this queryset's own
+        position (e.g. `{{ forloop.counter }}`), not stored data.
+
+        `page.faq` (this page's own StreamField) is already on `page` —
+        no separate context entry is added for it.
         """
         context = super().get_context(request, *args, **kwargs)
+        context["active_nav"] = "readings"
         context["readings"] = (
             Reading.objects.filter(is_active=True)
             .select_related("image", "detail_page")
@@ -194,11 +237,25 @@ class ReadingDetailPage(Page):
         `page` (Wagtail puts `self` there automatically) and its reading's
         name/summary/price/etc are on `page.reading` — neither needs
         duplicating into context under guessed names. What the template
-        can't get any other way is the "other readings" list, so that's
-        the only thing added here, in the same shape as
-        ReadingsIndexPage.get_context above.
+        can't get any other way is the "other readings" list and this
+        reading's own number (its position among active readings, matching
+        the number ReadingsIndexPage shows for the same reading — computed
+        here rather than stored, so it can never drift out of sync with
+        that page's own ordering).
         """
         context = super().get_context(request, *args, **kwargs)
+        context["active_nav"] = "readings"
+
+        active_reading_ids = list(
+            Reading.objects.filter(is_active=True)
+            .order_by("order", "name")
+            .values_list("pk", flat=True)
+        )
+        context["reading_number"] = (
+            active_reading_ids.index(self.reading_id) + 1
+            if self.reading_id in active_reading_ids
+            else None
+        )
         context["other_readings"] = (
             Reading.objects.filter(is_active=True)
             .exclude(pk=self.reading_id)

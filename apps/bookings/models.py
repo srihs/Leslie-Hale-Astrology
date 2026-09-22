@@ -140,3 +140,14 @@ class BookingPage(Page):
 
     class Meta:
         verbose_name = "Booking page"
+
+    def get_context(self, request, *args, **kwargs):
+        """
+        Nav-highlighting only (out of scope note: this is the one line
+        booking-payments needs from this page model — the booking flow
+        itself, availability and payment remain booking-payments' to
+        build).
+        """
+        context = super().get_context(request, *args, **kwargs)
+        context["active_nav"] = "booking"
+        return context

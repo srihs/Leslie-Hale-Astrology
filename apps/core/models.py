@@ -29,7 +29,13 @@ from wagtail.fields import StreamField
 from wagtail.models import Page
 from wagtail.snippets.models import register_snippet
 
-from apps.core.blocks import BodyTextBlock, CaptionedImageBlock, CTALinkBlock
+from apps.core.blocks import (
+    BodyTextBlock,
+    CaptionedImageBlock,
+    CTALinkBlock,
+    ThreePromisesBlock,
+    TrainingBackgroundBlock,
+)
 
 
 @register_setting(icon="mail")
@@ -213,6 +219,20 @@ class AboutPage(Page):
         help_text="A short line pulled out and shown in large italic type, "
         "e.g. your guiding philosophy in one sentence.",
     )
+    three_promises = StreamField(
+        [("section", ThreePromisesBlock())],
+        min_num=1,
+        max_num=1,
+        help_text="The 'Three promises' section showing what a client can "
+        "expect from working with you.",
+    )
+    training_background = StreamField(
+        [("section", TrainingBackgroundBlock())],
+        min_num=1,
+        max_num=1,
+        help_text="The 'Training & background' section — your qualifications "
+        "and study.",
+    )
     cta = StreamField(
         [("button", CTALinkBlock())],
         max_num=1,
@@ -228,6 +248,10 @@ class AboutPage(Page):
         ),
         FieldPanel("body", heading="Your story"),
         FieldPanel("pull_quote", heading="Pull quote"),
+        MultiFieldPanel([FieldPanel("three_promises")], heading="Three promises"),
+        MultiFieldPanel(
+            [FieldPanel("training_background")], heading="Training & background"
+        ),
         FieldPanel("cta", heading="Call to action"),
     ]
 
@@ -237,3 +261,8 @@ class AboutPage(Page):
 
     class Meta:
         verbose_name = "About page"
+
+    def get_context(self, request, *args, **kwargs):
+        context = super().get_context(request, *args, **kwargs)
+        context["active_nav"] = "about"
+        return context

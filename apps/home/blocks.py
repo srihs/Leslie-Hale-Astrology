@@ -47,9 +47,23 @@ class HeroBlock(blocks.StructBlock):
 
 class ServicesTeaserBlock(blocks.StructBlock):
     """
-    The homepage services section: a heading, one featured reading
-    (pulled from the Readings snippet list so its price stays in sync
-    with the Services page), and a supporting image card.
+    The homepage services section.
+
+    PROJECT-SCOPE.md §7 describes this section as a "2-up grid: bordered
+    card (number label, title, description, price, arrow) + image-backed
+    card (astrolabe/celestial imagery)". The built v1-ephemeris homepage
+    mockup (versions/v1-ephemeris/index.html) instead renders three
+    bordered reading cards side by side and has no image card at all —
+    the two disagree. Per instruction this block follows the written §7
+    spec, not the mockup: it keeps a single image-backed card, and lets
+    Leslie feature more than one reading as bordered cards (the mockup's
+    three-reading grid was the signal that one reading was too few — see
+    this task's final report for the full reasoning).
+
+    The "number label" and "arrow" §7 mentions for each bordered card are
+    not stored here: the number is each card's position in this list
+    (rendered by the template, e.g. "01", "02"), and the arrow is just a
+    "Book" link to the booking page — neither is content Leslie edits.
     """
 
     heading = blocks.CharBlock(max_length=100, default="Services")
@@ -58,17 +72,26 @@ class ServicesTeaserBlock(blocks.StructBlock):
         required=False,
         help_text="A line under the heading introducing your services.",
     )
-    featured_reading = SnippetChooserBlock(
-        "readings.Reading",
-        help_text="Choose which reading to feature here. Its name, summary and "
-        "price come from the reading itself — edit those in Snippets → "
-        "Readings if they need to change.",
+    featured_readings = blocks.ListBlock(
+        SnippetChooserBlock("readings.Reading"),
+        min_num=1,
+        max_num=3,
+        help_text="Choose 1–3 readings to feature here as bordered cards, in "
+        "the order they should appear. Each card's name, summary and price "
+        "come from the reading itself — edit those in Snippets → Readings.",
     )
-    image = ImageChooserBlock(help_text="Image for the second card, e.g. an astrolabe or night-sky photo.")
+    image = ImageChooserBlock(
+        help_text="Image for the supporting card, e.g. an astrolabe or night-sky photo."
+    )
     image_caption = blocks.CharBlock(
         max_length=100,
         required=False,
         help_text="Optional short caption over the image.",
+    )
+    image_link = CTALinkBlock(
+        required=False,
+        help_text="Optional — make the image card clickable, e.g. through to "
+        "the Services page. Leave blank for a decorative, non-clickable image.",
     )
 
     class Meta:
