@@ -346,8 +346,23 @@ def stripe_webhook(request):
 
     try:
         with transaction.atomic():
-            PaymentEvent.objects.create(provider=provider.name, event_id=event.event_id, event_type=event.event_type)
-            _apply_webhook_event(provider, event)
+            booking = (
+                Booking.objects.select_for_update()
+                .filter(payment_reference=event.provider_reference)
+                .first()
+            )
+            PaymentEvent.objects.create(
+                provider=provider.name,
+                event_id=event.event_id,
+                event_type=event.event_type,
+                booking=booking,
+            )
+            if not booking:
+                logger.info(
+                    "webhook for unrecognised booking provider=%s type=%s", provider.name, event.event_type
+                )
+            else:
+                _apply_webhook_event(provider, event, booking)
     except IntegrityError:
         # Same event delivered more than once — already processed.
         return HttpResponse(status=200)
@@ -355,18 +370,7 @@ def stripe_webhook(request):
     return HttpResponse(status=200)
 
 
-def _apply_webhook_event(provider, event) -> None:
-    booking = (
-        Booking.objects.select_for_update()
-        .filter(payment_reference=event.provider_reference)
-        .first()
-    )
-    if not booking:
-        logger.info(
-            "webhook for unrecognised booking provider=%s type=%s", provider.name, event.event_type
-        )
-        return
-
+def _apply_webhook_event(provider, event, booking) -> None:
     if event.event_type == provider.EVENT_PAYMENT_SUCCEEDED:
         booking.payment_status = PaymentStatus.PAID
         if booking.status == BookingStatus.PENDING:
