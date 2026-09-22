@@ -5,7 +5,7 @@ and newsletter (includes/_newsletter_form.html) — each with its own htmx
 swap target, so submitting one never disturbs the other.
 
 Contact email/phone are SCOPE §8 open items; see includes/_footer.html for
-the same SiteSettings contract used here.
+the same ContactSettings contract used here (`settings.core.ContactSettings`).
 {% endcomment %}
 
 {% block title %}Contact — Leslie Hale Astrology{% endblock %}
@@ -24,10 +24,31 @@ the same SiteSettings contract used here.
 <section aria-label="Contact form and details">
   <div class="wrap contact-grid">
     <div class="info" data-reveal>
-      <div><span>Email</span><a href="mailto:{{ settings.core.SiteSettings.contact_email|default:'hello@lesliehale-astrology.com' }}">{{ settings.core.SiteSettings.contact_email|default:"hello@lesliehale‑astrology.com" }}</a></div>
-      <div><span>Phone</span><a href="tel:{{ settings.core.SiteSettings.contact_phone|default:'' }}">{{ settings.core.SiteSettings.contact_phone|default:"[phone TBC]" }}</a><p>Weekdays, 9am–5pm</p></div>
+      {% with contact=settings.core.ContactSettings %}
+      <div>
+        <span>Email</span>
+        {% if contact.contact_email %}
+        <a href="mailto:{{ contact.contact_email }}">{{ contact.contact_email }}</a>
+        {% else %}
+        <p>[email TBC]</p>
+        {% endif %}
+      </div>
+      <div>
+        <span>Phone</span>
+        {% if contact.contact_phone %}
+        <a href="tel:{{ contact.contact_phone }}">{{ contact.contact_phone }}</a>
+        {% else %}
+        <p>[phone TBC]</p>
+        {% endif %}
+      </div>
       <div><span>Sessions</span><p>Online (video link) or by phone. Wherever you are in the world — times shown in your timezone.</p></div>
-      <div><span>Follow</span><p><a href="{{ settings.core.SiteSettings.instagram_url|default:'#' }}" style="font-size:16px">Instagram</a> · <a href="{{ settings.core.SiteSettings.facebook_url|default:'#' }}" style="font-size:16px">Facebook</a></p></div>
+      {% if contact.instagram_url or contact.facebook_url %}
+      <div>
+        <span>Follow</span>
+        <p>{% if contact.instagram_url %}<a href="{{ contact.instagram_url }}" style="font-size:16px">Instagram</a>{% endif %}{% if contact.instagram_url and contact.facebook_url %} · {% endif %}{% if contact.facebook_url %}<a href="{{ contact.facebook_url }}" style="font-size:16px">Facebook</a>{% endif %}</p>
+      </div>
+      {% endif %}
+      {% endwith %}
     </div>
     {% include "contact/partials/_contact_form.html" %}
   </div>

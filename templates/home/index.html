@@ -8,8 +8,11 @@ Context (supplied by apps.home's view; wagtail-backend owns the page model):
                   duration_minutes, featured (bool)} — SCOPE §8 "final list
                   of readings + prices" is still open, hence the `default`
                   placeholders below.
-  about          {years, portrait_image, quote} — §8 "portrait photo" and
-                  "years of experience figure" are open.
+  about          {portrait_image, quote} — §8 "portrait photo" is open. The
+                  years-of-experience figure is NOT part of this context: it
+                  comes from apps.core.ContactSettings.years_experience_label
+                  (settings.core.ContactSettings), the single source of
+                  truth for that §8 "years of experience figure" open item.
   testimonials   list of {quote, name, location} — §8 open ("Testimonials
                   (3+)"); renders nothing until real ones exist rather than
                   inventing quotes.
@@ -44,7 +47,7 @@ Context (supplied by apps.home's view; wagtail-backend owns the page model):
     </div>
     <figure class="hero-media" data-reveal>
       <img src="https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1200&q=75&auto=format" width="960" height="1200" alt="A nebula and star cluster in deep space" fetchpriority="high" onerror="this.style.display='none'">
-      <figcaption class="hero-caption"><span>Charts · Transits · Timing</span><span>Readings since {{ about.practising_since|default:"2004" }}</span></figcaption>
+      <figcaption class="hero-caption"><span>Charts · Transits · Timing</span><span>{{ settings.core.ContactSettings.years_experience_label }}</span></figcaption>
     </figure>
   </div>
 </section>
@@ -81,7 +84,7 @@ Context (supplied by apps.home's view; wagtail-backend owns the page model):
       {% else %}
         <span>Portrait of Leslie<br>(photo to be supplied)</span>
       {% endif %}
-      <div class="stat"><b>{{ about.years|default:"20+" }}</b><span>Years reading charts</span></div>
+      <div class="stat"><b>{{ settings.core.ContactSettings.years_experience_label }}</b></div>
     </div>
     <div>
       <span class="eyebrow">About Leslie</span>
