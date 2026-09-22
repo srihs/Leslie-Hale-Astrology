@@ -51,8 +51,13 @@ centred hero are specified in §7. Test at 360px before declaring anything done.
 ## Accessibility is part of the visual system
 
 - `:focus-visible` is a 2px gold outline at 4px offset. Never remove it.
-- Body text on `--bg` must hold 4.5:1. `--muted` on `--bg-2` is the risky pair;
-  check it whenever you use it for anything but incidental text.
+- The locked palette was measured on 22 September 2026 and every text-on-surface
+  pair passes AA comfortably: `--muted` on `--bg` 8.64:1, on `--bg-2` 8.12:1, on
+  `--bg-3` 7.49:1; `--ink` on `--bg` 15.79:1; `--gold` on `--bg` 10.32:1;
+  `--danger` on `--bg` 7.11:1. Do not go hunting a failure in these pairs — an
+  earlier version of this file claimed `--muted` on `--bg-2` was risky and it is
+  not. Measure any NEW pair you introduce and report the ratio; never assume a
+  verdict in either direction.
 - Interactive targets are at least 44px tall.
 
 ## When you are done

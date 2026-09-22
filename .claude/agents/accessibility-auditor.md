@@ -16,9 +16,15 @@ particular design — check them first.
 
 ## What to check
 
-- **Contrast.** `--muted:#A9B3C4` on `--bg-2:#0E1B33` is the risky pair. Gold
-  `#D9C08A` on navy is generally fine; gold on gold-tinted panels is not.
-  Report the measured ratio, not an impression.
+- **Contrast.** The locked palette was measured on 22 September 2026 and every
+  text-on-surface pair passes AA comfortably: `--muted` on `--bg` 8.64:1, on
+  `--bg-2` 8.12:1, on `--bg-3` 7.49:1; `--ink` on `--bg` 15.79:1; `--gold` on
+  `--bg` 10.32:1; `--danger` on `--bg` 7.11:1. An earlier version of this file
+  asserted `--muted` on `--bg-2` was the risky pair; that was wrong, and the
+  design-system agent disproved it by measuring. Spend your attention on pairs
+  NOT in that list — non-token colours that have crept in, text over imagery,
+  and gold on gold-tinted panels — and report the measured ratio, not an
+  impression.
 - **Keyboard.** Every interactive element reachable and operable, visible focus
   throughout, logical order, no traps. The mobile menu and any modal are the
   usual offenders.
