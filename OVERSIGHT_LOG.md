@@ -36,7 +36,16 @@ the period, not a finding about it.
 | 2026-09-22 | 80b12e5 | architecture | in-loop | agent-critique | The scaffold looked complete but no page could render: templates reversed URL names that were never created, page models named no template file, and the two layers used different field names for the same data. | Moved page links onto Wagtail page routing, set the real template path on every page model, created URLs only for genuine form endpoints, and conformed templates to the authoritative model fields. | no |
 | 2026-09-22 | dc2c98c | correctness | in-loop | agent-critique | The mobile nav looked correct and matched the locked design, but was hidden by CSS until JavaScript ran, leaving no-JS mobile visitors unable to navigate at all. | Replaced the JS-only disclosure with a checkbox-and-label mechanism that works with scripting disabled, preserving the locked appearance and the existing JS-on behaviour. | no |
 | 2026-09-22 | 9bc47ea | correctness | in-loop | agent-critique | Two agent definitions I wrote asserted a specific contrast pair was risky and instructed agents to check it, when the pair measures 8.12:1 and was never at risk. | Replaced the claim in both definitions with the measured ratios for the whole palette and redirected the audit attention to pairs that are genuinely unverified. | yes |
+| 2026-09-22 | 88d3e0d | correctness | in-loop | agent-critique | A queryset still prefetched a relation removed by the taxonomy change, passing every static check while returning 500 on the homepage for every visitor. | Corrected the queryset to select_related the category FK and swept every app for other references orphaned by the same change. | no |
+| 2026-09-22 | a162d59 | security | in-loop | agent-critique | The Blogger importer parsed untrusted external XML with the standard library behind only a response-size cap, which stops nothing structural — a 540-byte payload expanded 556x. | Switched the parser to defusedxml with DTDs and entities forbidden, and verified refusal against billion-laughs and XXE fixtures on both the Atom and RSS paths. | no |
+| 2026-09-22 | 926123c | architecture | in-loop | self | Agents repeatedly edited committed infrastructure files as local workarounds, because the project offered no supported place to express a machine-specific port or environment value. | Added a gitignored docker-compose.override.yml mechanism with a committed example, and a CLAUDE.md rule forbidding local workarounds in committed files. | yes |
 
 <!-- Append one row per Oversight- trailered commit, newest last. Do not add
      illustrative or placeholder rows: a false entry is worse than a missing
      one. Never edit or remove a row that is already here. -->
+
+<!-- Data-quality note, 2026-09-22: commit 926123c carries Oversight- trailers
+     AND the 110-test suite, which is unrelated feature work. CLAUDE.md requires
+     a correction be committed on its own; a careless `git add -A` folded the two
+     together. Not amended, because amending a trailered commit is forbidden.
+     Recorded here so the anomaly is visible to analysis rather than hidden. -->
