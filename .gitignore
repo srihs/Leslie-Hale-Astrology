@@ -61,3 +61,6 @@ temp/
 
 # --- Local Claude Code settings (shared config stays tracked) ---
 .claude/settings.local.json
+
+# collectstatic output (built artifact, never committed)
+/staticfiles/
