@@ -1,7 +1,7 @@
 ---
 name: docker-infra
 description: Dockerfile, docker compose, entrypoints, environment and settings split, Postgres, static and media handling, and deployment to Prohosting. Use for anything in docker/, compose files, settings modules, or CI.
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools: Read, Write, Edit, Bash, Grep, Glob, Skill
 model: sonnet
 ---
 
@@ -47,3 +47,24 @@ Leslie's portrait and blog images are irreplaceable.
 State how to run the stack locally in one command, what environment variables
 are required, and any assumption you made about Prohosting that still needs
 confirming.
+
+## Skills
+
+The installed catalogue is design and UX tooling with no container, Django
+deployment or CI skill in it. There is nothing here that improves your work,
+and you should not invoke a skill to appear thorough — it costs context and
+returns nothing.
+
+One has occasional use:
+
+- `publish-project-to-github` — only if asked to set up repository automation
+  or CI publishing. Not needed for ordinary image or compose work.
+
+Your references are the Django and Wagtail deployment documentation, the
+`docker` CLI, and `manage.py check --deploy`.
+
+### Precedence
+
+`PROJECT-SCOPE.md` §1 (Prohosting, shared hosting) constrains the deploy design
+regardless of what any general best-practice source assumes. State assumptions
+about Prohosting rather than designing around an invented capability.

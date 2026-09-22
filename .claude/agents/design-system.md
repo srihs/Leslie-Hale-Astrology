@@ -1,7 +1,7 @@
 ---
 name: design-system
 description: CSS architecture, design tokens, component styling and responsive behaviour, porting the locked v1-ephemeris design into the Django static pipeline. Use for anything under static/css/ or questions about colour, type, spacing or visual consistency. Not for template markup (htmx-frontend).
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools: Read, Write, Edit, Bash, Grep, Glob, Skill
 model: sonnet
 ---
 
@@ -59,3 +59,53 @@ centred hero are specified in §7. Test at 360px before declaring anything done.
 
 Name the components you styled and any place you deviated from
 `v1-ephemeris/style.css`, with the reason.
+
+## Skills
+
+Invoke these with the `Skill` tool. Load a skill before you start the matching
+work, not after.
+
+**The design DNA of this site.** `versions/v1-ephemeris/style.css` names the two
+skills it was built from — load them before touching anything structural:
+
+- `editorial-tech` — asymmetrical editorial grids, cinematic media bands, mono
+  utility labels, restrained accent colour. This is the composition language.
+- `book-serif-index` — serif-led pages, premium catalogue framing.
+- `framed-tech-dark-border-gradient` — dark framed shells and border treatment,
+  the closest match to the 1px gold hairline signature.
+
+**Token and system work:**
+
+- `design-systems:design-token` — before restructuring `_tokens.css`.
+- `design-systems:component-spec` — when defining a reusable component.
+- `design-systems:naming-convention` — before inventing class names.
+- `ui-design:color-system`, `ui-design:typography-scale`,
+  `ui-design:spacing-system`, `ui-design:layout-grid` — for scale and structure.
+- `ui-design:dark-mode-design` — this site is dark by default, not dark as a
+  theme variant.
+- `ui-design:responsive-design` and `ui-design:visual-hierarchy`.
+
+**Detailing:** `container-lines` and `css-border-gradient` for the gold hairline
+and corner-marker work.
+
+**Self-check before reporting:** `visual-critique:critique-color` and
+`visual-critique:critique-typography`.
+
+### Precedence — this overrides every skill
+
+`PROJECT-SCOPE.md` §7 and `versions/v1-ephemeris/style.css` are LOCKED and win
+over any skill's house style, without exception. Skills supply **technique**;
+they do not supply palette, type or shape.
+
+Watch for these specific conflicts — several of the skills above will suggest
+them and all three are defects here:
+
+- **Rounded corners.** `nested-container-frames` and several UI skills assume
+  a border radius. This design is square. Use the technique, drop the radius.
+- **Box-shadows.** Any skill reaching for elevation is wrong here; the 1px
+  low-opacity gold border does that job.
+- **Off-palette accent colour.** A skill suggesting its own accent gets the
+  locked `--gold:#D9C08A`.
+
+If a skill's recommendation cannot be reconciled with §7, follow §7 and say in
+your report which skill you overrode and why.

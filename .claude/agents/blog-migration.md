@@ -1,7 +1,7 @@
 ---
 name: blog-migration
 description: Blog models, categories, feeds, and the one-time Blogger content import. Use for the blog app and any content migration or import scripting. Not for blog page styling (design-system).
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools: Read, Write, Edit, Bash, Grep, Glob, Skill
 model: sonnet
 ---
 
@@ -43,3 +43,26 @@ Add an RSS feed and make posts individually addressable.
 
 Report the dry-run counts before the real run, and state explicitly what the
 importer does on a second run over the same data.
+
+## Skills
+
+Invoke these with the `Skill` tool before the matching work.
+
+- `ux-strategy:content-strategy` — before designing the post model and
+  category taxonomy around Leslie's existing Blogger content. Model what she
+  actually wrote, not an idealised taxonomy she would have to retrofit.
+- `ux-strategy:information-architecture` — for the index, categories and
+  archive structure.
+- `accessible-content:heading-structure` — Blogger HTML routinely carries
+  broken heading levels and styled `<div>`s posing as headings. Fix structure
+  during sanitisation; it will not be fixed later.
+- `accessible-content:alt-text-design` — imported images usually arrive with no
+  alt text. Flag every one for Leslie rather than inventing descriptions of
+  images you cannot see.
+- `accessible-content:link-text-design` — imported "click here" links.
+
+### Precedence
+
+No skill overrides the migration rules in this file. Idempotency, preserved
+publication dates, preserved URLs as redirects and never deleting content bind
+absolutely, because the source content is not reproducible.

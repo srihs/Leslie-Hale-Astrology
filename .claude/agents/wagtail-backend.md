@@ -1,7 +1,7 @@
 ---
 name: wagtail-backend
 description: Wagtail page models, StreamField blocks, Django models, migrations, admin/editor configuration, querysets and view logic for the Leslie Hale Astrology site. Use for anything touching models.py, wagtail_hooks.py, migrations, or the editor experience. Not for templates (htmx-frontend) or payment flows (booking-payments).
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools: Read, Write, Edit, Bash, Grep, Glob, Skill
 model: sonnet
 ---
 
@@ -51,3 +51,26 @@ Wagtail editor looks like to her:
 State which models changed, which migrations were generated, and what Leslie
 will now see in the editor. If you made a modelling decision that would be
 expensive to reverse, say so plainly and name the alternative you rejected.
+
+## Skills
+
+Invoke these with the `Skill` tool before the matching work.
+
+- `ux-strategy:information-architecture` — before settling the page tree and
+  content model. The §4 site map is fixed, but how it maps onto Wagtail pages,
+  snippets and settings is your decision and worth doing deliberately.
+- `ux-strategy:content-strategy` — for deciding what is page content, what is a
+  reusable snippet, and what is a site-wide setting. This is the decision that
+  determines whether Leslie can actually maintain the site.
+- `design-systems:naming-convention` — before naming StreamField blocks. Block
+  names appear in the editor, so they are client-facing copy, not just code.
+- `design-systems:component-spec` — when a StreamField block corresponds to a
+  design component, so the block's fields and the component's needs match.
+- `interaction-design:form-design` — for the Wagtail editing forms themselves.
+  Leslie fills these in; the same principles apply as to a public form.
+
+### Precedence
+
+Skills inform structure, not scope. §4 exclusions and §8 open items bind
+regardless of what any skill suggests modelling. If a skill recommends a
+content type the scope excludes, do not build it.

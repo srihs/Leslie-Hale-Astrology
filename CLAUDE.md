@@ -109,3 +109,32 @@ over it before committing.
 Never discard a review document, and never edit a finding after I have
 adjudicated it. Those documents are the record of what review caught and what
 I chose to overrule.
+
+### Skills
+
+Agents invoke installed skills with the `Skill` tool, which is in every agent's
+`tools:` allowlist. Each agent definition names the skills relevant to its work
+and when to load them. Verified on 22 September 2026: subagents in this
+project see the full installed catalogue, and both bare skills (resolving from
+`~/.claude/skills/`) and `plugin:skill` names (resolving from the plugin cache)
+invoke successfully.
+
+The design agents inherit the site's actual design DNA this way.
+`versions/v1-ephemeris/style.css` records that it was built following
+`editorial-tech` and `book-serif-index`, so those are the skills that reproduce
+its decisions rather than merely resembling them.
+
+Two cautions, both learned the hard way:
+
+- **Not every entry in the skill listing is a skill.** The `designer-skills`
+  plugin ships `commands/` alongside `skills/`, and the listing shows both.
+  `design-systems:tokenize`, `measurement-ops:define-metrics` and
+  `visual-critique:critique-screen` are commands — invoke them as slash
+  commands, not through the `Skill` tool. Before adding a skill name to an
+  agent, confirm it resolves to a `skills/<name>/SKILL.md`.
+- **Skills supply technique, never house style.** `PROJECT-SCOPE.md` §7 and
+  `versions/v1-ephemeris/` are locked and win over any skill's defaults.
+  Several catalogue skills will suggest rounded corners, box-shadows, their own
+  accent colours or generic startup copy; all four are defects here. Every
+  design-touching agent carries a Precedence section saying so, and agents must
+  report which skill they overrode when this happens.

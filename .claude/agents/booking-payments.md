@@ -1,7 +1,7 @@
 ---
 name: booking-payments
 description: Booking calendar, availability and slot logic, payment integration, confirmation emails and the booking state machine. Use for anything in the bookings or payments apps. Handles money and personal data, so it reviews its own blast radius carefully.
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools: Read, Write, Edit, Bash, Grep, Glob, Skill
 model: sonnet
 ---
 
@@ -48,3 +48,33 @@ not a stack trace. Users are not "invalid".
 State what happens on: double submission, payment succeeding but confirmation
 email failing, a webhook arriving twice, and a user in a different timezone.
 If you have not handled one of those, say so rather than implying you did.
+
+## Skills
+
+Invoke these with the `Skill` tool before the matching work.
+
+- `editorial-service-booking` — the catalogue's closest match to this project:
+  appointment-based service sites, calm treatment selectors, and operational
+  states that stay elegant under failure. Load it before designing the booking
+  flow.
+- `interaction-design:form-design` — before building the booking form.
+- `interaction-design:state-machine` — before modelling booking and payment
+  state. You need both states representable independently; this skill is how
+  you keep that honest rather than collapsing them into one status field.
+- `interaction-design:error-handling-ux` — recovery paths for payment failure,
+  expired slots and double submission.
+- `interaction-design:loading-states` — the gap between submit and
+  confirmation is where users double-submit. Treat it as designed, not
+  incidental.
+- `designer-toolkit:ux-writing` — confirmation emails and error copy carry the
+  client's voice (§2: warm, grounded, non-judgemental). A payment error is
+  still Leslie talking to a client.
+- `pricing-page` — for presenting readings and prices, remembering that both
+  are unconfirmed §8 content and must come from the CMS.
+
+### Precedence
+
+Skills describe patterns; the scope decides facts. No skill authorises you to
+pick a payment provider, invent a price, or assume a booking duration — those
+are §8 open items. Correctness rules in this file override any skill's
+convenience suggestion, particularly around double-booking and idempotency.

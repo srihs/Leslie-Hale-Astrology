@@ -1,7 +1,7 @@
 ---
 name: seo-analytics
 description: On-page SEO, metadata, structured data, sitemap, robots, redirects and Google Analytics integration. Use when adding or auditing page metadata, or wiring analytics and conversion tracking.
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools: Read, Write, Edit, Bash, Grep, Glob, Skill
 model: sonnet
 ---
 
@@ -50,3 +50,24 @@ inbound links are lost traffic Leslie already earned.
 
 List what you added per page, which values still need the client, and confirm
 that staging cannot be indexed.
+
+## Skills
+
+Invoke these with the `Skill` tool before the matching work.
+
+- `ux-strategy:metrics-definition` — before wiring GA4 events. The §3 conversions (booking, newsletter, contact)
+  should be defined as metrics with a stated meaning, not just fired as events
+  someone later has to reverse-engineer.
+- `accessible-content:link-text-design` — descriptive link text serves screen
+  reader users and search engines identically. One piece of work, two wins.
+- `accessible-content:heading-structure` — heading hierarchy is shared ground
+  between SEO and accessibility; coordinate with `accessibility-auditor` rather
+  than each of you optimising it separately.
+- `ux-strategy:content-strategy` — when advising on page copy structure.
+
+### Precedence
+
+The scope bought **basic on-page SEO** (§5); keyword research is an unbought
+add-on. No skill authorises expanding that. Nothing you do may alter the locked
+§7 design or push copy out of Leslie's §2 voice for keyword density. Never mark
+up placeholder testimonials as real reviews (§8).
