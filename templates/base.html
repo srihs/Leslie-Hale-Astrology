@@ -33,11 +33,33 @@ every page template's own CTAs can reuse it instead of re-querying.
 
 <header class="nav">
   <div class="wrap">
+    {% comment %}
+    No-JS mobile menu disclosure (reviews/2026-09-22-project-structure-
+    scaffold.md finding S2, accepted). This checkbox must be a DOM sibling
+    of, and precede, <nav aria-label="Primary"> below — static/css/
+    _layout.css's #menu-toggle:checked~nav ul#menu rule depends on that
+    sibling order. Placing it first in .wrap (ahead of the brand link too)
+    is the one accepted trade-off design-system flagged: it puts the
+    checkbox before the brand link in tab order, out of step with the
+    visual layout, in the no-JS path only. See _layout.css's NO-JS MENU
+    DISCLOSURE comment for the full mechanism.
+    {% endcomment %}
+    <input type="checkbox" id="menu-toggle" class="menu-toggle-input" aria-controls="menu">
     <a class="brand" href="{% pageurl current_site.root_page %}" aria-label="Leslie Hale Astrology home">Leslie Hale</a>
     {% include "includes/_nav.html" %}
     <div class="nav-right">
       {% include "includes/_page_link.html" with app_label="bookings" model="bookingpage" text="Book a Reading" css_class="btn btn-ghost btn-nav" %}
-      <button class="menu-btn" aria-expanded="false" aria-controls="menu">Menu</button>
+      {% comment %}
+      Button before label, both carrying .menu-btn: static/js/main.js binds
+      its click/aria-expanded handling to `document.querySelector('.menu-
+      btn')`, the first DOM match, and this file is the only one allowed to
+      change that order (task scope is templates/ only, not static/js/). The
+      button must resolve first so the visible JS-path trigger is the one
+      main.js actually wires up; body.no-js/body:not(.no-js) in _layout.css
+      still ensure only one of the two is ever visible at a time.
+      {% endcomment %}
+      <button class="menu-btn menu-toggle-btn" aria-expanded="false" aria-controls="menu">Menu</button>
+      <label for="menu-toggle" class="menu-btn menu-toggle-label">Menu</label>
     </div>
   </div>
 </header>

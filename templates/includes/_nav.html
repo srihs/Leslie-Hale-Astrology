@@ -14,11 +14,22 @@ comment in includes/_page_link.html for why each link (other than Home)
 is resolved through that include rather than {% url %} or a hardcoded
 href. `current_site` comes from base.html.
 
-The mobile menu toggle (aria-expanded, .open) is handled by
-static/js/main.js — that mechanism (and the false claim in this file's
-previous comment about the <ul> always being visible without JS) is
-S2 in reviews/2026-09-22-project-structure-scaffold.md and is being
-fixed separately; not touched here.
+Below 900px this <ul id="menu"> is hidden by default and revealed one of
+two ways (reviews/2026-09-22-project-structure-scaffold.md finding S2,
+accepted fix):
+
+- With JS: the <button class="menu-btn menu-toggle-btn"> in base.html's
+  .nav-right toggles .open on this <ul> and flips its own
+  aria-expanded, with Escape-to-close and click-outside-to-close, all in
+  static/js/main.js.
+- Without JS: a hidden checkbox (#menu-toggle, an early sibling of this
+  <nav> inside .wrap in base.html) drives a CSS-only
+  #menu-toggle:checked~nav ul#menu rule in static/css/_layout.css, opened
+  via its paired <label class="menu-btn menu-toggle-label"> in
+  .nav-right.
+
+body.no-js (set in base.html, removed by main.js on load) switches which
+of the two triggers is visible, so only one is ever reachable at a time.
 {% endcomment %}
 <nav aria-label="Primary">
   <ul id="menu">

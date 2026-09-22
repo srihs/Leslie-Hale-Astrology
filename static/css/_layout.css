@@ -1,8 +1,20 @@
 /* LAYOUT
    Site chrome that wraps every page — nav, section rhythm, shared grid
-   utility, footer. Ported verbatim from versions/v1-ephemeris/style.css.
-   The 900px nav collapse (sticky nav -> full-screen link list + menu
-   button) is preserved exactly. */
+   utility, footer. Ported from versions/v1-ephemeris/style.css. The 900px
+   nav collapse (sticky nav -> full-screen link list + menu button) is
+   preserved exactly in its rendered result.
+
+   One deliberate deviation from verbatim (reviews/2026-09-22-project-
+   structure-scaffold.md finding S2, accepted): the locked source hides
+   #menu with display:none below 900px until JS adds .open, which leaves
+   no-JS mobile visitors with no way to open it. §7 is authorised to fix
+   the MECHANISM, not the visual result, so a CSS-only checkbox disclosure
+   (.menu-toggle-input / .menu-toggle-label, below) has been added
+   alongside the original .menu-btn/.open path. Exactly one of the two
+   triggers is visible at a time — see the body.no-js rules — so the
+   rendered appearance is unchanged at every width whether or not JS runs.
+   See the design-system agent's report for the full markup contract this
+   CSS depends on. */
 
 /* NAV */
 .nav{position:sticky;top:0;z-index:50;background:rgba(11,21,38,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
@@ -14,9 +26,27 @@
 .nav .btn{padding:10px 18px;min-height:40px;font-size:13px}
 .nav-right{display:flex;gap:12px;align-items:center}
 .menu-btn{display:none;background:none;border:1px solid var(--line-strong);color:var(--gold);padding:10px 14px;font:inherit;font-size:12px;letter-spacing:.1em;text-transform:uppercase;min-height:44px}
+
+/* NO-JS MENU DISCLOSURE (finding S2)
+   #menu-toggle is a visually-hidden-but-focusable checkbox living earlier
+   in .wrap than <nav>, so the sibling combinator below can reveal #menu
+   without JS. Its paired <label class="menu-btn menu-toggle-label"> is
+   styled identically to the real <button class="menu-btn menu-toggle-btn">
+   via the shared .menu-btn rules above/below — only one is ever display:
+   anything-but-none, switched by body.no-js (set in base.html, removed by
+   main.js on load). When JS is active the checkbox path is fully hidden
+   and main.js's existing .open/aria-expanded handling on .menu-toggle-btn
+   is unchanged. */
+.menu-toggle-input{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.menu-toggle-input:focus-visible~.nav-right .menu-toggle-label{outline:2px solid var(--gold);outline-offset:4px}
+.menu-toggle-label{cursor:pointer}
+body:not(.no-js) .menu-toggle-input,body:not(.no-js) .menu-toggle-label{display:none}
+body.no-js .menu-toggle-btn{display:none}
+
 @media(max-width:900px){
   .nav ul{display:none;position:absolute;left:0;right:0;top:72px;background:var(--bg-2);flex-direction:column;gap:0;border-bottom:1px solid var(--line)}
   .nav ul.open{display:flex}
+  #menu-toggle:checked~nav ul#menu{display:flex}
   .nav ul li a{display:block;padding:16px var(--pad);border-top:1px solid var(--line);font-size:16px;border-bottom:0!important}
   .menu-btn{display:inline-block}
   /* .nav .btn-nav: source declares this twice at the same 900px breakpoint
