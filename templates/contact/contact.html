@@ -9,8 +9,18 @@ Contact email/phone are SCOPE §8 open items; see includes/_footer.html for
 the same ContactSettings contract used here (`settings.core.ContactSettings`).
 {% endcomment %}
 
-{% block title %}Contact — Leslie Hale Astrology{% endblock %}
-{% block meta_description %}Get in touch with Leslie Hale, or join the monthly newsletter.{% endblock %}
+{% comment %}
+On-page SEO (§5): page.seo_title/page.search_description are Wagtail's
+own built-in Page fields, editable under this page's Promote tab.
+{% endcomment %}
+{% block title %}{{ page.seo_title|default:"Contact — Leslie Hale Astrology" }}{% endblock %}
+{% block meta_description %}{{ page.search_description|default:"Get in touch with Leslie Hale, or join the monthly newsletter." }}{% endblock %}
+{% block extra_meta %}
+<meta property="og:title" content="{{ page.seo_title|default:"Contact — Leslie Hale Astrology" }}">
+<meta property="og:description" content="{{ page.search_description|default:"Get in touch with Leslie Hale, or join the monthly newsletter." }}">
+<meta name="twitter:title" content="{{ page.seo_title|default:"Contact — Leslie Hale Astrology" }}">
+<meta name="twitter:description" content="{{ page.search_description|default:"Get in touch with Leslie Hale, or join the monthly newsletter." }}">
+{% endblock %}
 
 {% block content %}
 <section class="page-hero" aria-labelledby="h">

@@ -38,4 +38,16 @@ Context (all optional — default is the untouched, unsubmitted form):
   <button class="btn btn-solid" type="submit">Subscribe</button>
   <small>By subscribing you agree to receive Leslie's monthly email.</small>
   <p class="ok" role="status" tabindex="-1">Thank you — you're on the list.</p>
+  {% if newsletter_submitted %}
+  {% comment %}
+  §3 conversion: newsletter signup. Fired with NO parameters — the
+  subscriber's email address is never sent to GA. This block only renders
+  on the response to a successful POST (see apps.contact.views.
+  newsletter_signup), never on a plain page load, so it can't refire on a
+  simple refresh. `gtag` is always defined (base.html's <head> shim) even
+  when analytics is blank or consent hasn't been granted, in which case
+  this is a safe no-op.
+  {% endcomment %}
+  <script>gtag("event", "newsletter_signup");</script>
+  {% endif %}
 </form>

@@ -25,8 +25,22 @@ section fields — `[0].value` is guarded rather than assumed for the same
 reason documented there.
 {% endcomment %}
 
-{% block title %}About Leslie — Leslie Hale Astrology{% endblock %}
-{% block meta_description %}{{ page.intro|default:"Meet Leslie Hale, astrologer." }}{% endblock %}
+{% comment %}
+On-page SEO (§5): page.seo_title/page.search_description are Wagtail's
+own built-in Page fields, editable under this page's Promote tab. og_image/
+twitter_image use Leslie's portrait when she's uploaded one (real, visible
+on this page) rather than the sitewide default nebula photo.
+{% endcomment %}
+{% block title %}{{ page.seo_title|default:"About Leslie — Leslie Hale Astrology" }}{% endblock %}
+{% block meta_description %}{{ page.search_description|default:page.intro|default:"Meet Leslie Hale, astrologer." }}{% endblock %}
+{% block extra_meta %}
+<meta property="og:title" content="{{ page.seo_title|default:"About Leslie — Leslie Hale Astrology" }}">
+<meta property="og:description" content="{{ page.search_description|default:page.intro|default:"Meet Leslie Hale, astrologer." }}">
+<meta name="twitter:title" content="{{ page.seo_title|default:"About Leslie — Leslie Hale Astrology" }}">
+<meta name="twitter:description" content="{{ page.search_description|default:page.intro|default:"Meet Leslie Hale, astrologer." }}">
+{% endblock %}
+{% block og_image %}{% if page.portrait %}{% image page.portrait fill-1200x630 format-jpeg as og_rendition %}{{ seo_site_origin }}{{ og_rendition.url }}{% else %}{{ default_og_image }}{% endif %}{% endblock %}
+{% block twitter_image %}{% if page.portrait %}{% image page.portrait fill-1200x630 format-jpeg as og_rendition %}{{ seo_site_origin }}{{ og_rendition.url }}{% else %}{{ default_og_image }}{% endif %}{% endblock %}
 
 {% block content %}
 <section class="page-hero" aria-labelledby="h">

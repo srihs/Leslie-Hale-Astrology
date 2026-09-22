@@ -6,8 +6,18 @@ pagination and their htmx contract (BlogIndexPage.get_context — apps/blog/
 models.py — supplies categories/active_category/posts_page for it).
 {% endcomment %}
 
-{% block title %}Blog — Leslie Hale Astrology{% endblock %}
-{% block meta_description %}Notes on the sky and everyday astrology from Leslie Hale.{% endblock %}
+{% comment %}
+On-page SEO (§5): page.seo_title/page.search_description are Wagtail's
+own built-in Page fields, editable under this page's Promote tab.
+{% endcomment %}
+{% block title %}{{ page.seo_title|default:"Blog — Leslie Hale Astrology" }}{% endblock %}
+{% block meta_description %}{{ page.search_description|default:"Notes on the sky and everyday astrology from Leslie Hale." }}{% endblock %}
+{% block extra_meta %}
+<meta property="og:title" content="{{ page.seo_title|default:"Blog — Leslie Hale Astrology" }}">
+<meta property="og:description" content="{{ page.search_description|default:"Notes on the sky and everyday astrology from Leslie Hale." }}">
+<meta name="twitter:title" content="{{ page.seo_title|default:"Blog — Leslie Hale Astrology" }}">
+<meta name="twitter:description" content="{{ page.search_description|default:"Notes on the sky and everyday astrology from Leslie Hale." }}">
+{% endblock %}
 
 {% block content %}
 <section class="page-hero" aria-labelledby="h">

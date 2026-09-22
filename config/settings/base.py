@@ -180,6 +180,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "wagtail.contrib.settings.context_processors.settings",
+                "apps.core.context_processors.seo",
             ],
         },
     },
@@ -274,7 +275,47 @@ STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", required=False, default="")
 # Analytics (seo-analytics owns usage)
 # ---------------------------------------------------------------------------
 
+# Not read by any template — kept here only because docker-infra's original
+# scaffold already committed it to .env.example and it costs nothing to
+# leave in place for a future deploy script. The GA4 measurement ID Leslie
+# actually controls lives in AnalyticsSettings (apps/core/models.py,
+# Wagtail admin -> Settings -> Analytics), per the seo-analytics brief: it
+# must be editable by her without a redeploy, the same way ContactSettings
+# is. templates/includes/_analytics.html reads it from there.
 GOOGLE_ANALYTICS_ID = env("GOOGLE_ANALYTICS_ID", required=False, default="")
+
+
+# ---------------------------------------------------------------------------
+# SEO (seo-analytics owns usage)
+# ---------------------------------------------------------------------------
+
+# The one domain every canonical URL, sitemap entry, structured-data `url`
+# and Open Graph `og:url` is built against — apex, not `www`, matching
+# PROJECT-SCOPE.md §1 ("Domain: lesliehale-astrology.com") and this file's
+# own WAGTAILADMIN_BASE_URL default. Deliberately independent of both
+# ALLOWED_HOSTS (a security allowlist, not a canonicalisation choice) and
+# Wagtail's own Site.hostname (editable in Wagtail admin, and if it were
+# ever left at Wagtail's "localhost" default or pointed at a staging host,
+# every page's canonical URL would silently follow it). request.get_host()
+# is used as a fallback only so local dev still renders a valid URL without
+# this being set.
+CANONICAL_DOMAIN = env("CANONICAL_DOMAIN", required=False, default="lesliehale-astrology.com")
+
+# Drives robots.txt (apps/core/views.py:robots_txt) — NOT a static file, so
+# an environment can control it without a code change or redeploy of a
+# text file. Defaults to False (disallow everything) everywhere, including
+# prod.py: prod.py's own comment records that a staging host on Prohosting
+# is expected to reuse config.settings.prod with only ALLOWED_HOSTS
+# overridden, so DEBUG=False can never be used to tell staging and
+# production apart. The real production deploy must set this explicitly —
+# see .env.example. A production site that silently stays un-indexed for a
+# day because someone forgot the flag is a minor, visible, quickly-fixed
+# problem; a staging site Google indexed by default is the "real and
+# embarrassing failure" PROJECT-SCOPE.md's brief warns about, and default
+# behaviour must fail toward the smaller problem.
+SEARCH_ENGINE_INDEXING_ALLOWED = env_bool(
+    "SEARCH_ENGINE_INDEXING_ALLOWED", required=False, default="False"
+)
 
 
 # ---------------------------------------------------------------------------

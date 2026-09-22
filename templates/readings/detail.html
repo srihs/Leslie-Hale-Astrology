@@ -20,8 +20,23 @@ Context (ReadingDetailPage.get_context — see apps/readings/models.py):
                    shape as readings/index.html, for "Other readings"
 {% endcomment %}
 
-{% block title %}{{ page.reading.name|default:"Reading" }} — Leslie Hale Astrology{% endblock %}
-{% block meta_description %}{{ page.reading.description|default:page.reading.summary|default:"A personal astrology reading with Leslie Hale, online or by phone." }}{% endblock %}
+{% comment %}
+On-page SEO (§5): page.seo_title/page.search_description are Wagtail's
+own built-in Page fields, editable under this page's Promote tab, and take
+priority over the reading-name-derived default below. og_image/
+twitter_image use this reading's own photo when it has one (real, visible
+on this page).
+{% endcomment %}
+{% block title %}{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.reading.name|default:"Reading" }} — Leslie Hale Astrology{% endif %}{% endblock %}
+{% block meta_description %}{{ page.search_description|default:page.reading.description|default:page.reading.summary|default:"A personal astrology reading with Leslie Hale, online or by phone." }}{% endblock %}
+{% block extra_meta %}
+<meta property="og:title" content="{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.reading.name|default:"Reading" }} — Leslie Hale Astrology{% endif %}">
+<meta property="og:description" content="{{ page.search_description|default:page.reading.description|default:page.reading.summary|default:"A personal astrology reading with Leslie Hale, online or by phone." }}">
+<meta name="twitter:title" content="{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.reading.name|default:"Reading" }} — Leslie Hale Astrology{% endif %}">
+<meta name="twitter:description" content="{{ page.search_description|default:page.reading.description|default:page.reading.summary|default:"A personal astrology reading with Leslie Hale, online or by phone." }}">
+{% endblock %}
+{% block og_image %}{% if page.reading.image %}{% image page.reading.image fill-1200x630 format-jpeg as og_rendition %}{{ seo_site_origin }}{{ og_rendition.url }}{% else %}{{ default_og_image }}{% endif %}{% endblock %}
+{% block twitter_image %}{% if page.reading.image %}{% image page.reading.image fill-1200x630 format-jpeg as og_rendition %}{{ seo_site_origin }}{{ og_rendition.url }}{% else %}{{ default_og_image }}{% endif %}{% endblock %}
 
 {% block content %}
 <section class="page-hero" aria-labelledby="h">

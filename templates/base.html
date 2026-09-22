@@ -3,9 +3,47 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+  /* GA4 event queue shim (§5 "Google Analytics") — defined unconditionally,
+     in <head>, before any page content, so `gtag(...)` is always safe to
+     call from anywhere in <body> (see templates/bookings/partials/
+     _booking_status.html, includes/_newsletter_form.html, contact/
+     partials/_contact_form.html) regardless of whether the real gtag.js
+     ever loads. On its own this does nothing but queue into an array in
+     memory: no network request, no cookie, no console error, even when
+     AnalyticsSettings.google_analytics_id is blank. The actual script load
+     and `gtag('config', …)` call are consent-gated — see
+     includes/_analytics.html, included below. */
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){ dataLayer.push(arguments); }
+</script>
+{% include "includes/_analytics.html" %}
 <title>{% block title %}Leslie Hale Astrology{% endblock %}</title>
 <meta name="description" content="{% block meta_description %}Warm, non-judgemental astrology readings with Leslie Hale. Book a personal reading and leave with more answers than you came with.{% endblock %}">
 {% block extra_meta %}{% endblock %}
+{% comment %}
+Canonical URL and Open Graph/Twitter fallbacks (§5). `canonical_url` /
+`seo_site_origin` / `default_og_image` come from apps.core.context_processors.seo
+(config/settings/base.py TEMPLATES). Apex domain, not www — see
+settings.CANONICAL_DOMAIN's own comment for why. `og:title`/`og:description`
+are set per-template inside each page's own `extra_meta` block above (so
+they always match that page's actual <title>/meta description exactly,
+seo_title/search_description included) — this block only supplies the
+sitewide constants and the image, which any page can override with its own
+`{% block og_image %}` + `{% block twitter_image %}` pair (a Django
+template forbids reusing one block name twice in the same template, hence
+two names for what is conceptually one image — see templates/blog/post.html,
+core/about.html, readings/detail.html for real-image examples; each
+overrides both blocks to the same value).
+{% endcomment %}
+<link rel="canonical" href="{{ canonical_url }}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Leslie Hale Astrology">
+<meta property="og:url" content="{{ canonical_url }}">
+<meta property="og:image" content="{% block og_image %}{{ default_og_image }}{% endblock %}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="{% block twitter_image %}{{ default_og_image }}{% endblock %}">
+{% include "includes/_structured_data.html" %}
 <!--
   Design direction: v1-ephemeris (PROJECT-SCOPE.md §7 — LOCKED). Markup below
   is ported from versions/v1-ephemeris/*.html; do not redesign it here.

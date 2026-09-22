@@ -8,6 +8,7 @@ from wagtail.contrib.sitemaps.views import sitemap
 from wagtail.documents import urls as wagtaildocs_urls
 
 from apps.blog.feeds import BlogFeed
+from apps.core.views import robots_txt
 
 
 def healthz(request):
@@ -25,6 +26,7 @@ urlpatterns = [
     path("admin/", include(wagtailadmin_urls)),
     path("documents/", include(wagtaildocs_urls)),
     path("sitemap.xml", sitemap),
+    path("robots.txt", robots_txt),
     # Fixed address, independent of whatever slug the Blog index page ends
     # up with, and ahead of the wagtail_urls catch-all below so it can
     # never be shadowed by a page Leslie creates (apps/blog/feeds.py).

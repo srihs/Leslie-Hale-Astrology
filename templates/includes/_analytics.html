@@ -1,0 +1,63 @@
+{% comment %}
+GA4 (§5 "Google Analytics"). Measurement ID is
+settings.core.AnalyticsSettings.google_analytics_id (apps/core/models.py,
+Wagtail admin -> Settings -> Analytics) — an unconfirmed §8 item, never
+hardcoded here. When it's blank this renders nothing beyond the harmless
+`gtag` queue shim below, on purpose: no broken script tag, no console
+error, no network request.
+
+Consent: this site has no cookie-consent banner built yet — designing one
+is a UI decision outside §5's "basic on-page SEO + Google Analytics" and
+isn't this agent's to make (see the final report for why it's left open).
+Rather than track every visitor by default while that's undecided, the
+real gtag.js script and `gtag('config', …)` call are gated behind explicit
+consent recorded in localStorage. Nothing here ever sets that value —
+whoever builds the consent banner only needs to do one of:
+  window.lhaGrantAnalyticsConsent()
+  window.dispatchEvent(new Event('lha:consent-granted'))
+once a visitor agrees, and this handles the rest. Until that banner
+exists, analytics never loads for anyone — the safe default.
+
+The `gtag` function itself (just below, in base.html's <head>, not this
+include) is defined unconditionally and is always safe to call — it only
+ever queues into `dataLayer`. See templates/bookings/partials/
+_booking_status.html, templates/includes/_newsletter_form.html and
+templates/contact/partials/_contact_form.html for the §3 conversion
+events fired through it — each with NO parameters: no reading name,
+price, appointment time, email or name is ever sent to GA. "Booking
+details are not event parameters."
+{% endcomment %}
+{% with ga_id=settings.core.AnalyticsSettings.google_analytics_id %}
+{% if ga_id %}
+<script>
+(function () {
+  var GA_ID = "{{ ga_id|escapejs }}";
+  var CONSENT_KEY = "lha-analytics-consent";
+
+  function hasConsent() {
+    try { return window.localStorage.getItem(CONSENT_KEY) === "granted"; }
+    catch (e) { return false; }
+  }
+
+  function loadGtag() {
+    if (document.getElementById("lha-ga4-script")) return;
+    var s = document.createElement("script");
+    s.id = "lha-ga4-script";
+    s.async = true;
+    s.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(GA_ID);
+    document.head.appendChild(s);
+    gtag("js", new Date());
+    gtag("config", GA_ID);
+  }
+
+  window.lhaGrantAnalyticsConsent = function () {
+    try { window.localStorage.setItem(CONSENT_KEY, "granted"); } catch (e) {}
+    loadGtag();
+  };
+  window.addEventListener("lha:consent-granted", window.lhaGrantAnalyticsConsent);
+
+  if (hasConsent()) loadGtag();
+})();
+</script>
+{% endif %}
+{% endwith %}

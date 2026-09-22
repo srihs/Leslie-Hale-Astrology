@@ -1,0 +1,53 @@
+{% comment %}
+Sitewide ProfessionalService structured data (§5 "structured data ... a
+local business/professional service"). Included once from base.html so it
+appears on every real page.
+
+Hard constraint (PROJECT-SCOPE.md §7/§8, CLAUDE.md): mark up only what is
+actually true and visible on the site. §7's testimonials are placeholder
+copy pending the client — this file has no `review`/`aggregateRating`
+field and must never gain one. Contact details, studio address and social
+links are §8-open items; each is only emitted if ContactSettings actually
+has a value, never a placeholder-looking guess. No `priceRange` — the
+final list of readings and prices (§8) isn't confirmed, and readings/
+Offer schema is deliberately not emitted anywhere on this site (see
+templates/blog/post.html's own comment for the same boundary on
+BlogPosting).
+
+Every interpolated value uses `|escapejs`, not plain output — Django's
+normal autoescaping HTML-entity-encodes `&`, which corrupts a URL sitting
+inside a JSON string (`?a=1&b=2` -> `?a=1&amp;b=2`, invalid). `escapejs`
+produces `\uXXXX` escapes instead, which are both JS-string-safe and valid
+JSON, and (confirmed against Django's implementation) its output is
+already marked safe so it is not HTML-escaped a second time.
+{% endcomment %}
+{% with contact=settings.core.ContactSettings %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  "name": "Leslie Hale Astrology",
+  "url": "{{ seo_site_origin|escapejs }}/",
+  "image": "{{ default_og_image|escapejs }}",
+  "description": "Warm, non-judgemental astrology readings with Leslie Hale."
+  {% if contact.contact_email %},
+  "email": "{{ contact.contact_email|escapejs }}"
+  {% endif %}
+  {% if contact.contact_phone %},
+  "telephone": "{{ contact.contact_phone|escapejs }}"
+  {% endif %}
+  {% if contact.studio_address %},
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "{{ contact.studio_address|escapejs }}"
+  }
+  {% endif %}
+  {% if contact.instagram_url or contact.facebook_url %},
+  "sameAs": [
+    {% if contact.instagram_url %}"{{ contact.instagram_url|escapejs }}"{% if contact.facebook_url %},{% endif %}{% endif %}
+    {% if contact.facebook_url %}"{{ contact.facebook_url|escapejs }}"{% endif %}
+  ]
+  {% endif %}
+}
+</script>
+{% endwith %}

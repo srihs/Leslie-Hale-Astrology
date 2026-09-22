@@ -17,6 +17,9 @@ ordering ever changes.
 
 {% block title %}Page not found — Leslie Hale Astrology{% endblock %}
 {% block meta_description %}That page couldn't be found.{% endblock %}
+{% comment %}A 404 is never a real, indexable page — see §5's robots.txt/
+sitemap concern applied at the page level, not just site-wide.{% endcomment %}
+{% block extra_meta %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 
 {% block content %}
 <section class="page-hero" aria-labelledby="h">

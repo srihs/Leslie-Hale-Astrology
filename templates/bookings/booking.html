@@ -18,8 +18,18 @@ booking_panel_context — see apps/bookings/models.py):
                   None if the ref didn't match anything.
 {% endcomment %}
 
-{% block title %}Book a Reading — Leslie Hale Astrology{% endblock %}
-{% block meta_description %}Choose a reading, pick a time and pay securely online.{% endblock %}
+{% comment %}
+On-page SEO (§5): page.seo_title/page.search_description are Wagtail's
+own built-in Page fields, editable under this page's Promote tab.
+{% endcomment %}
+{% block title %}{{ page.seo_title|default:"Book a Reading — Leslie Hale Astrology" }}{% endblock %}
+{% block meta_description %}{{ page.search_description|default:"Choose a reading, pick a time and pay securely online." }}{% endblock %}
+{% block extra_meta %}
+<meta property="og:title" content="{{ page.seo_title|default:"Book a Reading — Leslie Hale Astrology" }}">
+<meta property="og:description" content="{{ page.search_description|default:"Choose a reading, pick a time and pay securely online." }}">
+<meta name="twitter:title" content="{{ page.seo_title|default:"Book a Reading — Leslie Hale Astrology" }}">
+<meta name="twitter:description" content="{{ page.search_description|default:"Choose a reading, pick a time and pay securely online." }}">
+{% endblock %}
 
 {% block content %}
 <section class="page-hero" aria-labelledby="h">

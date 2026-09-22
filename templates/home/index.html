@@ -47,8 +47,24 @@ hardcoded here (SCOPE §8 "final list of readings" is open) — whatever
 Leslie features is what renders.
 {% endcomment %}
 
-{% block title %}Leslie Hale Astrology — Readings that help with everyday life{% endblock %}
-{% block meta_description %}Warm, non-judgemental astrology readings with Leslie Hale. Book a personal reading and leave with more answers than you came with.{% endblock %}
+{% comment %}
+On-page SEO (§5): `page.seo_title`/`page.search_description` are Wagtail's
+own built-in Page fields, editable under this page's Promote tab — Leslie
+controls these without touching HTML. Falls back to this page's own
+locked-copy default when she hasn't set one. og:title/og:description below
+repeat the same `page.seo_title`/`page.search_description` fallback
+expression (Django blocks can't share a `{% with %}` variable across
+separate `{% block %}` tags — each is rendered independently against the
+base template's context), so the shared link always matches the tab title.
+{% endcomment %}
+{% block title %}{{ page.seo_title|default:"Leslie Hale Astrology — Readings that help with everyday life" }}{% endblock %}
+{% block meta_description %}{{ page.search_description|default:"Warm, non-judgemental astrology readings with Leslie Hale. Book a personal reading and leave with more answers than you came with." }}{% endblock %}
+{% block extra_meta %}
+<meta property="og:title" content="{{ page.seo_title|default:"Leslie Hale Astrology — Readings that help with everyday life" }}">
+<meta property="og:description" content="{{ page.search_description|default:"Warm, non-judgemental astrology readings with Leslie Hale. Book a personal reading and leave with more answers than you came with." }}">
+<meta name="twitter:title" content="{{ page.seo_title|default:"Leslie Hale Astrology — Readings that help with everyday life" }}">
+<meta name="twitter:description" content="{{ page.search_description|default:"Warm, non-judgemental astrology readings with Leslie Hale. Book a personal reading and leave with more answers than you came with." }}">
+{% endblock %}
 
 {% block content %}
 <!--

@@ -51,4 +51,15 @@ project-structure-scaffold.md findings 1-2).
   <small>Your details are only used to reply to you.</small>
   <button class="btn btn-solid" type="submit">Send message</button>
   <p class="ok" role="status" tabindex="-1">Thank you — your message is on its way. Leslie will reply within two working days.</p>
+  {% if contact_submitted %}
+  {% comment %}
+  §3 conversion: contact form submitted. Fired with NO parameters — name,
+  email and message are never sent to GA. This block only renders on the
+  response to a successful POST (see apps.contact.views.submit_contact),
+  never on a plain page load. `gtag` is always defined (base.html's <head>
+  shim) even when analytics is blank or consent hasn't been granted, in
+  which case this is a safe no-op.
+  {% endcomment %}
+  <script>gtag("event", "contact_form_submitted");</script>
+  {% endif %}
 </form>

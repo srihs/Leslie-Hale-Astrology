@@ -20,8 +20,59 @@ reintroduced here.
   related_posts  up to 2 other posts, same real shape as `page`
 {% endcomment %}
 
-{% block title %}{{ page.title|default:"Post" }} — Leslie Hale Astrology{% endblock %}
-{% block meta_description %}{{ page.excerpt|default:"A blog post from Leslie Hale." }}{% endblock %}
+{% comment %}
+On-page SEO (§5): page.seo_title/page.search_description are Wagtail's own
+built-in Page fields, editable under this page's Promote tab, taking
+priority over the title-derived default below. og_image/twitter_image use
+this post's own featured image when it has one (real, visible on this
+page) rather than the sitewide default.
+
+Structured data: BlogPosting JSON-LD below uses only fields this page
+actually has and shows — headline, dates, author, excerpt, and the
+featured image *only if one is set* (never the sitewide default photo
+standing in as if it were this post's own image). No `aggregateRating` or
+`review` — this site has no real, non-placeholder reviews (§7/§8) — and no
+Product/Offer schema for readings anywhere on this site (§8: price may be
+blank; that's a decision for a Reading snippet, not a blog post, and
+either way isn't fabricated here).
+{% endcomment %}
+{% block title %}{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.title|default:"Post" }} — Leslie Hale Astrology{% endif %}{% endblock %}
+{% block meta_description %}{{ page.search_description|default:page.excerpt|default:"A blog post from Leslie Hale." }}{% endblock %}
+{% block extra_meta %}
+<meta property="og:type" content="article">
+<meta property="og:title" content="{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.title|default:"Post" }} — Leslie Hale Astrology{% endif %}">
+<meta property="og:description" content="{{ page.search_description|default:page.excerpt|default:"A blog post from Leslie Hale." }}">
+<meta name="twitter:title" content="{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.title|default:"Post" }} — Leslie Hale Astrology{% endif %}">
+<meta name="twitter:description" content="{{ page.search_description|default:page.excerpt|default:"A blog post from Leslie Hale." }}">
+{% comment %}
+Every interpolated value below uses `|escapejs`, not plain output — see
+includes/_structured_data.html's own comment for why: plain output would
+HTML-entity-encode `&` inside canonical_url/image URLs, corrupting them.
+{% endcomment %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "{{ page.title|escapejs }}",
+  "url": "{{ canonical_url|escapejs }}",
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "{{ canonical_url|escapejs }}" },
+  "datePublished": "{{ page.published_date|date:"c"|escapejs }}",
+  "dateModified": "{{ page.last_published_at|default:page.published_date|date:"c"|escapejs }}"
+  {% if page.search_description or page.excerpt %},
+  "description": "{{ page.search_description|default:page.excerpt|escapejs }}"
+  {% endif %}
+  ,
+  "author": { "@type": "Person", "name": "{{ page.author_name|default:"Leslie Hale"|escapejs }}" }
+  ,
+  "publisher": { "@type": "Organization", "name": "Leslie Hale Astrology" }
+  {% if page.featured_image %}{% image page.featured_image width-1200 format-jpeg as ld_image %},
+  "image": "{{ seo_site_origin|add:ld_image.url|escapejs }}"
+  {% endif %}
+}
+</script>
+{% endblock %}
+{% block og_image %}{% if page.featured_image %}{% image page.featured_image fill-1200x630 format-jpeg as og_rendition %}{{ seo_site_origin }}{{ og_rendition.url }}{% else %}{{ default_og_image }}{% endif %}{% endblock %}
+{% block twitter_image %}{% if page.featured_image %}{% image page.featured_image fill-1200x630 format-jpeg as og_rendition %}{{ seo_site_origin }}{{ og_rendition.url }}{% else %}{{ default_og_image }}{% endif %}{% endblock %}
 
 {% block content %}
 <article>

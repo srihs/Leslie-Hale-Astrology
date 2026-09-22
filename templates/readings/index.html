@@ -21,8 +21,18 @@ page.faq  this page's own optional FAQ StreamField (apps.core.blocks.
           four-question placeholder.
 {% endcomment %}
 
-{% block title %}Readings &amp; Prices — Leslie Hale Astrology{% endblock %}
-{% block meta_description %}{{ page.intro|default:"Astrology readings with Leslie Hale. Online or by phone." }}{% endblock %}
+{% comment %}
+On-page SEO (§5): page.seo_title/page.search_description are Wagtail's
+own built-in Page fields, editable under this page's Promote tab.
+{% endcomment %}
+{% block title %}{{ page.seo_title|default:"Readings & Prices — Leslie Hale Astrology" }}{% endblock %}
+{% block meta_description %}{{ page.search_description|default:page.intro|default:"Astrology readings with Leslie Hale. Online or by phone." }}{% endblock %}
+{% block extra_meta %}
+<meta property="og:title" content="{{ page.seo_title|default:"Readings & Prices — Leslie Hale Astrology" }}">
+<meta property="og:description" content="{{ page.search_description|default:page.intro|default:"Astrology readings with Leslie Hale. Online or by phone." }}">
+<meta name="twitter:title" content="{{ page.seo_title|default:"Readings & Prices — Leslie Hale Astrology" }}">
+<meta name="twitter:description" content="{{ page.search_description|default:page.intro|default:"Astrology readings with Leslie Hale. Online or by phone." }}">
+{% endblock %}
 
 {% block content %}
 <section class="page-hero" aria-labelledby="h">

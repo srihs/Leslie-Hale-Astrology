@@ -42,6 +42,29 @@ same template only includes them while still pending).
   <h3>You're booked</h3>
   <p class="sub">{{ booking.reading.name }} · {{ booking.start_at|timezone:booking.display_timezone|date:"l j F, g:i a" }} ({{ booking.display_timezone }})</p>
   <p>A confirmation email is on its way to {{ booking.client_email }}.</p>
+  {% comment %}
+  §3 conversion: booking completed. Fired with NO parameters — no reading
+  name, price, appointment time or client email is ever sent to GA
+  ("Booking details are not event parameters", CLAUDE.md task brief). This
+  same template renders both on first load after Stripe's redirect and on
+  every 2s htmx status poll while still pending, and could be reached
+  again later via a bookmarked/emailed confirmation link — the
+  localStorage guard below (keyed on the booking's own public_ref, not
+  sent to GA) makes sure this browser only ever counts it once per
+  booking, however many times this markup renders. `gtag` is always
+  defined (see base.html's <head> shim) even when analytics is blank or
+  consent hasn't been granted — in both cases this call is a safe no-op.
+  {% endcomment %}
+  <script>
+  (function () {
+    var key = "lha-ga-booking-completed-{{ booking.public_ref|escapejs }}";
+    try {
+      if (window.localStorage.getItem(key)) return;
+      window.localStorage.setItem(key, "1");
+    } catch (e) {}
+    gtag("event", "booking_completed");
+  })();
+  </script>
 
   {% elif booking.status == "cancelled" %}
   <span class="eyebrow">Booking status</span>
