@@ -31,6 +31,8 @@ the period, not a finding about it.
 
 | Date | Commit | Type | Stage | Source | What looked right but was not | What was done | Durable |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-09-22 | 484ecf7 | dependency | in-loop | agent-critique | pyproject.toml pinned `modelcluster==6.3`, a package name that does not exist on PyPI, so the dependency set looked complete but could never install. | Renamed the pin to `django-modelcluster==6.3` and verified every other dependency name and version against PyPI. | no |
+| 2026-09-22 | 6947cc5 | scope | in-loop | agent-critique | Templates rendered a contact email and a years-of-experience figure as confirmed fact, for items §8 lists as open, with a wrong settings-model reference guaranteeing the invented values always rendered. | Corrected the settings model reference and replaced every invented value with a visible placeholder or an omitted element. | no |
 
 <!-- No episodes recorded yet. Append one row per Oversight- trailered commit,
      newest last. Do not add illustrative or placeholder rows: a false entry
