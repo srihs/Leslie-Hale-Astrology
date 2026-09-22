@@ -1,31 +1,82 @@
 """
-Non-page endpoint for the Booking page's step-3 "your details" form
-(FINDING 1, reviews/2026-09-22-project-structure-scaffold.md). BookingPage
-itself is a Wagtail page, served by wagtail_urls, and has no entry in
-apps/bookings/urls.py.
+Non-page endpoints for the booking flow. BookingPage itself is a Wagtail
+page (served by wagtail_urls; its step 1-2 GET flow lives in
+BookingPage.get_context / apps/bookings/availability.py, not here) and has
+no entry in apps/bookings/urls.py.
 
-This deliberately stops short of creating a `Booking` row. The reading,
-date and time chosen in steps 1-2 live in that step's own form (a GET
-against BookingPage's own URL — see templates/bookings/partials/
-_booking_panel_form.html), not posted alongside this one, and stitching
-the two together — plus starting payment — needs availability/session
-logic that does not exist yet (apps/bookings/models.py's own docstring:
-booking-payments owns availability, slot selection and payment). What
-this view can honestly do today is validate the posted details and stage
-them in the session, so that work has something to read back once it
-exists, without guessing at a payment/booking flow that isn't built.
+Three views live here:
+
+- `save_details` — step 3's "your details" form. Unchanged in behaviour
+  from the version this module already had: it validates and stages
+  details in the session (`SESSION_KEY`), it does not create a `Booking`
+  row. That was the right call when it was written (no availability/
+  payment logic existed yet to attach a row to) and stays the right call
+  now: the row is created at checkout time (`start_checkout`), in the
+  same transaction as the slot reservation, once reading/day/slot are
+  also known — creating it earlier would mean creating (and having to
+  clean up) a booking row before a client has chosen a time at all.
+- `start_checkout` (new) — turns steps 1-3 into one held `Booking` row
+  plus a payment provider checkout session. This is where the database
+  exclusion constraint in models.py actually gets exercised.
+- `stripe_webhook` (new) — the untrusted, possibly-duplicated notification
+  from the payment provider that money actually moved. Verifies the
+  signature before trusting anything in the payload, and is idempotent
+  via `PaymentEvent`'s unique constraint.
+- `booking_status` (new) — a small polling fragment so the browser can
+  find out once `stripe_webhook` has actually confirmed a booking, rather
+  than trusting the payment provider's redirect alone (see the final
+  report's note on why the redirect is UX only).
+
+Sensitive data discipline: nothing in this file logs a card number,
+token, email address, or birth detail — only `booking.public_ref` and,
+for provider failures, an exception's type name.
 """
+
+from __future__ import annotations
+
+from datetime import date, datetime, timedelta
+from datetime import timezone as dt_timezone
+from decimal import ROUND_HALF_UP, Decimal
+import logging
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.http import HttpResponseNotAllowed
+from django.db import IntegrityError, transaction
+from django.http import (
+    HttpResponse,
+    HttpResponseBadRequest,
+    HttpResponseNotAllowed,
+    HttpResponseRedirect,
+)
 from django.shortcuts import render
+from django.utils import timezone as dj_timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+
+from apps.bookings import availability
+from apps.bookings.emails import send_booking_emails, send_payment_needs_attention_email
+from apps.bookings.models import (
+    Booking,
+    BookingPage,
+    BookingStatus,
+    CURRENCY,
+    HOLD_MINUTES,
+    PaymentEvent,
+    PaymentStatus,
+)
+from apps.bookings.payments import get_provider
+from apps.bookings.payments.base import PaymentProviderError
+from apps.readings.models import Reading
+
+logger = logging.getLogger(__name__)
 
 SESSION_KEY = "booking_details"
+SESSION_KEY_HOLD = "booking_hold_ref"
 
 
 def save_details(request):
-    """Validate the client's personal/birth details (POST only)."""
+    """Validate the client's personal/birth details (POST only) and stage
+    them in the session for `start_checkout` to read."""
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
 
@@ -66,3 +117,291 @@ def save_details(request):
             "details_submitted": submitted,
         },
     )
+
+
+def _parse_date(value: str):
+    try:
+        return date.fromisoformat(value) if value else None
+    except ValueError:
+        return None
+
+
+def _parse_time(value: str):
+    try:
+        return datetime.strptime(value, "%H:%M").time() if value else None
+    except ValueError:
+        return None
+
+
+def _checkout_error(request, message: str, *, status: int = 400):
+    """
+    A friendly, in-place error for the checkout step — per the
+    error-handling-ux skill, this preserves everything the visitor has
+    already entered (details stay staged in the session; reading/day/slot
+    are re-posted, not lost) and explains what to do next rather than
+    surfacing a stack trace. Renders
+    bookings/partials/_checkout_error.html — a new template for
+    htmx-frontend to build; see the final report for its exact context.
+    """
+    return render(request, "bookings/partials/_checkout_error.html", {"checkout_error": message}, status=status)
+
+
+def _expire_stale_holds() -> None:
+    """Lazily releases any PENDING booking whose hold has run out, so its
+    slot becomes available again. Run inside the same transaction as a new
+    hold attempt (see start_checkout) — there is no background task queue
+    in this stack to do it on a timer instead; see the final report."""
+    Booking.objects.filter(status=BookingStatus.PENDING, hold_expires_at__lt=dj_timezone.now()).update(
+        status=BookingStatus.CANCELLED, updated_at=dj_timezone.now()
+    )
+
+
+def _redirect_or_htmx(request, url: str):
+    if getattr(request, "htmx", False):
+        response = HttpResponse(status=200)
+        response["HX-Redirect"] = url
+        return response
+    return HttpResponseRedirect(url)
+
+
+@require_POST
+def start_checkout(request):
+    """
+    Combines the reading/day/slot chosen in steps 1-2 (posted as hidden
+    fields alongside the "Pay" control — see the context contract in the
+    final report) with the details staged in the session by
+    `save_details`, reserves the slot, and hands off to the payment
+    provider.
+
+    Double-submission safety: a second click (or a resubmitted form)
+    while the first hold is still live reuses that same hold — see
+    `SESSION_KEY_HOLD` below — rather than creating a second row, which
+    would otherwise collide with the first under the same exclusion
+    constraint that protects against two different people booking the
+    same slot.
+    """
+    details = request.session.get(SESSION_KEY)
+    if not details:
+        return _checkout_error(
+            request,
+            "We don't have your details yet — please fill in your details below before continuing to payment.",
+        )
+
+    reading = Reading.objects.filter(pk=request.POST.get("reading", "").strip(), is_active=True).first()
+    if not reading or not reading.duration_minutes:
+        return _checkout_error(request, "Please choose a reading before continuing to payment.")
+    if reading.price is None:
+        return _checkout_error(
+            request,
+            "Pricing for this reading isn't set up yet, so we can't take payment online for it. "
+            "Please get in touch directly and Leslie will help you book it.",
+        )
+
+    slot_value = request.POST.get("slot", "").strip()
+    try:
+        slot_start = datetime.fromisoformat(slot_value)
+        if slot_start.tzinfo is None:
+            raise ValueError("naive datetime")
+        slot_start = slot_start.astimezone(dt_timezone.utc)
+    except (ValueError, TypeError):
+        return _checkout_error(request, "That time doesn't look right — please choose a time again.")
+
+    tz = availability.resolve_timezone(request.POST.get("tz", "").strip())
+    local_day = slot_start.astimezone(tz).date()
+
+    # Defensive re-check against a stale page (the database constraint
+    # below is the real guard; this just lets an honest, specific answer
+    # be given instead of a generic constraint-violation error).
+    if slot_start not in availability.get_slots_for_day(reading, local_day):
+        return _checkout_error(
+            request,
+            "That time was just taken, or has passed. Please choose another time "
+            "— we've kept your details.",
+            status=409,
+        )
+
+    existing_ref = request.session.get(SESSION_KEY_HOLD)
+    if existing_ref:
+        existing = Booking.objects.filter(
+            public_ref=existing_ref, status=BookingStatus.PENDING, reading=reading, start_at=slot_start
+        ).first()
+        if existing and existing.hold_expires_at and existing.hold_expires_at > dj_timezone.now() and existing.payment_reference:
+            provider = get_provider()
+            if provider.name == existing.payment_provider:
+                # Re-use the hold already made by an earlier click rather
+                # than creating a second, colliding one.
+                try:
+                    session = provider.create_checkout_session(
+                        existing,
+                        success_url=_return_url(request, existing, "success"),
+                        cancel_url=_return_url(request, existing, "cancelled"),
+                    )
+                    return _redirect_or_htmx(request, session.redirect_url)
+                except PaymentProviderError:
+                    pass  # fall through and try a fresh hold below
+
+    duration = timedelta(minutes=reading.duration_minutes)
+    end_at = slot_start + duration
+    amount_minor = int((Decimal(reading.price) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+    try:
+        with transaction.atomic():
+            _expire_stale_holds()
+            booking = Booking.objects.create(
+                reading=reading,
+                client_first_name=details["first_name"],
+                client_last_name=details["last_name"],
+                client_email=details["email"],
+                birth_date=_parse_date(details.get("dob", "")),
+                birth_time=_parse_time(details.get("tob", "")),
+                birth_time_unknown=not bool(details.get("tob", "")),
+                birth_place=details.get("pob", ""),
+                client_notes=details.get("focus", ""),
+                start_at=slot_start,
+                end_at=end_at,
+                duration_minutes=reading.duration_minutes,
+                display_timezone=str(tz),
+                status=BookingStatus.PENDING,
+                hold_expires_at=dj_timezone.now() + timedelta(minutes=HOLD_MINUTES),
+                payment_status=PaymentStatus.UNPAID,
+                amount_minor=amount_minor,
+                currency=CURRENCY,
+            )
+    except IntegrityError:
+        logger.info("booking hold rejected by exclusion constraint slot_start=%s", slot_start.isoformat())
+        return _checkout_error(
+            request,
+            "That time was just taken by someone else. Please choose another time "
+            "— we've kept your details.",
+            status=409,
+        )
+
+    provider = get_provider()
+    try:
+        session = provider.create_checkout_session(
+            booking,
+            success_url=_return_url(request, booking, "success"),
+            cancel_url=_return_url(request, booking, "cancelled"),
+        )
+    except PaymentProviderError:
+        logger.exception("payment provider failed to start checkout booking_ref=%s", booking.public_ref)
+        # Cancel the hold immediately so the slot doesn't sit reserved for
+        # nothing until it naturally expires, and so a retry by the same
+        # visitor doesn't collide with this one.
+        booking.status = BookingStatus.CANCELLED
+        booking.save(update_fields=["status", "updated_at"])
+        return _checkout_error(
+            request,
+            "We couldn't start payment just now — nothing has been charged. Please try again in a moment.",
+        )
+
+    booking.payment_provider = provider.name
+    booking.payment_reference = session.provider_reference
+    booking.save(update_fields=["payment_provider", "payment_reference", "updated_at"])
+
+    request.session[SESSION_KEY_HOLD] = str(booking.public_ref)
+
+    return _redirect_or_htmx(request, session.redirect_url)
+
+
+def _return_url(request, booking: Booking, result: str) -> str:
+    page = BookingPage.objects.live().first()
+    base = page.get_full_url(request) if page else "/"
+    return f"{base}?ref={booking.public_ref}&result={result}"
+
+
+def booking_status(request, ref):
+    """
+    Small polling fragment (`GET forms/booking/status/<ref>/`) for the
+    payment-return screen to re-check while a booking is still `pending`
+    — the provider's success redirect happens in the browser and can
+    arrive before `stripe_webhook` has actually processed the payment;
+    this is how the UI finds out once it has, instead of trusting the
+    redirect as the source of truth. Renders
+    bookings/partials/_booking_status.html — a new template for
+    htmx-frontend to build; see the final report for its exact context.
+    """
+    booking = Booking.objects.filter(public_ref=ref).select_related("reading").first()
+    return render(request, "bookings/partials/_booking_status.html", {"booking": booking})
+
+
+@csrf_exempt
+@require_POST
+def stripe_webhook(request):
+    """
+    Untrusted, possibly-duplicated input (SCOPE correctness rule). Every
+    event is signature-verified before anything in it is trusted
+    (`provider.verify_and_parse_webhook`), and handling is idempotent:
+    inserting the `PaymentEvent` row happens inside the same transaction
+    as acting on the event, so a second delivery of the same
+    (provider, event_id) hits the model's unique constraint and is a
+    no-op rather than being reprocessed.
+    """
+    provider = get_provider()
+    try:
+        event = provider.verify_and_parse_webhook(request.body, request.headers)
+    except PaymentProviderError:
+        logger.warning("rejected webhook: signature verification failed")
+        return HttpResponseBadRequest("invalid signature")
+
+    try:
+        with transaction.atomic():
+            PaymentEvent.objects.create(provider=provider.name, event_id=event.event_id, event_type=event.event_type)
+            _apply_webhook_event(provider, event)
+    except IntegrityError:
+        # Same event delivered more than once — already processed.
+        return HttpResponse(status=200)
+
+    return HttpResponse(status=200)
+
+
+def _apply_webhook_event(provider, event) -> None:
+    booking = (
+        Booking.objects.select_for_update()
+        .filter(payment_reference=event.provider_reference)
+        .first()
+    )
+    if not booking:
+        logger.info(
+            "webhook for unrecognised booking provider=%s type=%s", provider.name, event.event_type
+        )
+        return
+
+    if event.event_type == provider.EVENT_PAYMENT_SUCCEEDED:
+        booking.payment_status = PaymentStatus.PAID
+        if booking.status == BookingStatus.PENDING:
+            booking.status = BookingStatus.CONFIRMED
+            booking.hold_expires_at = None
+            booking.save(update_fields=["payment_status", "status", "hold_expires_at", "updated_at"])
+            transaction.on_commit(lambda: send_booking_emails(booking.pk))
+        else:
+            # The hold had already expired/been cancelled by the time
+            # payment landed — the slot may since have gone to someone
+            # else. This is the "paid booking that was never confirmed"
+            # case: represented honestly (payment_status=paid,
+            # status unchanged) rather than forcing a confirmation the
+            # calendar can no longer guarantee.
+            note = "Payment received after this hold expired — needs manual follow-up."
+            booking.internal_notes = f"{booking.internal_notes}\n{note}" if booking.internal_notes else note
+            booking.save(update_fields=["payment_status", "internal_notes", "updated_at"])
+            transaction.on_commit(lambda: send_payment_needs_attention_email(booking.pk))
+
+    elif event.event_type == provider.EVENT_PAYMENT_FAILED:
+        booking.payment_status = PaymentStatus.FAILED
+        booking.save(update_fields=["payment_status", "updated_at"])
+
+    elif event.event_type == provider.EVENT_CHECKOUT_EXPIRED:
+        if booking.status == BookingStatus.PENDING:
+            booking.status = BookingStatus.CANCELLED
+            booking.save(update_fields=["status", "updated_at"])
+
+    elif event.event_type == provider.EVENT_REFUNDED:
+        # Deliberately does not touch booking.status — a confirmed
+        # appointment whose payment was later refunded/disputed is a
+        # separate fact from whether the appointment itself still goes
+        # ahead; that's Leslie's call, made from the admin, not this
+        # handler's.
+        booking.payment_status = PaymentStatus.REFUNDED
+        booking.save(update_fields=["payment_status", "updated_at"])
+
+    # EVENT_IGNORED: a real event this app doesn't act on — no-op.
