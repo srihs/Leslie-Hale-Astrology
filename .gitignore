@@ -64,3 +64,6 @@ temp/
 
 # collectstatic output (built artifact, never committed)
 /staticfiles/
+
+# Stripe SDK telemetry state written at runtime
+/.config/
