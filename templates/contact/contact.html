@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% comment %}
+Contact page. Two independent forms — contact (partials/_contact_form.html)
+and newsletter (includes/_newsletter_form.html) — each with its own htmx
+swap target, so submitting one never disturbs the other.
+
+Contact email/phone are SCOPE §8 open items; see includes/_footer.html for
+the same SiteSettings contract used here.
+{% endcomment %}
+
+{% block title %}Contact — Leslie Hale Astrology{% endblock %}
+{% block meta_description %}Get in touch with Leslie Hale, or join the monthly newsletter.{% endblock %}
+
+{% block content %}
+<section class="page-hero" aria-labelledby="h">
+  <div class="wrap">
+    <p class="crumbs"><a href="{% url 'home:index' %}">Home</a> / Contact</p>
+    <span class="eyebrow">Contact</span>
+    <h1 id="h" data-split>Say <em>hello</em>.</h1>
+    <p class="lead" data-reveal>Questions about a reading, gift vouchers, or which session is right for you — send a note and Leslie will reply within two working days. Ready to book? <a href="{% url 'bookings:booking' %}" style="color:var(--gold)">Go straight to the calendar.</a></p>
+  </div>
+</section>
+
+<section aria-label="Contact form and details">
+  <div class="wrap contact-grid">
+    <div class="info" data-reveal>
+      <div><span>Email</span><a href="mailto:{{ settings.core.SiteSettings.contact_email|default:'hello@lesliehale-astrology.com' }}">{{ settings.core.SiteSettings.contact_email|default:"hello@lesliehale‑astrology.com" }}</a></div>
+      <div><span>Phone</span><a href="tel:{{ settings.core.SiteSettings.contact_phone|default:'' }}">{{ settings.core.SiteSettings.contact_phone|default:"[phone TBC]" }}</a><p>Weekdays, 9am–5pm</p></div>
+      <div><span>Sessions</span><p>Online (video link) or by phone. Wherever you are in the world — times shown in your timezone.</p></div>
+      <div><span>Follow</span><p><a href="{{ settings.core.SiteSettings.instagram_url|default:'#' }}" style="font-size:16px">Instagram</a> · <a href="{{ settings.core.SiteSettings.facebook_url|default:'#' }}" style="font-size:16px">Facebook</a></p></div>
+    </div>
+    {% include "contact/partials/_contact_form.html" %}
+  </div>
+</section>
+
+<section class="news tint" id="newsletter" aria-labelledby="news-h">
+  <div class="wrap">
+    <div><span class="eyebrow">Newsletter</span><h2 id="news-h" data-split>The sky, once a month, in plain words</h2><p>One email a month on what's happening overhead. No spam, unsubscribe anytime.</p></div>
+    {% include "includes/_newsletter_form.html" %}
+  </div>
+</section>
+{% endblock %}

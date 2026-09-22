@@ -1,0 +1,41 @@
+{% comment %}
+Step 3 of booking — personal/birth details. Deliberately its own <form>,
+outside #booking-panel (see _booking_panel.html), so picking a day or time
+never wipes what the visitor has typed here.
+
+No-JS path: real POST to bookings:save_details; the server re-renders the
+full booking page with this partial showing the saved state or field
+errors via the `.sent` / `.invalid` classes (static/css/_components.css).
+With htmx: hx-post swaps only this <form id="booking-details-form">.
+
+Context (apps.bookings view):
+  details_values    dict of posted values, for re-populating after an error
+  details_errors    dict of field -> [messages]
+  details_submitted bool
+{% endcomment %}
+<form class="panel form{% if details_submitted %} sent{% endif %}{% if details_errors %} invalid{% endif %}"
+      id="booking-details-form" novalidate
+      method="post" action="{% url 'bookings:save_details' %}"
+      hx-post="{% url 'bookings:save_details' %}" hx-target="#booking-details-form" hx-swap="outerHTML"
+      aria-live="polite">
+  {% csrf_token %}
+  <span class="eyebrow">Step 3</span><h3>Your details</h3><p class="sub">Leslie prepares your chart before you meet, so birth details matter.</p>
+  <div class="form-row">
+    <div class="field"><label for="fn">First name</label><input id="fn" name="first_name" required autocomplete="given-name" value="{{ details_values.first_name|default:'' }}"></div>
+    <div class="field"><label for="ln">Last name</label><input id="ln" name="last_name" required autocomplete="family-name" value="{{ details_values.last_name|default:'' }}"></div>
+  </div>
+  <div class="field">
+    <label for="em">Email</label>
+    <input id="em" name="email" type="email" required autocomplete="email" value="{{ details_values.email|default:'' }}"
+           aria-describedby="em-err" aria-invalid="{% if details_errors.email %}true{% else %}false{% endif %}">
+    <span class="err" id="em-err">{{ details_errors.email.0|default:"Please enter a valid email." }}</span>
+  </div>
+  <div class="form-row">
+    <div class="field"><label for="dob">Date of birth</label><input id="dob" name="dob" type="date" required value="{{ details_values.dob|default:'' }}"></div>
+    <div class="field"><label for="tob">Time of birth</label><input id="tob" name="tob" type="time" value="{{ details_values.tob|default:'' }}"><span class="hint">Leave blank if unknown</span></div>
+  </div>
+  <div class="field"><label for="pob">Place of birth</label><input id="pob" name="pob" required placeholder="City, country" value="{{ details_values.pob|default:'' }}"></div>
+  <div class="field"><label for="q">Anything you'd like to focus on? (optional)</label><textarea id="q" name="focus">{{ details_values.focus|default:'' }}</textarea></div>
+  <p class="ok" role="status" tabindex="-1">Thank you — your details are saved. Continue to payment on the right.</p>
+  <button class="btn btn-ghost" type="submit">Save details</button>
+</form>

@@ -1,0 +1,28 @@
+{% comment %}
+The booking summary — the *right* grid child of `.wrap.booking`. Included
+directly for the full page, and again (with hx-swap-oob="true" doing the
+work) by partials/_booking_panel.html for htmx responses, so a day/time/
+reading change updates the price and "Continue to payment" state together
+with the left column from a single request. See _booking_panel_form.html
+for why these are two files instead of one.
+
+Context (apps.bookings view):
+  summary  {reading_label, price, date_label, time_label, ready,
+            reading_slug, day_iso, slot_value}
+{% endcomment %}
+<aside class="summary" id="booking-summary" aria-label="Booking summary" aria-live="polite" hx-swap-oob="true">
+  <span class="eyebrow">Your booking</span>
+  <dl>
+    <dt>Reading</dt><dd>{{ summary.reading_label|default:"—" }}</dd>
+    <dt>Date</dt><dd>{{ summary.date_label|default:"—" }}</dd>
+    <dt>Time</dt><dd>{{ summary.time_label|default:"—" }}</dd>
+    <dt>Format</dt><dd>Online or phone</dd>
+  </dl>
+  <div class="total"><span>Total</span><b>${{ summary.price|default:"0" }}</b></div>
+  {% if summary.ready %}
+  <a class="btn btn-solid" href="{% url 'bookings:checkout' %}?reading={{ summary.reading_slug }}&amp;day={{ summary.day_iso }}&amp;slot={{ summary.slot_value|urlencode }}">Continue to payment</a>
+  {% else %}
+  <button class="btn btn-solid" type="button" disabled>Choose a reading, date and time</button>
+  {% endif %}
+  <p class="secure">🔒 Secure payment · Free reschedule up to 24h before</p>
+</aside>

@@ -1,0 +1,64 @@
+# Local development stack. Two services, one process each: Postgres and the
+# Django/Wagtail app (gunicorn is swapped for `runserver` here for
+# autoreload — production still runs the image's default gunicorn CMD, see
+# docker/Dockerfile).
+#
+# Run: docker compose up --build
+# Requires: a .env file (copy .env.example -> .env and fill it in first).
+
+services:
+  db:
+    image: postgres:16.6-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      # Host access for a local psql/GUI client during development only —
+      # not exposed in any production topology.
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+    # Dev convenience only: bind-mount the source tree for autoreload and
+    # swap the image's gunicorn CMD for Django's dev server. Production
+    # uses the image as built, unmodified, via the Dockerfile's own CMD.
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+      - media:/app/media
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  postgres_data:
+  # Media (Leslie's portrait, blog images) must survive `docker compose
+  # down` and rebuilds. This named volume covers local dev; production on
+  # Prohosting needs its own persistent path or object storage — see the
+  # deployment notes for the open assumption this still depends on.
+  media:

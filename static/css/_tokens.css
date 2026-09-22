@@ -1,0 +1,13 @@
+/* TOKENS
+   Values copied verbatim from versions/v1-ephemeris/style.css (the locked
+   design source) and PROJECT-SCOPE.md §7. The palette is LOCKED — do not
+   add a hex literal to any component rule; reference these custom
+   properties instead. Do not add colours outside this set without a scope
+   change signed off against §7. */
+:root{
+  --bg:#0B1526;--bg-2:#0E1B33;--bg-3:#12223F;
+  --gold:#D9C08A;--gold-2:#B89B5E;--line:rgba(217,192,138,.22);--line-strong:rgba(217,192,138,.45);
+  --ink:#F2EEE6;--muted:#A9B3C4;--danger:#E08A8A;
+  --serif:"Cormorant Garamond",Georgia,"Times New Roman",serif;--sans:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --max:1200px;--pad:clamp(20px,5vw,64px);
+}

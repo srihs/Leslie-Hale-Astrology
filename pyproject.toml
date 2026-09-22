@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leslie-hale-astrology"
+version = "0.1.0"
+description = "Leslie Hale Astrology — Django + Wagtail site (not a distributed library; pyproject exists to pin the dependency set)."
+requires-python = "==3.12.*"
+dependencies = [
+    # Framework
+    "Django==5.1.4",
+    "wagtail==6.3.1",
+    "modelcluster==6.3",
+    "django-taggit==6.1.0",
+    # htmx integration
+    "django-htmx==1.19.0",
+    # Database
+    "psycopg[binary]==3.2.3",
+    "dj-database-url==2.3.0",
+    # Static / media
+    "whitenoise==6.7.0",
+    "Pillow==11.0.0",
+    # WSGI server
+    "gunicorn==23.0.0",
+]
+
+# This project is app code, not a distributable library — there is no
+# top-level importable package matching the project name, so we tell
+# setuptools to ship metadata only. `pip install .` in docker/Dockerfile
+# then does one thing: resolve and install the exact pinned dependency set
+# above. The Dockerfile COPYs the actual source tree separately.
+[tool.setuptools]
+py-modules = []
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = ["versions", "migrations"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.dev"
+python_files = ["test_*.py", "*_test.py", "tests.py"]

@@ -1,0 +1,14 @@
+{% comment %}
+Combined htmx response for the bookings:booking view when request.htmx is
+true. NOT used for the full-page render — booking.html includes
+_booking_panel_form.html and _booking_summary.html directly, in their
+correct positions in the `.wrap.booking` two-column grid (see the comment
+in _booking_panel_form.html for why).
+
+This file exists only so one HTTP response can carry both the primary
+hx-target (#booking-panel, matched by every control's hx-target) and the
+out-of-band summary update (#booking-summary, hx-swap-oob="true" set in
+_booking_summary.html) — htmx applies both from a single GET.
+{% endcomment %}
+{% include "bookings/partials/_booking_panel_form.html" %}
+{% include "bookings/partials/_booking_summary.html" %}

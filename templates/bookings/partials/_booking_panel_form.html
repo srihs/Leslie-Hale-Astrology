@@ -1,0 +1,76 @@
+{% comment %}
+Steps 1–2 of booking: reading type, month, day, time. This is the *left*
+grid child's top part — see booking.html for how it, partials/_details_form.html
+and partials/_booking_summary.html are assembled into the required
+two-column `.wrap.booking` DOM (design-system's _pages.css `.booking{display:
+grid;grid-template-columns:…}` keys off exactly two direct children).
+
+Included directly for the full page (first load / no-JS). Also included,
+alongside _booking_summary.html, by partials/_booking_panel.html — the
+single response the bookings:booking view returns to an htmx request so
+both regions update from one round trip via hx-swap-oob (see that file).
+
+No-JS path: every control is a real `<button type="submit">` or radio
+`<input>` inside the `<form method="get">` below. Clicking one reloads the
+page with the selection in the query string (?reading=&month=&day=&slot=)
+and the server renders the same state from scratch.
+
+Context (apps.bookings view):
+  reading_types   list of {slug, label, price, duration_minutes, blurb, selected}
+  month_label     "September 2026"
+  prev_month_iso / next_month_iso
+  calendar_cells  35/42 cells, row-major, Monday-first: {day, iso, available, selected}
+  slots           list of {value, label, selected} for the selected day
+{% endcomment %}
+<div id="booking-panel" aria-live="polite">
+  <form method="get" action="{% url 'bookings:booking' %}">
+    <div class="panel" style="margin-bottom:20px">
+      <span class="eyebrow">Step 1</span><h3>Choose your reading</h3><p class="sub">All readings are online or by phone and include a recording.</p>
+      <div class="options" role="radiogroup" aria-label="Reading type">
+        {% for r in reading_types %}
+        <label class="opt">
+          <input type="radio" name="reading" value="{{ r.slug }}" {% if r.selected %}checked{% endif %}
+                 hx-get="{% url 'bookings:booking' %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true" hx-trigger="change">
+          <div><b>{{ r.label }}</b><span>{{ r.duration_minutes|default:"[TBC]" }} minutes · {{ r.blurb }}</span></div>
+          <span class="p">${{ r.price|default:"[TBC]" }}</span>
+        </label>
+        {% empty %}
+        <!-- No readings published yet — SCOPE §8 "final list of readings + prices" is open. -->
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:20px">
+      <span class="eyebrow">Step 2</span><h3>Pick a date and time</h3><p class="sub">Times shown in your local timezone.</p>
+      <div class="cal-head">
+        <button type="submit" name="month" value="{{ prev_month_iso }}" aria-label="Previous month"
+                hx-get="{% url 'bookings:booking' %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true">‹</button>
+        <b>{{ month_label }}</b>
+        <button type="submit" name="month" value="{{ next_month_iso }}" aria-label="Next month"
+                hx-get="{% url 'bookings:booking' %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true">›</button>
+      </div>
+      <div class="cal" role="group" aria-label="Choose a day in {{ month_label }}">
+        <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+        {% for cell in calendar_cells %}
+          {% if cell.day %}
+          <button type="submit" name="day" value="{{ cell.iso }}" {% if not cell.available %}disabled{% endif %}
+                  aria-pressed="{% if cell.selected %}true{% else %}false{% endif %}"
+                  hx-get="{% url 'bookings:booking' %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true">{{ cell.day }}</button>
+          {% else %}
+          <button disabled aria-hidden="true"></button>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <span class="eyebrow">Available times</span>
+      <div class="slots" style="margin-top:10px">
+        {% for slot in slots %}
+        <button type="submit" name="slot" value="{{ slot.value }}"
+                aria-pressed="{% if slot.selected %}true{% else %}false{% endif %}"
+                hx-get="{% url 'bookings:booking' %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true">{{ slot.label }}</button>
+        {% empty %}
+        <p class="sub">Choose a day to see available times.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </form>
+</div>

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% comment %}
+Single reading detail page — one per reading type, linked from the
+readings index and from service cards elsewhere. Reuses the same `.detail`
+block the index uses for each reading, at page scale, following the same
+pattern as blog/post.html (hero + body + "more" + CTA).
+
+Context (apps.readings view / ReadingDetailPage):
+  reading        {slug, number_label, tag_label, title, description,
+                  bullets, price, duration_minutes, image_url, image_alt}
+  other_readings list of the same shape, for "Other readings" below
+{% endcomment %}
+
+{% block title %}{{ reading.title|default:"Reading" }} — Leslie Hale Astrology{% endblock %}
+{% block meta_description %}{{ reading.description|default:"A personal astrology reading with Leslie Hale, online or by phone." }}{% endblock %}
+
+{% block content %}
+<section class="page-hero" aria-labelledby="h">
+  <div class="wrap">
+    <p class="crumbs"><a href="{% url 'home:index' %}">Home</a> / <a href="{% url 'readings:index' %}">Readings</a> / {{ reading.title }}</p>
+    <span class="eyebrow">{{ reading.number_label }}{% if reading.tag_label %} · {{ reading.tag_label }}{% endif %}</span>
+    <h1 id="h" data-split>{{ reading.title }}</h1>
+    <p class="lead" data-reveal>{{ reading.description }}</p>
+  </div>
+</section>
+
+<div class="wrap">
+  <article class="detail" aria-labelledby="h">
+    <figure class="detail-media" data-reveal><img src="{{ reading.image_url }}" width="1000" height="750" alt="{{ reading.image_alt }}" loading="lazy" onerror="this.style.display='none'"></figure>
+    <div>
+      <ul data-reveal>
+        {% for bullet in reading.bullets %}<li>{{ bullet }}</li>{% endfor %}
+      </ul>
+      <div class="meta" data-reveal>
+        <div><b>${{ reading.price|default:"[price TBC]" }}</b><small>{{ reading.duration_minutes|default:"[TBC]" }} minutes</small></div>
+        <a class="btn btn-solid" href="{% url 'bookings:booking' %}?reading={{ reading.slug }}">Book this reading</a>
+      </div>
+    </div>
+  </article>
+</div>
+
+<section class="tint" aria-labelledby="more-h">
+  <div class="wrap">
+    <div class="sec-head"><div><span class="eyebrow">Other readings</span><h2 id="more-h" data-split>You might also like</h2></div><a class="link" href="{% url 'readings:index' %}">All readings</a></div>
+    <div class="svc-grid">
+      {% for other in other_readings %}
+      <article class="svc" data-reveal>
+        <span class="num">{{ other.number_label }}</span>
+        <h3>{{ other.title }}</h3>
+        <p>{{ other.description }}</p>
+        <div class="price"><div><b>${{ other.price|default:"[price TBC]" }}</b><small>{{ other.duration_minutes|default:"[TBC]" }} minutes</small></div><a href="{% url 'readings:detail' other.slug %}">View →</a></div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="cta" aria-labelledby="cta-h">
+  <div class="wrap"><div class="cta-box">
+    <span class="eyebrow">Ready when you are</span><h2 id="cta-h" data-split>Book your reading with Leslie</h2>
+    <p>Choose a time that suits you. Sessions are online or by phone, wherever you are.</p>
+    <a class="btn btn-solid" href="{% url 'bookings:booking' %}?reading={{ reading.slug }}">Book a Reading</a>
+  </div></div>
+</section>
+{% endblock %}

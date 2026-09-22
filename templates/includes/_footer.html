@@ -1,0 +1,48 @@
+{% comment %}
+Site footer — included once from base.html.
+
+Contact email, phone and social links are SCOPE §8 open items ("Contact
+email / phone" — not yet supplied by the client). They read from Wagtail's
+contrib.settings SiteSettings snippet (apps.core owns that model; the
+context processor is already wired in config/settings/base.py). Until that
+snippet has real values, the `default` filters below render a bracketed
+placeholder rather than inventing a real-looking email/phone.
+{% endcomment %}
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <span class="brand" style="font-size:13px">Leslie Hale Astrology</span>
+        <p>Warm, practical astrology readings, online or by phone, wherever you are.</p>
+      </div>
+      <div>
+        <h4>Explore</h4>
+        <ul>
+          <li><a href="{% url 'core:about' %}">About Leslie</a></li>
+          <li><a href="{% url 'readings:index' %}">Readings</a></li>
+          <li><a href="{% url 'blog:index' %}">Blog</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Book</h4>
+        <ul>
+          <li><a href="{% url 'bookings:booking' %}">Book a reading</a></li>
+          <li><a href="{% url 'contact:contact' %}">Contact</a></li>
+          <li><a href="{% url 'contact:contact' %}#newsletter">Newsletter</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:{{ settings.core.SiteSettings.contact_email|default:'hello@lesliehale-astrology.com' }}">{{ settings.core.SiteSettings.contact_email|default:"hello@lesliehale‑astrology.com" }}</a></li>
+          <li><a href="{{ settings.core.SiteSettings.instagram_url|default:'#' }}">Instagram</a></li>
+          <li><a href="{{ settings.core.SiteSettings.facebook_url|default:'#' }}">Facebook</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© {% now "Y" %} Leslie Hale. Readings are for guidance and reflection.</span>
+      <span><a href="{% url 'core:privacy' %}">Privacy</a> · <a href="{% url 'core:terms' %}">Terms</a></span>
+    </div>
+  </div>
+</footer>

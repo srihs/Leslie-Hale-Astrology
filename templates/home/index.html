@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% comment %}
+Home page — §7 homepage structure, in order: hero, services, about teaser,
+"how it works", testimonials, blog latest, newsletter, final CTA.
+
+Context (supplied by apps.home's view; wagtail-backend owns the page model):
+  services       list of {slug, number_label, title, description, price,
+                  duration_minutes, featured (bool)} — SCOPE §8 "final list
+                  of readings + prices" is still open, hence the `default`
+                  placeholders below.
+  about          {years, portrait_image, quote} — §8 "portrait photo" and
+                  "years of experience figure" are open.
+  testimonials   list of {quote, name, location} — §8 open ("Testimonials
+                  (3+)"); renders nothing until real ones exist rather than
+                  inventing quotes.
+  latest_posts   the 2 most recent published posts (apps.blog)
+{% endcomment %}
+
+{% block title %}Leslie Hale Astrology — Readings that help with everyday life{% endblock %}
+{% block meta_description %}Warm, non-judgemental astrology readings with Leslie Hale. Book a personal reading and leave with more answers than you came with.{% endblock %}
+
+{% block content %}
+<!--
+  Imagery provenance (Unsplash License): photo-1462331940025-496dfbfc7564
+  (nebula), photo-1532693322450-2cb5c511067d (moon),
+  photo-1419242902214-272b3f66ee7a (stars). Portrait: reserved slot for
+  client's real photo (SCOPE §8).
+-->
+<section class="hero" aria-labelledby="hero-h">
+  <div class="hero-stars" aria-hidden="true"></div>
+  <div class="wrap">
+    <div>
+      <span class="hero-tag" data-reveal>✦ Personal astrology readings</span>
+      <h1 id="hero-h" data-split>Astrology that helps with <em>real, everyday</em> life.</h1>
+      <p class="lead" data-reveal>A reading with Leslie is a warm, no‑judgement conversation about where you are and what the sky suggests next. You'll leave with more answers than you came with.</p>
+      <div class="hero-cta" data-reveal>
+        <a class="btn btn-solid" href="{% url 'bookings:booking' %}">Book a Reading</a>
+        <a class="btn btn-ghost" href="{% url 'readings:index' %}">See the readings</a>
+      </div>
+      <div class="hero-meta" data-reveal>
+        <div><strong>One‑to‑one</strong>Private sessions, online or by phone</div>
+        <div><strong>60 min</strong>Enough time to actually talk</div>
+      </div>
+    </div>
+    <figure class="hero-media" data-reveal>
+      <img src="https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1200&q=75&auto=format" width="960" height="1200" alt="A nebula and star cluster in deep space" fetchpriority="high" onerror="this.style.display='none'">
+      <figcaption class="hero-caption"><span>Charts · Transits · Timing</span><span>Readings since {{ about.practising_since|default:"2004" }}</span></figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="tint" id="services" aria-labelledby="svc-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><span class="eyebrow">Readings</span><h2 id="svc-h" data-split>Choose the conversation you need</h2></div>
+      <p>Every reading is done personally by Leslie, using your birth details. Not sure which one? Start with the Birth Chart reading.</p>
+    </div>
+    <div class="svc-grid">
+      {% for service in services %}
+      <article class="svc{% if service.featured %} featured{% endif %}" data-reveal>
+        <span class="num">{{ service.number_label }}</span>
+        <h3>{{ service.title }}</h3>
+        <p>{{ service.description }}</p>
+        <div class="price">
+          <div><b>${{ service.price|default:"[price TBC]" }}</b><small>{{ service.duration_minutes|default:"[TBC]" }} minutes</small></div>
+          <a href="{% url 'bookings:booking' %}?reading={{ service.slug }}">Book →</a>
+        </div>
+      </article>
+      {% empty %}
+      <!-- No readings published yet — SCOPE §8 "final list of readings + prices" is open. -->
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="about" id="about" aria-labelledby="about-h">
+  <div class="wrap">
+    <div class="portrait" data-reveal>
+      {% if about.portrait_image %}
+        <img src="{{ about.portrait_image.url }}" alt="{{ about.portrait_image.alt|default:'Portrait of Leslie Hale' }}">
+      {% else %}
+        <span>Portrait of Leslie<br>(photo to be supplied)</span>
+      {% endif %}
+      <div class="stat"><b>{{ about.years|default:"20+" }}</b><span>Years reading charts</span></div>
+    </div>
+    <div>
+      <span class="eyebrow">About Leslie</span>
+      <h2 id="about-h" data-split>Come as you are. Leave with answers.</h2>
+      <p data-reveal>I've been reading charts for a long time, and the thing I've learned is that astrology works best when it's practical. Not vague, not doom‑laden — a clear way of looking at your life and its timing.</p>
+      <p data-reveal>Nothing you bring to a reading will surprise me or be judged. We'll talk plainly about what's going on and what the sky suggests you do with it.</p>
+      <blockquote data-reveal>"Astrology isn't about fate. It's about knowing the weather before you plan the day."</blockquote>
+      <a class="link" href="{% url 'core:about' %}" data-reveal>Read Leslie's story</a>
+    </div>
+  </div>
+</section>
+
+<section class="tint" aria-labelledby="steps-h">
+  <div class="wrap">
+    <div class="sec-head"><div><span class="eyebrow">How it works</span><h2 id="steps-h" data-split>Three simple steps</h2></div></div>
+    <div class="step-grid">
+      <div class="step" data-reveal><b>1</b><h3>Choose &amp; book</h3><p>Pick a reading, choose a time on the calendar and pay securely online.</p></div>
+      <div class="step" data-reveal><b>2</b><h3>Share your details</h3><p>Send your date, time and place of birth. Leslie prepares your chart before you meet.</p></div>
+      <div class="step" data-reveal><b>3</b><h3>Talk it through</h3><p>Meet online or by phone. Ask anything. You'll get a recording to keep.</p></div>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="t-h">
+  <div class="wrap">
+    <div class="sec-head"><div><span class="eyebrow">Kind words</span><h2 id="t-h" data-split>What people say afterwards</h2></div></div>
+    <div class="t-grid">
+      {% for t in testimonials %}
+      <figure class="t" data-reveal>
+        <span class="q" aria-hidden="true">“</span>
+        <p>{{ t.quote }}</p>
+        <figcaption><cite><b>{{ t.name }}</b>{{ t.location }}</cite></figcaption>
+      </figure>
+      {% empty %}
+      <!-- SCOPE §8 "Testimonials (3+)" is open — nothing invented here. -->
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="tint" id="blog" aria-labelledby="blog-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><span class="eyebrow">From the blog</span><h2 id="blog-h" data-split>Notes on the sky this month</h2></div>
+      <a class="link" href="{% url 'blog:index' %}">View all posts</a>
+    </div>
+    <div class="post-grid">
+      {% for post in latest_posts %}
+      <a class="post" href="{% url 'blog:post' post.slug %}" data-reveal>
+        <figure><img src="{{ post.image_url }}" width="1000" height="625" alt="{{ post.image_alt }}" loading="lazy" onerror="this.style.display='none'"></figure>
+        <span class="eyebrow">{{ post.date|date:"j M Y" }} · {{ post.category }}</span>
+        <h3>{{ post.title }}</h3>
+        <p>{{ post.excerpt }}</p>
+      </a>
+      {% empty %}
+      <!-- No posts migrated yet — SCOPE §8 "Blogger URL for migration" is open. -->
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="news" aria-labelledby="news-h">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Newsletter</span>
+      <h2 id="news-h" data-split>The sky, once a month, in plain words</h2>
+      <p>Leslie's monthly note on what's happening overhead and what it might mean for you. No spam, unsubscribe anytime.</p>
+    </div>
+    {% include "includes/_newsletter_form.html" %}
+  </div>
+</section>
+
+<section class="cta" aria-labelledby="cta-h">
+  <div class="wrap">
+    <div class="cta-box">
+      <span class="eyebrow">Ready when you are</span>
+      <h2 id="cta-h" data-split>Book your reading with Leslie</h2>
+      <p>Choose a time that suits you. Sessions are online or by phone, wherever you are.</p>
+      <a class="btn btn-solid" href="{% url 'bookings:booking' %}">Book a Reading</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

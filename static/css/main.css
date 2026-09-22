@@ -1,0 +1,42 @@
+/* Leslie Hale Astrology — main stylesheet entry point
+   ============================================================
+
+   Values in this stylesheet derive from versions/v1-ephemeris/style.css
+   ("Ephemeris" — editorial split layouts, serif-led, framed panels) and
+   PROJECT-SCOPE.md §7 (Design Direction — LOCKED). That source file and §7
+   are the source of truth for every colour, size, spacing and breakpoint
+   here. This split is a structural port only: no value has been changed.
+   Where the source itself conflicts with the house-style rules restated
+   below, that conflict is flagged in a comment at the point of use rather
+   than silently corrected — see the delivery report for the full list.
+
+   House style (do not violate when adding new rules):
+   - Palette is the nine tokens in _tokens.css. No hex literals in
+     component rules — reference the token.
+   - 1px low-opacity gold borders, never box-shadows.
+   - Square / near-square corners (the .hero-tag pill is the one named
+     exception — see PROJECT-SCOPE.md §7 "small pill tag").
+   - Serif display (h1–h3, blockquote), sans body/UI.
+   - :focus-visible is a 2px gold outline at 4px offset — never remove it.
+   - Mobile-first; nav collapses at 900px.
+
+   Load order (each file depends on the ones above it):
+     1. _tokens.css      :root custom properties — everything below reads these
+     2. _base.css        reset, base typography, focus/skip link, .wrap, motion
+     3. _components.css  reusable atoms: eyebrow, buttons, link, forms
+     4. _layout.css      site chrome: nav, section rhythm, footer
+     5. _pages.css       page composition blocks: hero, services, about,
+                          testimonials, blog, booking, contact, CTA…
+
+   No build step exists yet (plain static/, no Django staticfiles pipeline
+   configured at time of writing). @import is used below so templates can
+   link a single main.css. If/when docker-infra wires up a staticfiles
+   pipeline (django-compressor, whitenoise + manual concat, etc.), prefer
+   concatenating these five files in the order above over runtime @import,
+   which blocks parallel download. Do not change the relative order. */
+
+@import url("_tokens.css");
+@import url("_base.css");
+@import url("_components.css");
+@import url("_layout.css");
+@import url("_pages.css");

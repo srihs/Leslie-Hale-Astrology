@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+{% comment %}
+Single blog post. No htmx — this is a read-only article page.
+
+Context (apps.blog view / BlogPostPage):
+  post           {title, category, author, date, reading_minutes, image_url,
+                  image_alt, body (a Wagtail RichTextField/StreamField value
+                  from wagtail-backend/blog-migration — rendered below with
+                  the `richtext` filter, never raw copy in this template)}
+  related_posts  up to 2 {url, image_url, image_alt, date, category, title, excerpt}
+{% endcomment %}
+
+{% block title %}{{ post.title|default:"Post" }} — Leslie Hale Astrology{% endblock %}
+{% block meta_description %}{{ post.excerpt|default:"A blog post from Leslie Hale." }}{% endblock %}
+
+{% block content %}
+<article>
+<section class="page-hero" aria-labelledby="h" style="border-bottom:0;padding-bottom:0">
+  <div class="wrap article">
+    <p class="crumbs"><a href="{% url 'home:index' %}">Home</a> / <a href="{% url 'blog:index' %}">Blog</a> / {{ post.category }}</p>
+    <span class="eyebrow">{{ post.category }}</span>
+    <h1 id="h" data-split style="font-size:clamp(34px,4.6vw,60px);max-width:20ch">{{ post.title }}</h1>
+    <div class="meta" data-reveal><span>By {{ post.author|default:"Leslie Hale" }}</span><span>{{ post.date|date:"j F Y" }}</span><span>{{ post.reading_minutes|default:"5" }} min read</span></div>
+  </div>
+</section>
+<div class="wrap article">
+  <figure class="article-hero" data-reveal><img src="{{ post.image_url }}" width="1400" height="600" alt="{{ post.image_alt }}" onerror="this.style.display='none'"></figure>
+  {{ post.body|richtext }}
+  <div class="share" data-reveal><span class="eyebrow" style="align-self:center">Share</span><a class="link" href="#">Facebook</a><a class="link" href="#">Copy link</a></div>
+</div>
+</article>
+
+<section class="tint" aria-labelledby="more-h" style="margin-top:64px">
+  <div class="wrap">
+    <div class="sec-head"><div><span class="eyebrow">Keep reading</span><h2 id="more-h" data-split>More from the blog</h2></div><a class="link" href="{% url 'blog:index' %}">All posts</a></div>
+    <div class="post-grid">
+      {% for related in related_posts %}
+      <a class="post" href="{{ related.url }}" data-reveal>
+        <figure><img src="{{ related.image_url }}" width="1000" height="625" alt="{{ related.image_alt }}" loading="lazy" onerror="this.style.display='none'"></figure>
+        <span class="eyebrow">{{ related.date|date:"j M Y" }} · {{ related.category }}</span>
+        <h3>{{ related.title }}</h3>
+        <p>{{ related.excerpt }}</p>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="cta" aria-labelledby="cta-h">
+  <div class="wrap"><div class="cta-box">
+    <span class="eyebrow">Want this for your own chart?</span><h2 id="cta-h" data-split>Book a reading with Leslie</h2>
+    <p>Sessions are online or by phone, wherever you are.</p>
+    <a class="btn btn-solid" href="{% url 'bookings:booking' %}">Book a Reading</a>
+  </div></div>
+</section>
+{% endblock %}

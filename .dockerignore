@@ -1,0 +1,57 @@
+# Keep the build context small and free of anything secret or irreplaceable.
+
+.git
+.gitignore
+.github
+
+# Python
+.venv
+venv
+env
+__pycache__
+*.py[cod]
+*$py.class
+*.egg-info
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# Design references, not part of the Django build — and large.
+versions/
+
+# Never send secrets into a build context or layer.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# User-uploaded media never belongs in the image.
+media/
+
+# Generated at container start / in CI, not part of source.
+staticfiles/
+node_modules/
+dist/
+build/
+.cache/
+
+# Editors / OS cruft
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Docs and project management artefacts irrelevant to the runtime image.
+# Anchored to the repo root (leading /) so these do NOT touch static/ or
+# templates/, whose images and files are needed in the build.
+reviews/
+/*.md
+!/README.md
+/*.pdf
+/*.jpeg
+/*.jpg
+/*.png
+
+# Local Claude Code config
+.claude/settings.local.json

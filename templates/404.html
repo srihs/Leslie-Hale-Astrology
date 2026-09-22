@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% comment %}
+Django renders this with the normal request context (context processors
+run), so it's safe to extend base.html — unlike 500.html, a bad URL does
+not imply the site's settings/DB are unhealthy. See templates/500.html
+for why that one stays standalone.
+{% endcomment %}
+
+{% block title %}Page not found — Leslie Hale Astrology{% endblock %}
+{% block meta_description %}That page couldn't be found.{% endblock %}
+
+{% block content %}
+<section class="page-hero" aria-labelledby="h">
+  <div class="wrap">
+    <p class="crumbs"><a href="{% url 'home:index' %}">Home</a> / Page not found</p>
+    <span class="eyebrow">404</span>
+    <h1 id="h" data-split>We couldn't find <em>that</em> page.</h1>
+    <p class="lead" data-reveal>The page may have moved, or the link may be out of date. Try the homepage, or go straight to booking a reading.</p>
+  </div>
+</section>
+
+<section class="cta" aria-labelledby="cta-h">
+  <div class="wrap"><div class="cta-box">
+    <span class="eyebrow">Where to next</span><h2 id="cta-h" data-split>Book your reading with Leslie</h2>
+    <p>Choose a time that suits you, or <a class="link" href="{% url 'home:index' %}">go back to the homepage</a>.</p>
+    <a class="btn btn-solid" href="{% url 'bookings:booking' %}">Book a Reading</a>
+  </div></div>
+</section>
+{% endblock %}

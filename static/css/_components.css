@@ -1,0 +1,48 @@
+/* COMPONENTS
+   Reusable UI atoms used across every page: eyebrow label, buttons, text
+   links, and the shared form-control set. Ported verbatim from
+   versions/v1-ephemeris/style.css. Page-specific card layouts (services,
+   testimonials, steps, booking panels, FAQ…) live in _pages.css instead —
+   see main.css for the split rationale. */
+
+.eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:500}
+
+/* BUTTONS — square corners, 1px gold border, no box-shadow */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:16px 28px;font-weight:500;font-size:14px;letter-spacing:.04em;text-decoration:none;border:1px solid var(--gold);transition:background .25s,color .25s,transform .25s;min-height:48px;cursor:pointer;font-family:var(--sans)}
+.btn-solid{background:var(--gold);color:var(--bg)}
+/* FLAG (not fixed — see main.css header / delivery report): #E6D2A3 is a
+   hex literal, not a token reference. It is a lightened tint of --gold used
+   only for this hover state and is preserved verbatim from source. */
+.btn-solid:hover{background:#E6D2A3}
+.btn-ghost{color:var(--gold);background:transparent}
+.btn-ghost:hover{background:rgba(217,192,138,.1)}
+.btn:active{transform:translateY(1px)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+
+/* LINK */
+.link{color:var(--gold);text-decoration:none;border-bottom:1px solid var(--line-strong);padding-bottom:3px;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+.link:hover{border-color:var(--gold)}
+
+/* FORMS */
+.form{display:grid;gap:16px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:600px){.form-row{grid-template-columns:1fr}}
+.field{display:grid;gap:6px}
+.field label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.field input,.field select,.field textarea{background:var(--bg);border:1px solid var(--line-strong);color:var(--ink);padding:14px 16px;font:inherit;min-height:48px;width:100%}
+.field select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--gold) 50%),linear-gradient(135deg,var(--gold) 50%,transparent 50%);background-position:calc(100% - 20px) 21px,calc(100% - 15px) 21px;background-size:5px 5px;background-repeat:no-repeat}
+.field textarea{min-height:140px;resize:vertical}
+/* FLAG (not fixed): the locked source uses a box-shadow focus ring here and
+   sets outline:none on :focus (not :focus-visible), which both diverges
+   from the "no box-shadow" rule and from the global 2px/4px gold
+   :focus-visible contract above. Preserved verbatim because it is the
+   source of truth — do not silently correct; see delivery report. */
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold);outline:none;box-shadow:0 0 0 3px rgba(217,192,138,.18)}
+.field [aria-invalid=true]{border-color:var(--danger)}
+.field .hint{color:var(--muted);font-size:12px}
+.err{color:var(--danger);font-size:13px;display:none}
+.form.invalid .err{display:block}
+.form small{color:var(--muted);font-size:12px}
+.form .ok{display:none;border:1px solid var(--gold);padding:16px;color:var(--gold)}
+.form.sent .ok{display:block}
+.form.sent .btn,.form.sent .field,.form.sent .form-row,.form.sent small{display:none}

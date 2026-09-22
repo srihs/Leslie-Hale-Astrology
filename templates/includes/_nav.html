@@ -1,0 +1,21 @@
+{% comment %}
+Primary navigation — included once from base.html.
+
+Expects `active_nav` in the template context: one of 'home', 'about',
+'readings', 'blog', 'contact', 'booking', or unset/None on pages with no
+nav counterpart. Each owning view sets it via get_context_data(), e.g.
+    context["active_nav"] = "readings"
+so the matching link gets aria-current="page". The mobile menu toggle
+(aria-expanded, .open) is handled by static/js/main.js; without JS the
+<ul id="menu"> is always visible via CSS (see _layout.css .nav ul).
+{% endcomment %}
+<nav aria-label="Primary">
+  <ul id="menu">
+    <li><a href="{% url 'home:index' %}"{% if active_nav == 'home' %} aria-current="page"{% endif %}>Home</a></li>
+    <li><a href="{% url 'core:about' %}"{% if active_nav == 'about' %} aria-current="page"{% endif %}>About</a></li>
+    <li><a href="{% url 'readings:index' %}"{% if active_nav == 'readings' %} aria-current="page"{% endif %}>Readings</a></li>
+    <li><a href="{% url 'blog:index' %}"{% if active_nav == 'blog' %} aria-current="page"{% endif %}>Blog</a></li>
+    <li><a href="{% url 'contact:contact' %}"{% if active_nav == 'contact' %} aria-current="page"{% endif %}>Contact</a></li>
+    <li><a href="{% url 'bookings:booking' %}"{% if active_nav == 'booking' %} aria-current="page"{% endif %}>Book a reading</a></li>
+  </ul>
+</nav>

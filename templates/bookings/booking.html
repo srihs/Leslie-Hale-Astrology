@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% comment %}
+Booking page. See partials/_booking_panel_form.html, partials/_details_form.html
+and partials/_booking_summary.html for the htmx contract of steps 1–3 and
+the summary. The two-column layout below (left <div>, right <aside>) is
+`.wrap.booking`'s required DOM shape — see the comment in
+_booking_panel_form.html for why the include order matters.
+{% endcomment %}
+
+{% block title %}Book a Reading — Leslie Hale Astrology{% endblock %}
+{% block meta_description %}Choose a reading, pick a time and pay securely online.{% endblock %}
+
+{% block content %}
+<section class="page-hero" aria-labelledby="h">
+  <div class="wrap">
+    <p class="crumbs"><a href="{% url 'home:index' %}">Home</a> / Book a reading</p>
+    <span class="eyebrow">Booking</span>
+    <h1 id="h" data-split>Book your <em>reading</em>.</h1>
+    <p class="lead" data-reveal>Three quick steps: choose a reading, pick a time, pay securely. You'll get a confirmation email straight away with everything you need.</p>
+  </div>
+</section>
+
+<section aria-label="Booking form">
+  <div class="wrap booking" data-booking>
+    <div>
+      {% include "bookings/partials/_booking_panel_form.html" %}
+      {% include "bookings/partials/_details_form.html" %}
+    </div>
+    {% include "bookings/partials/_booking_summary.html" %}
+  </div>
+</section>
+
+<section class="tint" aria-labelledby="faq-h">
+  <div class="wrap two-col">
+    <div><span class="eyebrow">Before you book</span><h2 id="faq-h" data-split>Good to know</h2></div>
+    <div class="faq" data-reveal>
+      <details><summary>What happens after I pay?</summary><p>You'll get a confirmation email with your session link, a calendar invite and a short form for your birth details.</p></details>
+      <details><summary>What if I don't know my birth time?</summary><p>That's fine — many people don't. Leslie will explain what can and can't be read without it.</p></details>
+      <details><summary>Can I get a refund?</summary><p>Full refund if you cancel more than 24 hours before.</p></details>
+    </div>
+  </div>
+</section>
+{% endblock %}

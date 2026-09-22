@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% comment %}
+Blog index. See partials/_post_list.html for the filter/pagination htmx
+contract — that is the only interactive part of this page.
+{% endcomment %}
+
+{% block title %}Blog — Leslie Hale Astrology{% endblock %}
+{% block meta_description %}Notes on the sky and everyday astrology from Leslie Hale.{% endblock %}
+
+{% block content %}
+<section class="page-hero" aria-labelledby="h">
+  <div class="wrap">
+    <p class="crumbs"><a href="{% url 'home:index' %}">Home</a> / Blog</p>
+    <span class="eyebrow">Blog</span>
+    <h1 id="h" data-split>Notes on the <em>sky</em>, in plain words.</h1>
+    <p class="lead" data-reveal>What's moving overhead, what it tends to mean, and what to do about it. Posts migrated from Leslie's Blogger archive.</p>
+  </div>
+</section>
+
+<section aria-label="Posts">
+  <div class="wrap">
+    {% include "blog/partials/_post_list.html" %}
+  </div>
+</section>
+
+<section class="news tint" id="newsletter" aria-labelledby="news-h">
+  <div class="wrap">
+    <div><span class="eyebrow">Newsletter</span><h2 id="news-h" data-split>Get these in your inbox</h2><p>One email a month. No spam, unsubscribe anytime.</p></div>
+    {% include "includes/_newsletter_form.html" %}
+  </div>
+</section>
+{% endblock %}

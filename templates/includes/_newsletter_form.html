@@ -1,0 +1,41 @@
+{% comment %}
+Newsletter signup — included on the home page, blog index and contact page
+(§4 site map: "Newsletter signup"). One instance per page, so the fixed
+`id="newsletter-form"`/`id="em"` are safe.
+
+No-JS path: a real <form method="post" action="…">. The browser posts,
+apps.contact re-renders the *full page* with this same include, and the
+success/error state below is expressed purely with the `.sent` / `.invalid`
+classes already defined in static/css/_components.css (`.form.sent .ok`,
+`.form.invalid .err`) — so a plain server round trip shows the same result
+a JS user gets, no client script required to reveal it.
+
+With htmx: hx-post swaps just this <form id="newsletter-form"> (outerHTML),
+so the rest of the page — including any unrelated form the user is
+mid-way through — is undisturbed. aria-live="polite" on the form announces
+the swapped result to screen reader users without moving focus.
+
+Context (all optional — default is the untouched, unsubmitted form):
+  newsletter_submitted  bool  — True once the email has been accepted
+  newsletter_errors     dict  — {"email": ["message"]} when invalid
+  newsletter_email      str   — re-populate the field after a failed submit
+{% endcomment %}
+<form class="form{% if newsletter_submitted %} sent{% endif %}{% if newsletter_errors %} invalid{% endif %}"
+      id="newsletter-form" novalidate
+      method="post" action="{% url 'contact:newsletter_signup' %}"
+      hx-post="{% url 'contact:newsletter_signup' %}" hx-target="#newsletter-form" hx-swap="outerHTML"
+      aria-live="polite">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.path }}">
+  <div class="field">
+    <label for="em">Email address</label>
+    <input id="em" type="email" name="email" autocomplete="email" required placeholder="you@example.com"
+           value="{{ newsletter_email|default:'' }}"
+           aria-describedby="em-err"
+           aria-invalid="{% if newsletter_errors.email %}true{% else %}false{% endif %}">
+    <span class="err" id="em-err">{{ newsletter_errors.email.0|default:"Please enter a valid email address." }}</span>
+  </div>
+  <button class="btn btn-solid" type="submit">Subscribe</button>
+  <small>By subscribing you agree to receive Leslie's monthly email.</small>
+  <p class="ok" role="status" tabindex="-1">Thank you — you're on the list.</p>
+</form>

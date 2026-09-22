@@ -1,0 +1,33 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Something went wrong — Leslie Hale Astrology</title>
+<!--
+  Deliberately standalone — does not extend base.html. Django's server_error
+  view renders this template outside the normal request context, precisely
+  because whatever triggered the 500 (a database error, a broken settings
+  lookup) could just as easily break base.html's nav/footer, which read
+  Wagtail's SiteSettings from the DB. No {% url %}, no site-settings lookup,
+  no htmx, no motion JS: this page only needs to be readable and offer a
+  plain link home.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body class="no-js">
+<main id="main">
+<section class="page-hero" aria-labelledby="h">
+  <div class="wrap">
+    <span class="eyebrow">500</span>
+    <h1 id="h">Something went wrong on our end.</h1>
+    <p class="lead">This isn't something you did — Leslie's been notified. Please try again in a few minutes.</p>
+    <p><a class="link" href="/">Back to the homepage</a></p>
+  </div>
+</section>
+</main>
+</body>
+</html>

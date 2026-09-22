@@ -1,0 +1,48 @@
+{% comment %}
+Contact form — the htmx swap unit for contact submission. Included by
+contact/contact.html for the full page; the contact:contact view returns
+this same fragment (outerHTML) for htmx POSTs.
+
+No-JS path: identical to includes/_newsletter_form.html — a real
+<form method="post">, full page reload on submit, success/error expressed
+with the `.sent` / `.invalid` classes already defined in
+static/css/_components.css so no client script is needed to reveal them.
+
+Context (apps.contact view):
+  contact_values     dict of posted values, for re-populating after an error
+  contact_errors     dict of field -> [messages]
+  contact_submitted  bool
+{% endcomment %}
+<form class="form panel{% if contact_submitted %} sent{% endif %}{% if contact_errors %} invalid{% endif %}"
+      id="contact-form-wrap" novalidate
+      method="post" action="{% url 'contact:contact' %}"
+      hx-post="{% url 'contact:contact' %}" hx-target="#contact-form-wrap" hx-swap="outerHTML"
+      aria-live="polite">
+  {% csrf_token %}
+  <div class="form-row">
+    <div class="field"><label for="n">Name</label><input id="n" name="name" required autocomplete="name" value="{{ contact_values.name|default:'' }}"></div>
+    <div class="field">
+      <label for="e">Email</label>
+      <input id="e" name="email" type="email" required autocomplete="email" value="{{ contact_values.email|default:'' }}"
+             aria-describedby="e-err" aria-invalid="{% if contact_errors.email %}true{% else %}false{% endif %}">
+      <span class="err" id="e-err">{{ contact_errors.email.0|default:"Please enter a valid email." }}</span>
+    </div>
+  </div>
+  <div class="field">
+    <label for="s">What's it about?</label>
+    <select id="s" name="subject">
+      <option {% if not contact_values.subject or contact_values.subject == "A question about readings" %}selected{% endif %}>A question about readings</option>
+      <option {% if contact_values.subject == "Gift vouchers" %}selected{% endif %}>Gift vouchers</option>
+      <option {% if contact_values.subject == "Rescheduling" %}selected{% endif %}>Rescheduling</option>
+      <option {% if contact_values.subject == "Something else" %}selected{% endif %}>Something else</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="m">Message</label>
+    <textarea id="m" name="message" required aria-describedby="m-err" aria-invalid="{% if contact_errors.message %}true{% else %}false{% endif %}">{{ contact_values.message|default:'' }}</textarea>
+    <span class="err" id="m-err">{{ contact_errors.message.0|default:"Please write a short message." }}</span>
+  </div>
+  <small>Your details are only used to reply to you.</small>
+  <button class="btn btn-solid" type="submit">Send message</button>
+  <p class="ok" role="status" tabindex="-1">Thank you — your message is on its way. Leslie will reply within two working days.</p>
+</form>
