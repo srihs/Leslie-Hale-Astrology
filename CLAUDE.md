@@ -58,3 +58,54 @@ After writing such a commit, append the matching row to `OVERSIGHT_LOG.md`.
 
 If you are unsure whether something counts as an episode, ask me rather than
 guessing. A false entry is worse than a missing one.
+
+## Stack
+
+Django + Wagtail (CMS) + htmx + Postgres + Docker. Design direction is
+**v1-ephemeris** (`versions/v1-ephemeris/`), locked by `PROJECT-SCOPE.md` §7.
+The other four `versions/` directories are rejected alternatives kept for the
+record — do not build from them.
+
+## Delegation
+
+All project work runs through the subagents in `.claude/agents/`. Pick the
+agent whose ownership covers the file you are about to touch, and delegate.
+Do not do owned work inline because it looks small.
+
+| Agent | Owns | Writes |
+| --- | --- | --- |
+| `wagtail-backend` | Page models, StreamField, migrations, editor experience | yes |
+| `htmx-frontend` | Templates, htmx partials and endpoints, motion layer | yes |
+| `design-system` | CSS tokens, components, responsive behaviour | yes |
+| `booking-payments` | Booking, availability, payment, confirmations | yes |
+| `blog-migration` | Blog models, feeds, Blogger import | yes |
+| `docker-infra` | Dockerfile, compose, settings split, deployment | yes |
+| `seo-analytics` | Metadata, structured data, sitemap, GA4 | yes |
+| `test-engineer` | pytest-django suites, factories, fixtures | tests only |
+| `code-critic` | Adversarial review, scope compliance | `reviews/` only |
+| `accessibility-auditor` | WCAG 2.2 AA, keyboard, screen reader, mobile | no |
+| `security-reviewer` | Settings, secrets, payments, input, dependencies | no |
+
+The three review agents are deliberately read-only. They surface findings; I
+adjudicate. That separation is what makes an agent finding a recordable
+oversight episode rather than a silent self-correction.
+
+Work that crosses agents is sequenced, not merged: the owning agent does its
+part and hands over. When a piece of work is substantial, run `code-critic`
+over it before committing.
+
+### Review documents
+
+`code-critic` writes `reviews/YYYY-MM-DD-<topic>.md` with every finding's
+**Adjudication** left as `_pending_`. I fill each one in with `accepted`,
+`rejected — <reason>` or `deferred — <reason>`.
+
+- An **accepted** finding that produces a code change is an episode with
+  `Oversight-Source: agent-critique`.
+- A **rejected** or **deferred** finding produces no code change and is still
+  an episode: commit the review document carrying my adjudication, with
+  `Oversight-Type: critique-override` and `Oversight-Durable: no`.
+
+Never discard a review document, and never edit a finding after I have
+adjudicated it. Those documents are the record of what review caught and what
+I chose to overrule.
