@@ -1,36 +1,87 @@
-{% load wagtailimages_tags %}
+{% load wagtailcore_tags wagtailimages_tags %}
 {% comment %}
-Post grid — included directly by blog/index.html.
+Post grid, category filter bar and pagination — included directly by
+blog/index.html for the full page and returned as-is by the BlogIndexPage
+view for an htmx request (see that comment in blog/index.html).
 
 Context (BlogIndexPage.get_context — see apps/blog/models.py):
-  posts  queryset of real blog.BlogPost pages: .title, .url,
-         .published_date (not .date), .excerpt, .featured_image (a
-         wagtailimages.Image — rendered with {% image %}, not a bare
-         .image_url), .tags (a taggable manager; there is no single
-         .category field, only tags)
+  posts            convenience queryset alias for posts_page.object_list —
+                    real blog.BlogPost pages: .title, .url, .published_date
+                    (not .date), .excerpt, .featured_image (a
+                    wagtailimages.Image — rendered with {% image %}, not a
+                    bare .image_url), .category (a blog.BlogCategory or
+                    None, with .name/.slug — there is no .tags any more)
+  categories       every BlogCategory, for the filter bar
+  active_category  the BlogCategory matching ?category=, or None
+  posts_page       a django.core.paginator Page: .object_list,
+                    .has_previous/.has_next,
+                    .previous_page_number/.next_page_number, .number,
+                    .paginator.num_pages, .paginator.page_range
 
-Category filter / pagination: the locked design's `.filters` and `.pager`
-markup depended on `categories` and `pager` context that BlogIndexPage
-does not (and, per that model's own get_context comment, deliberately
-does not yet) supply — it needs an unresolved tags-vs-categories decision
-plus pagination of this queryset, neither of which this template-only
-pass invents. Both are removed below rather than left calling into
-context that doesn't exist; `#post-list`/`aria-live` stay so a future
-pass can reintroduce htmx filtering/pagination against the same wrapper
-without another template rewrite. All posts render, unfiltered,
-unpaginated, in the meantime.
+No-JS path: every filter and pager control below is a real `<a href="…">`
+to this same BlogIndexPage with `?category=`/`?page=` query params — a
+plain click reloads the page and the server renders the same filtered/
+paginated state from scratch.
+
+With htmx: BlogIndexPage is a Wagtail page served by wagtail_urls, with no
+htmx-aware view of its own (same situation as BookingPage — see
+bookings/partials/_booking_panel_form.html's comment; verified live here
+too: `curl -H "HX-Request: true" …/blog/?category=…` returns a complete
+`<html>` document, not a fragment). `hx-select="#post-list"` on each
+control asks htmx to extract just this element from that full response
+client-side before swapping, so `hx-target="#post-list"`/
+`hx-swap="outerHTML"` only ever replaces the grid, never the whole
+document — no server-side fragment view needed. `hx-push-url="true"`
+keeps the address bar in sync either way, so the filtered/paginated view
+stays bookmarkable and back-button-safe. `aria-live="polite"` on
+#post-list announces the swapped result to screen reader users;
+static/js/main.js additionally makes freshly swapped-in [data-reveal]
+cards visible immediately (see its own comment) since the page's one-off
+GSAP scroll-reveal pass has already run by then.
 {% endcomment %}
 <div id="post-list" aria-live="polite">
+  {% if categories %}
+  <nav class="filters" aria-label="Categories">
+    <a href="{% pageurl page %}"{% if not active_category %} aria-current="page"{% endif %}
+       hx-get="{% pageurl page %}" hx-target="#post-list" hx-swap="outerHTML" hx-select="#post-list" hx-push-url="true">All</a>
+    {% for category in categories %}
+    <a href="{% pageurl page %}?category={{ category.slug }}"{% if active_category and active_category.slug == category.slug %} aria-current="page"{% endif %}
+       hx-get="{% pageurl page %}?category={{ category.slug }}" hx-target="#post-list" hx-swap="outerHTML" hx-select="#post-list" hx-push-url="true">{{ category.name }}</a>
+    {% endfor %}
+  </nav>
+  {% endif %}
+
   <div class="post-grid three">
     {% for post in posts %}
     <a class="post" href="{{ post.url }}" data-reveal>
       <figure>{% if post.featured_image %}{% image post.featured_image fill-800x500 alt=post.title %}{% endif %}</figure>
-      <span class="eyebrow">{{ post.published_date|date:"j M Y" }}{% for tag in post.tags.all %}{% if forloop.first %} · {% endif %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+      <span class="eyebrow">{{ post.published_date|date:"j M Y" }}{% if post.category %} · {{ post.category.name }}{% endif %}</span>
       <h3>{{ post.title }}</h3>
       <p>{{ post.excerpt }}</p>
     </a>
     {% empty %}
+    {% if active_category %}
+    <p class="sub">No posts in {{ active_category.name }} yet.</p>
+    {% else %}
     <!-- No posts migrated yet — SCOPE §8 "Blogger URL for migration" is open. -->
+    {% endif %}
     {% endfor %}
   </div>
+
+  {% if posts_page.paginator.num_pages > 1 %}
+  <nav class="pager" aria-label="Pagination">
+    {% if posts_page.has_previous %}
+    <a href="{% pageurl page %}?page={{ posts_page.previous_page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" aria-label="Previous page"
+       hx-get="{% pageurl page %}?page={{ posts_page.previous_page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" hx-target="#post-list" hx-swap="outerHTML" hx-select="#post-list" hx-push-url="true">‹</a>
+    {% endif %}
+    {% for page_number in posts_page.paginator.page_range %}
+    <a href="{% pageurl page %}?page={{ page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}"{% if page_number == posts_page.number %} aria-current="page"{% endif %}
+       hx-get="{% pageurl page %}?page={{ page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" hx-target="#post-list" hx-swap="outerHTML" hx-select="#post-list" hx-push-url="true">{{ page_number }}</a>
+    {% endfor %}
+    {% if posts_page.has_next %}
+    <a href="{% pageurl page %}?page={{ posts_page.next_page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" aria-label="Next page"
+       hx-get="{% pageurl page %}?page={{ posts_page.next_page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" hx-target="#post-list" hx-swap="outerHTML" hx-select="#post-list" hx-push-url="true">›</a>
+    {% endif %}
+  </nav>
+  {% endif %}
 </div>

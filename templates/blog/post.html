@@ -5,16 +5,17 @@ Single blog post. No htmx — this is a read-only article page.
 
 Context (BlogPost.get_context — see apps/blog/models.py): the post's own
 fields are on `page` directly (Wagtail puts `self` there) — .title,
-.published_date, .author_name, .featured_image, .tags, .body. `body` is a
-StreamField (text/image blocks), rendered with {% include_block %}, not
-a RichTextField rendered with the `|richtext` filter.
+.published_date, .author_name, .featured_image, .category (a
+blog.BlogCategory or None, with .name/.slug — there is no .tags any
+more), .body. `body` is a StreamField (text/image blocks), rendered with
+{% include_block %}, not a RichTextField rendered with the `|richtext`
+filter.
 
-There is no `reading_minutes`/`category` field anywhere on this model —
-the "5 min read" figure and the category eyebrow from the original draft
-were invented (reviews/2026-09-22-project-structure-scaffold.md: "remove
-the reading_minutes|default:5 invention... the same always-fires-
-invented-default bug"). Removed below; the eyebrow uses this post's real
-tags instead.
+There is no `reading_minutes` field anywhere on this model — the "5 min
+read" figure from the original draft was invented (reviews/2026-09-22-
+project-structure-scaffold.md: "remove the reading_minutes|default:5
+invention... the same always-fires-invented-default bug"). Not
+reintroduced here.
 
   related_posts  up to 2 other posts, same real shape as `page`
 {% endcomment %}
@@ -27,7 +28,7 @@ tags instead.
 <section class="page-hero" aria-labelledby="h" style="border-bottom:0;padding-bottom:0">
   <div class="wrap article">
     <p class="crumbs"><a href="{% pageurl current_site.root_page %}">Home</a> / {% include "includes/_page_link.html" with app_label="blog" model="blogindexpage" text="Blog" %} / {{ page.title }}</p>
-    <span class="eyebrow">{% for tag in page.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+    {% if page.category %}<span class="eyebrow">{{ page.category.name }}</span>{% endif %}
     <h1 id="h" data-split style="font-size:clamp(34px,4.6vw,60px);max-width:20ch">{{ page.title }}</h1>
     <div class="meta" data-reveal><span>By {{ page.author_name|default:"Leslie Hale" }}</span><span>{{ page.published_date|date:"j F Y" }}</span></div>
   </div>
@@ -46,7 +47,7 @@ tags instead.
       {% for related in related_posts %}
       <a class="post" href="{{ related.url }}" data-reveal>
         <figure>{% if related.featured_image %}{% image related.featured_image fill-1000x625 alt=related.title %}{% endif %}</figure>
-        <span class="eyebrow">{{ related.published_date|date:"j M Y" }}{% for tag in related.tags.all %}{% if forloop.first %} · {% endif %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+        <span class="eyebrow">{{ related.published_date|date:"j M Y" }}{% if related.category %} · {{ related.category.name }}{% endif %}</span>
         <h3>{{ related.title }}</h3>
         <p>{{ related.excerpt }}</p>
       </a>

@@ -1,0 +1,32 @@
+{% comment %}
+The Pay control's own error region — swapped in place by the Pay form in
+_booking_summary.html (`hx-target="#checkout-error" hx-swap="outerHTML"`)
+so a failed/expired/conflicting checkout attempt never wipes the visitor's
+chosen reading, day or time; only this small region changes.
+
+Context (apps.bookings.views._checkout_error):
+  checkout_error  str — a plain-language explanation of what went wrong
+                   and, where relevant, that the visitor's details were
+                   kept (see that view's own docstring for the exact
+                   copy for each failure case)
+
+No new CSS class for this: `.form.invalid .err` (static/css/_components.css)
+already shows red, readable error text once its container carries both
+`.form` and `.invalid` — reused verbatim here as a plain alert container
+rather than inventing a new component for one string.
+
+No-JS path: the Pay button's `<form>` has a real `method="post"
+action="{% url 'bookings:checkout' %}"`. Without JS/htmx, the browser
+posts and this same view returns this same fragment directly as the whole
+response body — a plain, unstyled page with the error message and nothing
+else (apps.bookings.views.start_checkout renders it standalone; see that
+file's own docstring). The message is still readable and the visitor's
+in-progress reading/day/slot selection is preserved server-side (their
+details are staged in the session by `bookings:save_details`, and the
+booking hold/session key persist), so pressing Back returns them to the
+booking page with that state intact — inelegant without JS, but not a
+dead end.
+{% endcomment %}
+<div id="checkout-error" class="form invalid" aria-live="assertive" role="alert">
+  {% if checkout_error %}<p class="err">{{ checkout_error }}</p>{% endif %}
+</div>

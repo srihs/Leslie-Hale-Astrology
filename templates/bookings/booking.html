@@ -6,6 +6,16 @@ and partials/_booking_summary.html for the htmx contract of steps 1–3 and
 the summary. The two-column layout below (left <div>, right <aside>) is
 `.wrap.booking`'s required DOM shape — see the comment in
 _booking_panel_form.html for why the include order matters.
+
+Context (BookingPage.get_context / apps.bookings.availability.
+booking_panel_context — see apps/bookings/models.py):
+  payment_return  present only when the visitor has just come back from
+                  Stripe (`?ref=&result=`): {result, booking, status_url}.
+                  `result` is "success" or "cancelled" (Stripe's own
+                  redirect leg, not proof payment landed — see
+                  _booking_status.html for why the booking's own
+                  `.status` is what's actually trusted). `booking` may be
+                  None if the ref didn't match anything.
 {% endcomment %}
 
 {% block title %}Book a Reading — Leslie Hale Astrology{% endblock %}
@@ -20,6 +30,22 @@ _booking_panel_form.html for why the include order matters.
     <p class="lead" data-reveal>Three quick steps: choose a reading, pick a time, pay securely. You'll get a confirmation email straight away with everything you need.</p>
   </div>
 </section>
+
+{% if payment_return %}
+<section aria-label="Payment status">
+  <div class="wrap">
+    {% if payment_return.result == "cancelled" and payment_return.booking.status == "pending" %}
+    <div class="panel" aria-live="polite">
+      <span class="eyebrow">Booking status</span>
+      <h3>Checkout cancelled</h3>
+      <p class="sub">You didn't complete payment, so nothing was charged. Your slot may still be held for a few more minutes — choose "Continue to payment" below to try again, or pick a different time.</p>
+    </div>
+    {% else %}
+    {% include "bookings/partials/_booking_status.html" with booking=payment_return.booking %}
+    {% endif %}
+  </div>
+</section>
+{% endif %}
 
 <section aria-label="Booking form">
   <div class="wrap booking" data-booking>
@@ -41,4 +67,51 @@ _booking_panel_form.html for why the include order matters.
     </div>
   </div>
 </section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+/* Progressive enhancement only — see partials/_booking_summary.html and
+   partials/_checkout_error.html for the no-JS path each of these covers.
+   Kept inline and page-scoped (booking.html only) rather than added to
+   static/js/main.js: both are small, one-off behaviours specific to this
+   page's htmx contract, not general site motion/interaction. */
+(function () {
+  /* Fill the Pay form's hidden tz field from the browser's own IANA zone
+     (Intl.DateTimeFormat), each time the form is present in the DOM —
+     including after an htmx swap of #booking-panel/#booking-summary, not
+     just on first load. With no JS the field stays empty and
+     apps.bookings.availability.resolve_timezone falls back to Leslie's
+     own timezone server-side (see that module) — never a guessed one. */
+  function fillTz() {
+    if (!window.Intl || !Intl.DateTimeFormat) return;
+    var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!tz) return;
+    document.querySelectorAll('[data-tz-field]').forEach(function (f) { f.value = tz; });
+  }
+  fillTz();
+  document.body.addEventListener('htmx:afterSwap', fillTz);
+
+  /* apps.bookings.views.start_checkout returns 400/409 (not 200) for a
+     recoverable checkout error (see partials/_checkout_error.html's own
+     comment) — htmx's default responseHandling does not swap 4xx
+     responses in. This forces the swap for #checkout-error specifically,
+     so the message still reaches the visitor instead of being silently
+     dropped as an "error" htmx just logs. */
+  document.body.addEventListener('htmx:beforeSwap', function (e) {
+    if (e.detail.target && e.detail.target.id === 'checkout-error' && e.detail.xhr && e.detail.xhr.status >= 400) {
+      e.detail.shouldSwap = true;
+      e.detail.isError = false;
+    }
+  });
+
+  /* Move focus to the payment-return status region once, on load, so
+     keyboard/screen-reader users landing back from Stripe land on the
+     answer to "did it work?" instead of at the top of the page. Purely
+     additive to the aria-live="polite" already on #booking-status, which
+     announces it either way. */
+  var status = document.getElementById('booking-status');
+  if (status) { status.setAttribute('tabindex', '-1'); status.focus({ preventScroll: false }); }
+})();
+</script>
 {% endblock %}

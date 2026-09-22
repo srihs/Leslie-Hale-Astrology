@@ -1,14 +1,17 @@
 {% comment %}
-Combined htmx response for the bookings:booking view when request.htmx is
-true. NOT used for the full-page render — booking.html includes
-_booking_panel_form.html and _booking_summary.html directly, in their
-correct positions in the `.wrap.booking` two-column grid (see the comment
-in _booking_panel_form.html for why).
+NOT USED — kept only as a visible record of a design this codebase moved
+away from; nothing includes or renders this file.
 
-This file exists only so one HTTP response can carry both the primary
-hx-target (#booking-panel, matched by every control's hx-target) and the
-out-of-band summary update (#booking-summary, hx-swap-oob="true" set in
-_booking_summary.html) — htmx applies both from a single GET.
+This assumed a dedicated `bookings:booking` htmx view would exist to
+return exactly these two regions for an htmx GET. That view was never
+built, and BookingPage is a Wagtail page with no htmx-aware serve() of
+its own — a GET to it always returns the full page (verified live: `curl
+-H "HX-Request: true" …/book-a-reading/` returns a complete `<html>`
+document). partials/_booking_panel_form.html now handles this on the
+client side instead, with `hx-select="#booking-panel"` pulling just that
+region out of the full-page response, and _booking_summary.html's own
+`hx-swap-oob="true"` (present on every render, not just htmx ones) lets
+htmx refresh the summary from that same response too — see the comments
+in both of those files for the full reasoning. No server-side change was
+needed, so none was made (apps/ is out of this task's scope).
 {% endcomment %}
-{% include "bookings/partials/_booking_panel_form.html" %}
-{% include "bookings/partials/_booking_summary.html" %}

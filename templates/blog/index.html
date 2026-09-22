@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% load wagtailcore_tags %}
 {% comment %}
-Blog index. See partials/_post_list.html for what this page can and can't
-do with the current BlogIndexPage.get_context contract (no category
-filter or pagination yet — see that file's own comment).
+Blog index. See partials/_post_list.html for the category filter bar,
+pagination and their htmx contract (BlogIndexPage.get_context — apps/blog/
+models.py — supplies categories/active_category/posts_page for it).
 {% endcomment %}
 
 {% block title %}Blog — Leslie Hale Astrology{% endblock %}

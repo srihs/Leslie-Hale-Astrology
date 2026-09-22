@@ -1,0 +1,56 @@
+{% load wagtailcore_tags tz %}
+{% comment %}
+The payment-return status region. Included once by booking.html when
+`payment_return` is present (the visitor has just come back from Stripe),
+and returned as-is by the `bookings:booking_status` polling endpoint
+(`GET forms/booking/status/<ref>/`) — same template, same `booking`
+variable, so a poll response can replace this element with itself.
+
+Context (apps.bookings.views.booking_status / booking.html):
+  booking  a bookings.Booking, or None if the reference in the URL
+           didn't match any booking. When present: .status
+           (BookingStatus — pending/confirmed/cancelled/completed),
+           .reading (a readings.Reading snippet), .start_at (UTC),
+           .display_timezone (the IANA zone shown when the visitor
+           booked), .public_ref
+
+No-JS path: this region still renders correctly on the plain, non-htmx
+page load that follows Stripe's redirect back (BookingPage.get_context
+always resolves `payment_return` server-side from `?ref=`/`?result=` —
+see apps/bookings/availability.py:booking_panel_context). Without
+JS/htmx the "confirming" state simply doesn't self-update — the visitor
+reloads the page (or checks their email) to see it move to "confirmed";
+with htmx, `hx-get`/`hx-trigger="every 2s"` below does that automatically
+while `booking.status` is still pending, and stops polling on its own
+once the swapped-in response no longer carries those attributes (this
+same template only includes them while still pending).
+{% endcomment %}
+<div id="booking-status" class="panel" aria-live="polite"
+     {% if booking and booking.status == "pending" %}
+     hx-get="{% url 'bookings:booking_status' booking.public_ref %}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML"
+     {% endif %}>
+  {% if not booking %}
+  <span class="eyebrow">Booking status</span>
+  <h3>We couldn't find that booking</h3>
+  <p class="sub">If a payment was taken, it hasn't been lost — get in touch and Leslie will confirm it by hand.</p>
+  {% with contact=settings.core.ContactSettings %}
+  {% if contact.contact_email %}<a class="link" href="mailto:{{ contact.contact_email }}">Contact Leslie</a>{% endif %}
+  {% endwith %}
+
+  {% elif booking.status == "confirmed" or booking.status == "completed" %}
+  <span class="eyebrow">Booking status</span>
+  <h3>You're booked</h3>
+  <p class="sub">{{ booking.reading.name }} · {{ booking.start_at|timezone:booking.display_timezone|date:"l j F, g:i a" }} ({{ booking.display_timezone }})</p>
+  <p>A confirmation email is on its way to {{ booking.client_email }}.</p>
+
+  {% elif booking.status == "cancelled" %}
+  <span class="eyebrow">Booking status</span>
+  <h3>This hold is no longer available</h3>
+  <p class="sub">Your hold expired or payment didn't complete, so the time was released. Nothing was charged — please choose a time again below.</p>
+
+  {% else %}
+  <span class="eyebrow">Booking status</span>
+  <h3>Confirming your payment…</h3>
+  <p class="sub">This usually takes a few seconds. Please don't close this page.</p>
+  {% endif %}
+</div>

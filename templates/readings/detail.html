@@ -9,8 +9,13 @@ pattern as blog/post.html (hero + body + "more" + CTA).
 Context (ReadingDetailPage.get_context — see apps/readings/models.py):
   page            the ReadingDetailPage itself (title, url, body — a
                    StreamField, rendered with {% include_block %} below)
-  page.reading    the linked readings.Reading snippet: name, summary,
-                   description, duration_minutes, price, price_note, image
+  page.reading    the linked readings.Reading snippet: name, tag_label,
+                   summary, description, features (StreamField of short
+                   bullet strings), duration_minutes, price, price_note,
+                   image, is_most_booked
+  reading_number  this reading's position among active readings — matches
+                   the number ReadingsIndexPage shows for the same
+                   reading (or None if this reading isn't currently active)
   other_readings  queryset of the other active Reading snippets, same
                    shape as readings/index.html, for "Other readings"
 {% endcomment %}
@@ -22,7 +27,7 @@ Context (ReadingDetailPage.get_context — see apps/readings/models.py):
 <section class="page-hero" aria-labelledby="h">
   <div class="wrap">
     <p class="crumbs"><a href="{% pageurl current_site.root_page %}">Home</a> / {% include "includes/_page_link.html" with app_label="readings" model="readingsindexpage" text="Readings" %} / {{ page.reading.name }}</p>
-    {% if page.reading.duration_minutes %}<span class="eyebrow">{{ page.reading.duration_minutes }} minutes</span>{% endif %}
+    <span class="eyebrow">{% if reading_number %}{{ reading_number|stringformat:"02d" }}{% endif %}{% if page.reading.tag_label %} / {{ page.reading.tag_label }}{% endif %}{% if page.reading.is_most_booked %} · Most booked{% endif %}</span>
     <h1 id="h" data-split>{{ page.reading.name }}</h1>
     <p class="lead" data-reveal>{{ page.reading.description|default:page.reading.summary }}</p>
   </div>
@@ -32,6 +37,11 @@ Context (ReadingDetailPage.get_context — see apps/readings/models.py):
   <article class="detail" aria-labelledby="h">
     <figure class="detail-media" data-reveal>{% if page.reading.image %}{% image page.reading.image fill-1000x750 alt=page.reading.name %}{% endif %}</figure>
     <div>
+      {% if page.reading.features %}
+      <ul data-reveal>
+        {% for feature in page.reading.features %}<li>{{ feature.value }}</li>{% endfor %}
+      </ul>
+      {% endif %}
       {% if page.body %}{% include_block page.body %}{% endif %}
       <div class="meta" data-reveal>
         <div>
@@ -49,7 +59,8 @@ Context (ReadingDetailPage.get_context — see apps/readings/models.py):
     <div class="sec-head"><div><span class="eyebrow">Other readings</span><h2 id="more-h" data-split>You might also like</h2></div>{% include "includes/_page_link.html" with app_label="readings" model="readingsindexpage" text="All readings" css_class="link" %}</div>
     <div class="svc-grid">
       {% for other in other_readings %}
-      <article class="svc" data-reveal>
+      <article class="svc{% if other.is_most_booked %} featured{% endif %}" data-reveal>
+        <span class="num">{{ forloop.counter|stringformat:"02d" }}{% if other.tag_label %} / {{ other.tag_label }}{% endif %}</span>
         <h3>{{ other.name }}</h3>
         <p>{{ other.summary }}</p>
         <div class="price">

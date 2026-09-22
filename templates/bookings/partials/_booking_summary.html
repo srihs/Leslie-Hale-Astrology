@@ -1,21 +1,43 @@
 {% comment %}
 The booking summary — the *right* grid child of `.wrap.booking`. Included
-directly for the full page, and again (with hx-swap-oob="true" doing the
-work) by partials/_booking_panel.html for htmx responses, so a day/time/
-reading change updates the price and "Continue to payment" state together
-with the left column from a single request. See _booking_panel_form.html
-for why these are two files instead of one.
+directly by booking.html for both the full page and any htmx response to
+this same BookingPage URL (see _booking_panel_form.html's own comment for
+why: BookingPage has no htmx-aware view, so htmx always receives the full
+page and `hx-select`s just #booking-panel out of it). This aside's own
+`hx-swap-oob="true"` is what lets it refresh anyway: htmx finds it by id
+anywhere in that same full response and swaps it in out-of-band,
+independently of whatever the triggering control's `hx-select` grabbed
+for the main target — so a day/time/reading change updates the price and
+"Continue to payment" state together with the left column from a single
+request, with no extra attribute needed on the controls themselves.
 
 Context (apps.bookings view):
-  summary  {reading_label, price, date_label, time_label, ready,
-            reading_slug, day_iso, slot_value}
+  summary          {reading_label, price, date_label, time_label, ready,
+                     reading_slug, day_iso, slot_value} — `time_label`
+                     already has its zone abbreviation baked in (e.g.
+                     "9:00 am NZST" — see apps.bookings.availability's
+                     own `time_label` construction), so it is not
+                     repeated here; partials/_booking_panel_form.html's
+                     Step 2 sub-text names the zone again next to the
+                     slot picker itself, before a time is chosen
+  hold_minutes      how long a chosen slot is held before it's released
 
-`bookings:checkout` (payment initiation) does not exist and is not
-invented here — the payment provider is an unconfirmed SCOPE §8 open item
-(see apps/bookings/urls.py's own docstring: booking-payments owns wiring
-it up once a provider is chosen). Even once a reading/date/time is
-selected, the control below stays a disabled, honestly-labelled button
-rather than a link to a URL name that doesn't resolve.
+The Pay control: a real `<form method="post" action="…checkout…">` with
+hidden `reading`/`slot`/`tz` fields — `reading` and `slot` come straight
+from `summary` (the reading/day/slot already chosen in steps 1-2); `tz`
+starts empty and is filled in by a small progressive-enhancement script
+in booking.html (`data-tz-field` is its hook) using
+`Intl.DateTimeFormat().resolvedOptions().timeZone` — with no JS it stays
+empty and `apps.bookings.availability.resolve_timezone` falls back to
+Leslie's own timezone server-side, never a guess made up here.
+
+No-JS path: a plain POST navigates to whatever `bookings:checkout`
+returns — a redirect to Stripe Checkout on success, or the bare
+`_checkout_error.html` fragment on failure (see that partial's own
+comment). With htmx, the same POST instead swaps `#checkout-error` in
+place (success still redirects, via `HX-Redirect` — htmx follows that
+header as a full navigation regardless of `hx-target`) so a failed
+attempt never disturbs the reading/day/time already chosen alongside it.
 {% endcomment %}
 <aside class="summary" id="booking-summary" aria-label="Booking summary" aria-live="polite" hx-swap-oob="true">
   <span class="eyebrow">Your booking</span>
@@ -27,9 +49,18 @@ rather than a link to a URL name that doesn't resolve.
   </dl>
   <div class="total"><span>Total</span><b>${{ summary.price|default:"0" }}</b></div>
   {% if summary.ready %}
-  <button class="btn btn-solid" type="button" disabled>Payment setup coming soon</button>
+  <form method="post" action="{% url 'bookings:checkout' %}"
+        hx-post="{% url 'bookings:checkout' %}" hx-target="#checkout-error" hx-swap="outerHTML">
+    {% csrf_token %}
+    <input type="hidden" name="reading" value="{{ summary.reading_slug }}">
+    <input type="hidden" name="slot" value="{{ summary.slot_value }}">
+    <input type="hidden" name="tz" value="" data-tz-field>
+    <button class="btn btn-solid" type="submit">Continue to payment</button>
+  </form>
+  <p class="sub">Your slot is held for {{ hold_minutes }} minutes while you pay.</p>
   {% else %}
   <button class="btn btn-solid" type="button" disabled>Choose a reading, date and time</button>
   {% endif %}
+  <div id="checkout-error" aria-live="assertive" role="alert"></div>
   <p class="secure">🔒 Secure payment · Free reschedule up to 24h before</p>
 </aside>
