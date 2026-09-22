@@ -21,8 +21,18 @@ Context (apps.bookings view):
   {% csrf_token %}
   <span class="eyebrow">Step 3</span><h3>Your details</h3><p class="sub">Leslie prepares your chart before you meet, so birth details matter.</p>
   <div class="form-row">
-    <div class="field"><label for="fn">First name</label><input id="fn" name="first_name" required autocomplete="given-name" value="{{ details_values.first_name|default:'' }}"></div>
-    <div class="field"><label for="ln">Last name</label><input id="ln" name="last_name" required autocomplete="family-name" value="{{ details_values.last_name|default:'' }}"></div>
+    <div class="field">
+      <label for="fn">First name</label>
+      <input id="fn" name="first_name" required autocomplete="given-name" value="{{ details_values.first_name|default:'' }}"
+             aria-describedby="fn-err" aria-invalid="{% if details_errors.first_name %}true{% else %}false{% endif %}">
+      <span class="err" id="fn-err">{{ details_errors.first_name.0|default:"Please enter your first name." }}</span>
+    </div>
+    <div class="field">
+      <label for="ln">Last name</label>
+      <input id="ln" name="last_name" required autocomplete="family-name" value="{{ details_values.last_name|default:'' }}"
+             aria-describedby="ln-err" aria-invalid="{% if details_errors.last_name %}true{% else %}false{% endif %}">
+      <span class="err" id="ln-err">{{ details_errors.last_name.0|default:"Please enter your last name." }}</span>
+    </div>
   </div>
   <div class="field">
     <label for="em">Email</label>
@@ -31,10 +41,20 @@ Context (apps.bookings view):
     <span class="err" id="em-err">{{ details_errors.email.0|default:"Please enter a valid email." }}</span>
   </div>
   <div class="form-row">
-    <div class="field"><label for="dob">Date of birth</label><input id="dob" name="dob" type="date" required value="{{ details_values.dob|default:'' }}"></div>
+    <div class="field">
+      <label for="dob">Date of birth</label>
+      <input id="dob" name="dob" type="date" required value="{{ details_values.dob|default:'' }}"
+             aria-describedby="dob-err" aria-invalid="{% if details_errors.dob %}true{% else %}false{% endif %}">
+      <span class="err" id="dob-err">{{ details_errors.dob.0|default:"Please enter your date of birth." }}</span>
+    </div>
     <div class="field"><label for="tob">Time of birth</label><input id="tob" name="tob" type="time" value="{{ details_values.tob|default:'' }}"><span class="hint">Leave blank if unknown</span></div>
   </div>
-  <div class="field"><label for="pob">Place of birth</label><input id="pob" name="pob" required placeholder="City, country" value="{{ details_values.pob|default:'' }}"></div>
+  <div class="field">
+    <label for="pob">Place of birth</label>
+    <input id="pob" name="pob" required placeholder="City, country" value="{{ details_values.pob|default:'' }}"
+           aria-describedby="pob-err" aria-invalid="{% if details_errors.pob %}true{% else %}false{% endif %}">
+    <span class="err" id="pob-err">{{ details_errors.pob.0|default:"Please enter your place of birth." }}</span>
+  </div>
   <div class="field"><label for="q">Anything you'd like to focus on? (optional)</label><textarea id="q" name="focus">{{ details_values.focus|default:'' }}</textarea></div>
   <p class="ok" role="status" tabindex="-1">Thank you — your details are saved. Continue to payment on the right.</p>
   <button class="btn btn-ghost" type="submit">Save details</button>

@@ -26,7 +26,12 @@ project-structure-scaffold.md findings 1-2).
       aria-live="polite">
   {% csrf_token %}
   <div class="form-row">
-    <div class="field"><label for="n">Name</label><input id="n" name="name" required autocomplete="name" value="{{ contact_values.name|default:'' }}"></div>
+    <div class="field">
+      <label for="n">Name</label>
+      <input id="n" name="name" required autocomplete="name" value="{{ contact_values.name|default:'' }}"
+             aria-describedby="n-err" aria-invalid="{% if contact_errors.name %}true{% else %}false{% endif %}">
+      <span class="err" id="n-err">{{ contact_errors.name.0|default:"Please enter your name." }}</span>
+    </div>
     <div class="field">
       <label for="e">Email</label>
       <input id="e" name="email" type="email" required autocomplete="email" value="{{ contact_values.email|default:'' }}"
