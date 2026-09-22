@@ -22,6 +22,15 @@ the eventual Blogger migration (owned by blog-migration; the Blogger URL
 itself is unconfirmed per §8) can preserve each post's original address
 (for redirects) and original publish date, rather than every migrated
 post appearing to have been written today.
+
+`blogger_post_id` and `blogger_content_hash` (2026-09-22, blog-migration)
+back the importer's idempotency: `blogger_post_id` is the stable external
+identifier the importer matches on so a second run over the same export
+updates existing posts instead of duplicating them; `blogger_content_hash`
+is an internal-only fingerprint of what the importer last wrote, so an
+unchanged post can be recognised as unchanged and left untouched (no
+redundant writes or image re-downloads) rather than every re-run being
+treated as an update.
 """
 
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
@@ -222,6 +231,27 @@ class BlogPost(Page):
         help_text="If this post was migrated from the old Blogger blog, paste "
         "its original address here so old links can be redirected to this page.",
     )
+    blogger_post_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        unique=True,
+        db_index=True,
+        help_text="Set automatically by the Blogger importer (blog-migration). "
+        "The stable ID of this post in the old Blogger export, used to match it "
+        "on re-import so re-running the import updates this post instead of "
+        "creating a duplicate. Leave blank for posts written directly in "
+        "Wagtail — it is never required for a normal post.",
+    )
+    blogger_content_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        editable=False,
+        help_text="Internal checksum of the content last written by the "
+        "Blogger importer, used to detect whether a post changed upstream "
+        "since the last import run. Not shown in the editor.",
+    )
 
     # templates/blog/post.html is the real file (FINDING 3).
     template = "blog/post.html"
@@ -240,7 +270,10 @@ class BlogPost(Page):
         FieldPanel("author_name"),
     ]
 
-    settings_panels = Page.settings_panels + [FieldPanel("source_url")]
+    settings_panels = Page.settings_panels + [
+        FieldPanel("source_url"),
+        FieldPanel("blogger_post_id"),
+    ]
 
     parent_page_types = ["blog.BlogIndexPage"]
     subpage_types = []
