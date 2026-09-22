@@ -23,7 +23,7 @@
   runtime image, docker-compose) can be exercised until this is fixed.
 - **Suggested action:** change the dependency line to `django-modelcluster==6.3`.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. Owner: `docker-infra`. Blocks `pip install .`, so nothing downstream can be verified until it lands.
 
 ### S2. No-JS mobile visitors cannot open the nav menu
 
@@ -50,7 +50,7 @@
   `<details>`-based disclosure, or unhiding the list via a `@media (hover:none)`-independent
   progressive-enhancement class). Either way, correct the false comment in `_nav.html`.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. Changing locked CSS is authorised for this: §7 fixes the visual result, not the mechanism, and a nav that only works with JS is a defect rather than a design choice. Owners: `design-system` (CSS) and `htmx-frontend` (markup); the disclosure must work with no JS and keep the locked appearance.
 
 ### S3. `--muted` on `--bg-2` is not actually a risky contrast pair
 
@@ -72,7 +72,7 @@
 - **Suggested action:** correct or narrow the claim in `design-system.md`, or replace it with
   whichever pairing was actually intended to be flagged.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. The false premise was mine, written into the `design-system` and `accessibility-auditor` definitions. Both are corrected in place with the measured ratios. Durable: yes.
 
 ## Findings from my own pass
 
@@ -102,7 +102,7 @@
   (in which case this finding is informational, not a defect) or whether it was supposed to be
   part of this scaffold handoff.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. Owners: `wagtail-backend` (Wagtail page routing) and `htmx-frontend` (the htmx endpoints that do need explicit URLs). Resolved together with findings 2 and 3 as one routing correction.
 
 ### 2. Templates assume classic Django URL namespacing for what are modelled as Wagtail pages
 
@@ -131,7 +131,7 @@
   strategy for page-backed templates before more template work is built on the current
   `{% url %}` assumption.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. Same correction as findings 1 and 3: Wagtail pages are addressed with `pageurl`/`page.url`, and explicit named URLs are reserved for the htmx endpoints. Owner: `htmx-frontend`.
 
 ### 3. No page model overrides Wagtail's default template path — none of the actual template files would be found
 
@@ -157,7 +157,7 @@
   file names, or rename the templates to match Wagtail's convention — plus author the three
   missing templates.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. Same correction as findings 1 and 2. Owner: `wagtail-backend`.
 
 ### 4. `get_context()` supplies raw model instances whose field names don't match what the templates expect
 
@@ -204,7 +204,7 @@
   reconciled by whichever agent's contract is meant to be authoritative — right now neither
   side matches the other.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. The model layer and the template layer were built against different contracts; the models are authoritative and the templates follow. Owners: `wagtail-backend` then `htmx-frontend`.
 
 ### 5. Footer/contact templates hardcode a fully-formed contact email as the fallback for an explicitly unconfirmed §8 item — and the wrong settings model means the fallback always fires
 
@@ -243,7 +243,7 @@
   consistent with the phone field and with the rest of the codebase's own convention
   (`"[price TBC]"`, `"[TBC]"`, `"[phone TBC]"`).
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. This is the finding that matters most: an agent carrying an explicit instruction not to guess §8 items invented a contact address, and the wrong settings-model reference means the invented value always wins. Owner: `htmx-frontend`. Resolved with finding 6 as one scope correction.
 
 ### 6. Homepage hardcodes an invented "practising since 2004" / "20+ years" figure for the explicitly unconfirmed years-of-experience item
 
@@ -271,7 +271,7 @@
   or wire the hero/about teaser to read `ContactSettings.years_experience_label` (which already
   exists for this purpose) instead of a nonexistent `about.years`/`about.practising_since`.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. Same scope breach as finding 5, resolved with it. Owner: `htmx-frontend`.
 
 ## Reviewed and found sound
 
