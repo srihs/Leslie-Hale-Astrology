@@ -1,43 +1,51 @@
 {% extends "base.html" %}
+{% load wagtailcore_tags wagtailimages_tags %}
 {% comment %}
 Readings & prices index — §4 site map "Services: reading types,
 descriptions, prices, book/buy buttons". No htmx here: this is a marketing
 page, not one of the three interactions CLAUDE.md scopes htmx to.
 
-Context (apps.readings view / ReadingsIndexPage):
-  readings  list of {slug, number_label, tag_label (e.g. "Most booked"),
-             title, description, bullets (list[str]), price,
-             duration_minutes, image_url, image_alt}
-  faqs      list of {question, answer} — reused from readings.html's FAQ
+Context (ReadingsIndexPage.get_context — see apps/readings/models.py):
+  readings  queryset of readings.Reading snippets: name, summary,
+            description, duration_minutes, price, price_note, image
+            (a wagtailimages.Image — rendered with {% image %}, not a bare
+            URL), detail_page (a ReadingDetailPage, or None if this
+            reading doesn't have one yet)
+
+There is no `faqs` in that context and no FAQ field on this page model —
+the four <details> below are the locked design's own FAQ copy, kept as
+static markup (not a §8-listed open item) rather than looping over a
+context variable that doesn't exist.
 {% endcomment %}
 
 {% block title %}Readings &amp; Prices — Leslie Hale Astrology{% endblock %}
-{% block meta_description %}Birth chart, year ahead and single-question astrology readings with Leslie Hale. Online or by phone.{% endblock %}
+{% block meta_description %}{{ page.intro|default:"Astrology readings with Leslie Hale. Online or by phone." }}{% endblock %}
 
 {% block content %}
 <section class="page-hero" aria-labelledby="h">
   <div class="wrap">
-    <p class="crumbs"><a href="{% url 'home:index' %}">Home</a> / Readings</p>
+    <p class="crumbs"><a href="{% pageurl current_site.root_page %}">Home</a> / Readings</p>
     <span class="eyebrow">Readings &amp; prices</span>
     <h1 id="h" data-split>Choose the <em>conversation</em> you need.</h1>
-    <p class="lead" data-reveal>All readings are one‑to‑one with Leslie, online or by phone. Every session is recorded so you can listen again. Not sure where to start? The Birth Chart reading is the best first step.</p>
+    <p class="lead" data-reveal>{{ page.intro|default:"All readings are one‑to‑one with Leslie, online or by phone. Every session is recorded so you can listen again." }}</p>
   </div>
 </section>
 
 <div class="wrap">
   {% for reading in readings %}
-  <article class="detail" id="{{ reading.slug }}" aria-labelledby="r{{ forloop.counter }}">
-    <figure class="detail-media" data-reveal><img src="{{ reading.image_url }}" width="1000" height="750" alt="{{ reading.image_alt }}" loading="lazy" onerror="this.style.display='none'"></figure>
+  <article class="detail" id="reading-{{ reading.pk }}" aria-labelledby="r{{ forloop.counter }}">
+    <figure class="detail-media" data-reveal>{% if reading.image %}{% image reading.image fill-1000x750 alt=reading.name %}{% endif %}</figure>
     <div>
-      <span class="eyebrow">{{ reading.number_label }}{% if reading.tag_label %} · {{ reading.tag_label }}{% endif %}</span>
-      <h2 id="r{{ forloop.counter }}" data-split>{{ reading.title }}</h2>
-      <p data-reveal>{{ reading.description }}</p>
-      <ul data-reveal>
-        {% for bullet in reading.bullets %}<li>{{ bullet }}</li>{% endfor %}
-      </ul>
+      {% if reading.duration_minutes %}<span class="eyebrow">{{ reading.duration_minutes }} minutes</span>{% endif %}
+      <h2 id="r{{ forloop.counter }}" data-split>{{ reading.name }}</h2>
+      <p data-reveal>{{ reading.description|default:reading.summary }}</p>
       <div class="meta" data-reveal>
-        <div><b>${{ reading.price|default:"[price TBC]" }}</b><small>{{ reading.duration_minutes|default:"[TBC]" }} minutes</small></div>
-        <a class="btn btn-solid" href="{% url 'bookings:booking' %}?reading={{ reading.slug }}">Book this reading</a>
+        <div>
+          {% if reading.price %}<b>${{ reading.price }}</b>{% else %}<b>{{ reading.price_note }}</b>{% endif %}
+          {% if reading.duration_minutes %}<small>{{ reading.duration_minutes }} minutes</small>{% endif %}
+        </div>
+        {% if reading.detail_page %}<a class="link" href="{% pageurl reading.detail_page %}">Learn more</a>{% endif %}
+        {% include "includes/_page_link.html" with app_label="bookings" model="bookingpage" text="Book this reading" css_class="btn btn-solid" %}
       </div>
     </div>
   </article>
@@ -51,7 +59,7 @@ Context (apps.readings view / ReadingsIndexPage):
     <div><span class="eyebrow">Gift vouchers</span><h2 id="gift-h" data-split>Give someone a reading</h2></div>
     <div class="prose">
       <p data-reveal>Vouchers are emailed instantly and valid for twelve months. Any reading, any amount.</p>
-      <a class="btn btn-ghost" href="{% url 'bookings:booking' %}" data-reveal>Buy a gift voucher</a>
+      {% include "includes/_page_link.html" with app_label="bookings" model="bookingpage" text="Buy a gift voucher" css_class="btn btn-ghost" %}
     </div>
   </div>
 </section>
@@ -60,14 +68,10 @@ Context (apps.readings view / ReadingsIndexPage):
   <div class="wrap two-col">
     <div><span class="eyebrow">Good to know</span><h2 id="faq-h" data-split>Questions people ask</h2></div>
     <div class="faq" data-reveal>
-      {% for faq in faqs %}
-      <details><summary>{{ faq.question }}</summary><p>{{ faq.answer }}</p></details>
-      {% empty %}
       <details><summary>What do I need to have ready?</summary><p>Your date, time and place of birth. If you don't know your exact birth time, get in touch and we'll work with what you have.</p></details>
       <details><summary>How do online readings work?</summary><p>You'll receive a video link by email. Phone readings are also available.</p></details>
       <details><summary>Can I reschedule?</summary><p>Yes — up to 24 hours before your session, free of charge.</p></details>
       <details><summary>Is a reading a substitute for professional advice?</summary><p>No. Readings are for guidance and reflection and are not a substitute for medical, legal or financial advice.</p></details>
-      {% endfor %}
     </div>
   </div>
 </section>
@@ -76,7 +80,7 @@ Context (apps.readings view / ReadingsIndexPage):
   <div class="wrap"><div class="cta-box">
     <span class="eyebrow">Ready when you are</span><h2 id="cta-h" data-split>Book your reading with Leslie</h2>
     <p>Choose a time that suits you. Sessions are online or by phone, wherever you are.</p>
-    <a class="btn btn-solid" href="{% url 'bookings:booking' %}">Book a Reading</a>
+    {% include "includes/_page_link.html" with app_label="bookings" model="bookingpage" text="Book a Reading" css_class="btn btn-solid" %}
   </div></div>
 </section>
 {% endblock %}

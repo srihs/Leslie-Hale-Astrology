@@ -9,6 +9,16 @@ as `settings.core.ContactSettings`). Until that snippet has real values,
 these render an honest placeholder or omit the element entirely — never an
 invented-looking address, and never a mailto:/tel:/href link with an empty
 target.
+
+Explore/Book links: these are Wagtail pages, not named Django URLs — see
+the comment in includes/_page_link.html. `current_site` comes from
+base.html.
+
+Privacy/Terms: no AboutPage-style page model or template exists for
+either (reviews/2026-09-22-project-structure-scaffold.md finding 3 only
+covers About), and inventing one isn't this template's call to make. Shown
+as inert, honest placeholder text rather than a link to nowhere — see the
+matching report note.
 {% endcomment %}
 <footer>
   <div class="wrap">
@@ -20,17 +30,17 @@ target.
       <div>
         <h4>Explore</h4>
         <ul>
-          <li><a href="{% url 'core:about' %}">About Leslie</a></li>
-          <li><a href="{% url 'readings:index' %}">Readings</a></li>
-          <li><a href="{% url 'blog:index' %}">Blog</a></li>
+          <li>{% include "includes/_page_link.html" with app_label="core" model="aboutpage" text="About Leslie" %}</li>
+          <li>{% include "includes/_page_link.html" with app_label="readings" model="readingsindexpage" text="Readings" %}</li>
+          <li>{% include "includes/_page_link.html" with app_label="blog" model="blogindexpage" text="Blog" %}</li>
         </ul>
       </div>
       <div>
         <h4>Book</h4>
         <ul>
-          <li><a href="{% url 'bookings:booking' %}">Book a reading</a></li>
-          <li><a href="{% url 'contact:contact' %}">Contact</a></li>
-          <li><a href="{% url 'contact:contact' %}#newsletter">Newsletter</a></li>
+          <li>{% include "includes/_page_link.html" with app_label="bookings" model="bookingpage" text="Book a reading" %}</li>
+          <li>{% include "includes/_page_link.html" with app_label="contact" model="contactpage" text="Contact" %}</li>
+          <li>{% include "includes/_page_link.html" with app_label="contact" model="contactpage" text="Newsletter" query="#newsletter" %}</li>
         </ul>
       </div>
       <div>
@@ -52,7 +62,7 @@ target.
     </div>
     <div class="foot-bottom">
       <span>© {% now "Y" %} Leslie Hale. Readings are for guidance and reflection.</span>
-      <span><a href="{% url 'core:privacy' %}">Privacy</a> · <a href="{% url 'core:terms' %}">Terms</a></span>
+      <span>Privacy · Terms <em>(pages not yet published)</em></span>
     </div>
   </div>
 </footer>

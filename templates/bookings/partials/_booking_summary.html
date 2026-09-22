@@ -9,6 +9,13 @@ for why these are two files instead of one.
 Context (apps.bookings view):
   summary  {reading_label, price, date_label, time_label, ready,
             reading_slug, day_iso, slot_value}
+
+`bookings:checkout` (payment initiation) does not exist and is not
+invented here — the payment provider is an unconfirmed SCOPE §8 open item
+(see apps/bookings/urls.py's own docstring: booking-payments owns wiring
+it up once a provider is chosen). Even once a reading/date/time is
+selected, the control below stays a disabled, honestly-labelled button
+rather than a link to a URL name that doesn't resolve.
 {% endcomment %}
 <aside class="summary" id="booking-summary" aria-label="Booking summary" aria-live="polite" hx-swap-oob="true">
   <span class="eyebrow">Your booking</span>
@@ -20,7 +27,7 @@ Context (apps.bookings view):
   </dl>
   <div class="total"><span>Total</span><b>${{ summary.price|default:"0" }}</b></div>
   {% if summary.ready %}
-  <a class="btn btn-solid" href="{% url 'bookings:checkout' %}?reading={{ summary.reading_slug }}&amp;day={{ summary.day_iso }}&amp;slot={{ summary.slot_value|urlencode }}">Continue to payment</a>
+  <button class="btn btn-solid" type="button" disabled>Payment setup coming soon</button>
   {% else %}
   <button class="btn btn-solid" type="button" disabled>Choose a reading, date and time</button>
   {% endif %}

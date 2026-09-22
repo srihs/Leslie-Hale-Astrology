@@ -108,6 +108,9 @@ class BookingPage(Page):
     will render it into this page's template.
     """
 
+    # templates/bookings/booking.html is the real file (FINDING 3).
+    template = "bookings/booking.html"
+
     intro = models.TextField(
         blank=True,
         help_text="Shown above the booking calendar, e.g. how the process works.",

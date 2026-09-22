@@ -1,33 +1,31 @@
+{% load wagtailimages_tags %}
 {% comment %}
-Post grid, category filter and pagination — the htmx swap unit for blog
-index filtering/pagination. Included directly by blog/index.html for the
-full page; the blog:index view returns this same fragment (outerHTML) for
-htmx GETs triggered by the category and pager links below.
+Post grid — included directly by blog/index.html.
 
-No-JS path: `.filters` and `.pager` are plain `<a href="?category=…&page=…">`
-links. Clicking one is an ordinary navigation — the view reads the same
-query params either way and renders this fragment inside the full page.
-With htmx, each link also carries hx-get pointing at its own href, so the
-same click instead swaps just #post-list, and hx-push-url keeps the URL
-(and back button) in sync with what's on screen.
+Context (BlogIndexPage.get_context — see apps/blog/models.py):
+  posts  queryset of real blog.BlogPost pages: .title, .url,
+         .published_date (not .date), .excerpt, .featured_image (a
+         wagtailimages.Image — rendered with {% image %}, not a bare
+         .image_url), .tags (a taggable manager; there is no single
+         .category field, only tags)
 
-Context (apps.blog view):
-  categories  list of {label, url, active}
-  posts       list of {url, image_url, image_alt, date, category, title, excerpt}
-  pager       list of {label, url, active, is_next, is_prev}
+Category filter / pagination: the locked design's `.filters` and `.pager`
+markup depended on `categories` and `pager` context that BlogIndexPage
+does not (and, per that model's own get_context comment, deliberately
+does not yet) supply — it needs an unresolved tags-vs-categories decision
+plus pagination of this queryset, neither of which this template-only
+pass invents. Both are removed below rather than left calling into
+context that doesn't exist; `#post-list`/`aria-live` stay so a future
+pass can reintroduce htmx filtering/pagination against the same wrapper
+without another template rewrite. All posts render, unfiltered,
+unpaginated, in the meantime.
 {% endcomment %}
 <div id="post-list" aria-live="polite">
-  <nav class="filters" aria-label="Categories">
-    {% for cat in categories %}
-    <a href="{{ cat.url }}" {% if cat.active %}aria-current="page"{% endif %}
-       hx-get="{{ cat.url }}" hx-target="#post-list" hx-swap="outerHTML" hx-push-url="true">{{ cat.label }}</a>
-    {% endfor %}
-  </nav>
   <div class="post-grid three">
     {% for post in posts %}
     <a class="post" href="{{ post.url }}" data-reveal>
-      <figure><img src="{{ post.image_url }}" width="800" height="500" alt="{{ post.image_alt }}" loading="lazy" onerror="this.style.display='none'"></figure>
-      <span class="eyebrow">{{ post.date|date:"j M Y" }} · {{ post.category }}</span>
+      <figure>{% if post.featured_image %}{% image post.featured_image fill-800x500 alt=post.title %}{% endif %}</figure>
+      <span class="eyebrow">{{ post.published_date|date:"j M Y" }}{% for tag in post.tags.all %}{% if forloop.first %} · {% endif %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
       <h3>{{ post.title }}</h3>
       <p>{{ post.excerpt }}</p>
     </a>
@@ -35,10 +33,4 @@ Context (apps.blog view):
     <!-- No posts migrated yet — SCOPE §8 "Blogger URL for migration" is open. -->
     {% endfor %}
   </div>
-  <nav class="pager" aria-label="Pagination">
-    {% for p in pager %}
-    <a href="{{ p.url }}" {% if p.active %}aria-current="page"{% endif %} {% if p.is_next %}aria-label="Next page"{% endif %}
-       hx-get="{{ p.url }}" hx-target="#post-list" hx-swap="outerHTML" hx-push-url="true">{{ p.label }}</a>
-    {% endfor %}
-  </nav>
 </div>

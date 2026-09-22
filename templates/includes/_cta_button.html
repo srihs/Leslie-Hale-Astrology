@@ -1,0 +1,9 @@
+{% load wagtailcore_tags %}
+{% comment %}
+Renders one CTALinkBlock (apps.core.blocks.CTALinkBlock: text, page, url)
+as a single <a>. `page` (a PageChooserBlock) is preferred; `url` is the
+escape hatch for a link outside the site. If an editor has filled in
+neither yet, this renders nothing rather than an href-less/dead button.
+
+Params: button (the CTALinkBlock StructValue), css_class
+{% endcomment %}{% if button.page %}<a class="{{ css_class }}" href="{% pageurl button.page %}">{{ button.text }}</a>{% elif button.url %}<a class="{{ css_class }}" href="{{ button.url }}">{{ button.text }}</a>{% endif %}

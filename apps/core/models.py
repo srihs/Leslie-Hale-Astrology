@@ -175,6 +175,15 @@ class AboutPage(Page):
     ContactSettings, not here, so it only has to be kept accurate once.
     """
 
+    # No template file exists for this page yet — templates/core/about.html
+    # is not present in the repo (confirmed by FINDING 3; PROJECT-SCOPE.md
+    # §4 "About / Bio" is in scope, but no one has built its markup). This
+    # attribute is set now, matching this app's other single-purpose-page
+    # naming (bookings/booking.html, contact/contact.html), so htmx-frontend
+    # has an unambiguous file to create rather than inheriting Wagtail's
+    # default "core/about_page.html" guess.
+    template = "core/about.html"
+
     portrait = models.ForeignKey(
         "wagtailimages.Image",
         null=True,

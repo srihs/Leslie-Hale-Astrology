@@ -1,22 +1,45 @@
 {% extends "base.html" %}
+{% load wagtailcore_tags wagtailimages_tags %}
 {% comment %}
 Home page — §7 homepage structure, in order: hero, services, about teaser,
 "how it works", testimonials, blog latest, newsletter, final CTA.
 
-Context (supplied by apps.home's view; wagtail-backend owns the page model):
-  services       list of {slug, number_label, title, description, price,
-                  duration_minutes, featured (bool)} — SCOPE §8 "final list
-                  of readings + prices" is still open, hence the `default`
-                  placeholders below.
-  about          {portrait_image, quote} — §8 "portrait photo" is open. The
-                  years-of-experience figure is NOT part of this context: it
-                  comes from apps.core.ContactSettings.years_experience_label
-                  (settings.core.ContactSettings), the single source of
-                  truth for that §8 "years of experience figure" open item.
-  testimonials   list of {quote, name, location} — §8 open ("Testimonials
-                  (3+)"); renders nothing until real ones exist rather than
-                  inventing quotes.
-  latest_posts   the 2 most recent published posts (apps.blog)
+Context (HomePage.get_context — see apps/home/models.py): `hero`,
+`services`, `about`, `testimonials`, `final_cta` are each the StructValue
+of that section's own StreamField block (apps/home/blocks.py); `latest_blog`
+likewise but is heading/subline copy only — the two posts themselves are
+`latest_posts`, a real BlogPost queryset (.title, .url, .published_date,
+.excerpt, .featured_image, .tags).
+
+  hero          eyebrow, headline, subheading, primary_button,
+                secondary_button (each button a CTALinkBlock — see
+                includes/_cta_button.html)
+  services      heading, subline, featured_reading (a readings.Reading
+                snippet: name, summary, description, duration_minutes,
+                price, price_note, image, detail_page), image,
+                image_caption
+  about         portrait, story (rich text), pull_quote, link_text,
+                link_page
+  testimonials  heading, testimonials (list of core.Testimonial snippets:
+                quote, author_name, author_descriptor) — SCOPE §8
+                "Testimonials (3+)" is open; renders nothing until Leslie
+                picks some, rather than inventing quotes
+  latest_blog   heading, subline, view_all_link_text
+  latest_posts  the 2 most recent published posts
+  final_cta     headline, subline, button
+
+The years-of-experience figure is NOT part of any of the above — it comes
+from apps.core.ContactSettings.years_experience_label
+(settings.core.ContactSettings), the single source of truth for that
+§8 "years of experience figure" open item (see reviews/2026-09-22-
+project-structure-scaffold.md finding 6).
+
+HeroBlock and ServicesTeaserBlock (apps/home/blocks.py) only carry ONE
+featured reading / one supporting image each, not the three-card grid and
+dedicated hero photo the locked v1-ephemeris reference shows — see this
+task's final report. Rendered below exactly as the model provides it
+rather than inventing extra cards; the hero photo stays the fixed
+Unsplash placeholder for the same reason (HeroBlock has no image field).
 {% endcomment %}
 
 {% block title %}Leslie Hale Astrology — Readings that help with everyday life{% endblock %}
@@ -25,20 +48,20 @@ Context (supplied by apps.home's view; wagtail-backend owns the page model):
 {% block content %}
 <!--
   Imagery provenance (Unsplash License): photo-1462331940025-496dfbfc7564
-  (nebula), photo-1532693322450-2cb5c511067d (moon),
-  photo-1419242902214-272b3f66ee7a (stars). Portrait: reserved slot for
-  client's real photo (SCOPE §8).
+  (nebula). HeroBlock has no image field (apps/home/blocks.py), so this
+  stays the fixed decorative photo from the locked design rather than a
+  CMS-editable image. Portrait below: about.portrait, editor-supplied.
 -->
 <section class="hero" aria-labelledby="hero-h">
   <div class="hero-stars" aria-hidden="true"></div>
   <div class="wrap">
     <div>
-      <span class="hero-tag" data-reveal>✦ Personal astrology readings</span>
-      <h1 id="hero-h" data-split>Astrology that helps with <em>real, everyday</em> life.</h1>
-      <p class="lead" data-reveal>A reading with Leslie is a warm, no‑judgement conversation about where you are and what the sky suggests next. You'll leave with more answers than you came with.</p>
+      {% if hero.eyebrow %}<span class="hero-tag" data-reveal>✦ {{ hero.eyebrow }}</span>{% endif %}
+      <h1 id="hero-h" data-split>{{ hero.headline }}</h1>
+      {% if hero.subheading %}<p class="lead" data-reveal>{{ hero.subheading }}</p>{% endif %}
       <div class="hero-cta" data-reveal>
-        <a class="btn btn-solid" href="{% url 'bookings:booking' %}">Book a Reading</a>
-        <a class="btn btn-ghost" href="{% url 'readings:index' %}">See the readings</a>
+        {% include "includes/_cta_button.html" with button=hero.primary_button css_class="btn btn-solid" %}
+        {% include "includes/_cta_button.html" with button=hero.secondary_button css_class="btn btn-ghost" %}
       </div>
       <div class="hero-meta" data-reveal>
         <div><strong>One‑to‑one</strong>Private sessions, online or by phone</div>
@@ -55,23 +78,29 @@ Context (supplied by apps.home's view; wagtail-backend owns the page model):
 <section class="tint" id="services" aria-labelledby="svc-h">
   <div class="wrap">
     <div class="sec-head">
-      <div><span class="eyebrow">Readings</span><h2 id="svc-h" data-split>Choose the conversation you need</h2></div>
-      <p>Every reading is done personally by Leslie, using your birth details. Not sure which one? Start with the Birth Chart reading.</p>
+      <div><span class="eyebrow">Readings</span><h2 id="svc-h" data-split>{{ services.heading }}</h2></div>
+      {% if services.subline %}<p>{{ services.subline }}</p>{% endif %}
     </div>
     <div class="svc-grid">
-      {% for service in services %}
-      <article class="svc{% if service.featured %} featured{% endif %}" data-reveal>
-        <span class="num">{{ service.number_label }}</span>
-        <h3>{{ service.title }}</h3>
-        <p>{{ service.description }}</p>
+      {% if services.featured_reading %}
+      <article class="svc featured" data-reveal>
+        <h3>{{ services.featured_reading.name }}</h3>
+        <p>{{ services.featured_reading.summary }}</p>
         <div class="price">
-          <div><b>${{ service.price|default:"[price TBC]" }}</b><small>{{ service.duration_minutes|default:"[TBC]" }} minutes</small></div>
-          <a href="{% url 'bookings:booking' %}?reading={{ service.slug }}">Book →</a>
+          <div>
+            {% if services.featured_reading.price %}<b>${{ services.featured_reading.price }}</b>{% else %}<b>{{ services.featured_reading.price_note }}</b>{% endif %}
+            {% if services.featured_reading.duration_minutes %}<small>{{ services.featured_reading.duration_minutes }} minutes</small>{% endif %}
+          </div>
+          {% include "includes/_page_link.html" with app_label="bookings" model="bookingpage" text="Book →" %}
         </div>
       </article>
-      {% empty %}
-      <!-- No readings published yet — SCOPE §8 "final list of readings + prices" is open. -->
-      {% endfor %}
+      {% endif %}
+      {% if services.image %}
+      <figure class="svc" data-reveal>
+        {% image services.image fill-800x600 alt=services.image_caption|default:services.featured_reading.name %}
+        {% if services.image_caption %}<figcaption>{{ services.image_caption }}</figcaption>{% endif %}
+      </figure>
+      {% endif %}
     </div>
   </div>
 </section>
@@ -79,8 +108,8 @@ Context (supplied by apps.home's view; wagtail-backend owns the page model):
 <section class="about" id="about" aria-labelledby="about-h">
   <div class="wrap">
     <div class="portrait" data-reveal>
-      {% if about.portrait_image %}
-        <img src="{{ about.portrait_image.url }}" alt="{{ about.portrait_image.alt|default:'Portrait of Leslie Hale' }}">
+      {% if about.portrait %}
+        {% image about.portrait fill-800x1000 alt="Portrait of Leslie Hale" %}
       {% else %}
         <span>Portrait of Leslie<br>(photo to be supplied)</span>
       {% endif %}
@@ -89,10 +118,9 @@ Context (supplied by apps.home's view; wagtail-backend owns the page model):
     <div>
       <span class="eyebrow">About Leslie</span>
       <h2 id="about-h" data-split>Come as you are. Leave with answers.</h2>
-      <p data-reveal>I've been reading charts for a long time, and the thing I've learned is that astrology works best when it's practical. Not vague, not doom‑laden — a clear way of looking at your life and its timing.</p>
-      <p data-reveal>Nothing you bring to a reading will surprise me or be judged. We'll talk plainly about what's going on and what the sky suggests you do with it.</p>
-      <blockquote data-reveal>"Astrology isn't about fate. It's about knowing the weather before you plan the day."</blockquote>
-      <a class="link" href="{% url 'core:about' %}" data-reveal>Read Leslie's story</a>
+      {{ about.story }}
+      {% if about.pull_quote %}<blockquote data-reveal>{{ about.pull_quote }}</blockquote>{% endif %}
+      {% if about.link_page %}<a class="link" href="{% pageurl about.link_page %}" data-reveal>{{ about.link_text }}</a>{% endif %}
     </div>
   </div>
 </section>
@@ -110,13 +138,13 @@ Context (supplied by apps.home's view; wagtail-backend owns the page model):
 
 <section aria-labelledby="t-h">
   <div class="wrap">
-    <div class="sec-head"><div><span class="eyebrow">Kind words</span><h2 id="t-h" data-split>What people say afterwards</h2></div></div>
+    <div class="sec-head"><div><span class="eyebrow">Kind words</span><h2 id="t-h" data-split>{{ testimonials.heading }}</h2></div></div>
     <div class="t-grid">
-      {% for t in testimonials %}
+      {% for t in testimonials.testimonials %}
       <figure class="t" data-reveal>
         <span class="q" aria-hidden="true">“</span>
         <p>{{ t.quote }}</p>
-        <figcaption><cite><b>{{ t.name }}</b>{{ t.location }}</cite></figcaption>
+        <figcaption><cite><b>{{ t.author_name }}</b>{% if t.author_descriptor %}{{ t.author_descriptor }}{% endif %}</cite></figcaption>
       </figure>
       {% empty %}
       <!-- SCOPE §8 "Testimonials (3+)" is open — nothing invented here. -->
@@ -128,14 +156,14 @@ Context (supplied by apps.home's view; wagtail-backend owns the page model):
 <section class="tint" id="blog" aria-labelledby="blog-h">
   <div class="wrap">
     <div class="sec-head">
-      <div><span class="eyebrow">From the blog</span><h2 id="blog-h" data-split>Notes on the sky this month</h2></div>
-      <a class="link" href="{% url 'blog:index' %}">View all posts</a>
+      <div><span class="eyebrow">From the blog</span><h2 id="blog-h" data-split>{{ latest_blog.heading }}</h2></div>
+      {% include "includes/_page_link.html" with app_label="blog" model="blogindexpage" text=latest_blog.view_all_link_text css_class="link" %}
     </div>
     <div class="post-grid">
       {% for post in latest_posts %}
-      <a class="post" href="{% url 'blog:post' post.slug %}" data-reveal>
-        <figure><img src="{{ post.image_url }}" width="1000" height="625" alt="{{ post.image_alt }}" loading="lazy" onerror="this.style.display='none'"></figure>
-        <span class="eyebrow">{{ post.date|date:"j M Y" }} · {{ post.category }}</span>
+      <a class="post" href="{{ post.url }}" data-reveal>
+        <figure>{% if post.featured_image %}{% image post.featured_image fill-1000x625 alt=post.title %}{% endif %}</figure>
+        <span class="eyebrow">{{ post.published_date|date:"j M Y" }}{% for tag in post.tags.all %}{% if forloop.first %} · {% endif %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
         <h3>{{ post.title }}</h3>
         <p>{{ post.excerpt }}</p>
       </a>
@@ -161,9 +189,9 @@ Context (supplied by apps.home's view; wagtail-backend owns the page model):
   <div class="wrap">
     <div class="cta-box">
       <span class="eyebrow">Ready when you are</span>
-      <h2 id="cta-h" data-split>Book your reading with Leslie</h2>
-      <p>Choose a time that suits you. Sessions are online or by phone, wherever you are.</p>
-      <a class="btn btn-solid" href="{% url 'bookings:booking' %}">Book a Reading</a>
+      <h2 id="cta-h" data-split>{{ final_cta.headline }}</h2>
+      {% if final_cta.subline %}<p>{{ final_cta.subline }}</p>{% endif %}
+      {% include "includes/_cta_button.html" with button=final_cta.button css_class="btn btn-solid" %}
     </div>
   </div>
 </section>

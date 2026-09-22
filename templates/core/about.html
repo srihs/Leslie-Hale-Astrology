@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags wagtailimages_tags %}
+{% comment %}
+About page (§4 "About / Bio"; PROJECT-SCOPE.md §7). No template existed
+for AboutPage before this (reviews/2026-09-22-project-structure-scaffold.md
+finding 3) — AboutPage.template = "core/about.html" already pointed here.
+
+Context: AboutPage's own fields, already on `page` (see apps/core/models.py)
+  page.portrait     an Image, or None — falls back to the same "photo to
+                     be supplied" placeholder used on the homepage
+  page.intro        short intro shown as this page's lead paragraph
+  page.body         StreamField (text/image sections) — Leslie's story,
+                     rendered with {% include_block %}
+  page.pull_quote   optional short line shown as a blockquote
+  page.cta          StreamField, max one CTALinkBlock button
+
+The locked v1-ephemeris reference (versions/v1-ephemeris/about.html) also
+shows a "Three promises" values section and a "Training & background"
+section, both entirely lorem-ipsum placeholder copy there, with no field
+on this page model to back either with real content — see this task's
+final report. Not reproduced here rather than inventing copy for them;
+`page.body`'s free-form text/image StreamField gives Leslie room to add
+that kind of section herself if she wants one.
+{% endcomment %}
+
+{% block title %}About Leslie — Leslie Hale Astrology{% endblock %}
+{% block meta_description %}{{ page.intro|default:"Meet Leslie Hale, astrologer." }}{% endblock %}
+
+{% block content %}
+<section class="page-hero" aria-labelledby="h">
+  <div class="wrap">
+    <p class="crumbs"><a href="{% pageurl current_site.root_page %}">Home</a> / About</p>
+    <span class="eyebrow">About Leslie</span>
+    <h1 id="h" data-split>{{ page.title }}</h1>
+    {% if page.intro %}<p class="lead" data-reveal>{{ page.intro }}</p>{% endif %}
+  </div>
+</section>
+
+<section class="about" aria-label="Leslie's story">
+  <div class="wrap">
+    <div class="portrait" data-reveal>
+      {% if page.portrait %}
+        {% image page.portrait fill-800x1000 alt="Portrait of Leslie Hale" %}
+      {% else %}
+        <span>Portrait of Leslie<br>(photo to be supplied)</span>
+      {% endif %}
+      <div class="stat"><b>{{ settings.core.ContactSettings.years_experience_label }}</b></div>
+    </div>
+    <div class="prose">
+      {% if page.body %}{% include_block page.body %}{% endif %}
+      {% if page.pull_quote %}<blockquote data-reveal>{{ page.pull_quote }}</blockquote>{% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="cta tint" aria-labelledby="cta-h">
+  <div class="wrap"><div class="cta-box">
+    <span class="eyebrow">Ready when you are</span><h2 id="cta-h" data-split>Let's look at your chart together</h2>
+    <p>Choose a time that suits you. Sessions are online or by phone, wherever you are.</p>
+    {% for block in page.cta %}
+      {% include "includes/_cta_button.html" with button=block.value css_class="btn btn-solid" %}
+    {% empty %}
+      {% include "includes/_page_link.html" with app_label="bookings" model="bookingpage" text="Book a Reading" css_class="btn btn-solid" %}
+    {% endfor %}
+  </div></div>
+</section>
+{% endblock %}

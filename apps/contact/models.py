@@ -17,6 +17,9 @@ class ContactPage(Page):
     """The Contact page (§4): enquiry form, plus contact details and socials
     from ContactSettings (see apps.core) rendered around it."""
 
+    # templates/contact/contact.html is the real file (FINDING 3).
+    template = "contact/contact.html"
+
     intro = models.TextField(
         blank=True, help_text="Shown above the contact form."
     )

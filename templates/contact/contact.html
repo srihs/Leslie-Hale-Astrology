@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load wagtailcore_tags %}
 {% comment %}
 Contact page. Two independent forms — contact (partials/_contact_form.html)
 and newsletter (includes/_newsletter_form.html) — each with its own htmx
@@ -14,10 +15,10 @@ the same ContactSettings contract used here (`settings.core.ContactSettings`).
 {% block content %}
 <section class="page-hero" aria-labelledby="h">
   <div class="wrap">
-    <p class="crumbs"><a href="{% url 'home:index' %}">Home</a> / Contact</p>
+    <p class="crumbs"><a href="{% pageurl current_site.root_page %}">Home</a> / Contact</p>
     <span class="eyebrow">Contact</span>
     <h1 id="h" data-split>Say <em>hello</em>.</h1>
-    <p class="lead" data-reveal>Questions about a reading, gift vouchers, or which session is right for you — send a note and Leslie will reply within two working days. Ready to book? <a href="{% url 'bookings:booking' %}" style="color:var(--gold)">Go straight to the calendar.</a></p>
+    <p class="lead" data-reveal>{{ page.intro|default:"Questions about a reading, gift vouchers, or which session is right for you — send a note and Leslie will reply within two working days." }} Ready to book? {% include "includes/_page_link.html" with app_label="bookings" model="bookingpage" text="Go straight to the calendar." %}</p>
   </div>
 </section>
 

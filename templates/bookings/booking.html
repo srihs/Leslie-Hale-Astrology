@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load wagtailcore_tags %}
 {% comment %}
 Booking page. See partials/_booking_panel_form.html, partials/_details_form.html
 and partials/_booking_summary.html for the htmx contract of steps 1–3 and
@@ -13,7 +14,7 @@ _booking_panel_form.html for why the include order matters.
 {% block content %}
 <section class="page-hero" aria-labelledby="h">
   <div class="wrap">
-    <p class="crumbs"><a href="{% url 'home:index' %}">Home</a> / Book a reading</p>
+    <p class="crumbs"><a href="{% pageurl current_site.root_page %}">Home</a> / Book a reading</p>
     <span class="eyebrow">Booking</span>
     <h1 id="h" data-split>Book your <em>reading</em>.</h1>
     <p class="lead" data-reveal>Three quick steps: choose a reading, pick a time, pay securely. You'll get a confirmation email straight away with everything you need.</p>

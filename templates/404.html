@@ -1,10 +1,19 @@
 {% extends "base.html" %}
+{% load wagtailcore_tags %}
 {% comment %}
 Django renders this with the normal request context (context processors
 run), so it's safe to extend base.html — unlike 500.html, a bad URL does
 not imply the site's settings/DB are unhealthy. See templates/500.html
 for why that one stays standalone.
+
+There is no Wagtail `page` here (nothing was found), so the Home/Booking
+links below resolve `current_site` themselves rather than relying on
+base.html having already set it further up the same render — base.html
+sets it before {% block content %} either way, but doing it again here
+too is cheap/idempotent and keeps this template correct even if that
+ordering ever changes.
 {% endcomment %}
+{% wagtail_site as current_site %}
 
 {% block title %}Page not found — Leslie Hale Astrology{% endblock %}
 {% block meta_description %}That page couldn't be found.{% endblock %}
@@ -12,7 +21,7 @@ for why that one stays standalone.
 {% block content %}
 <section class="page-hero" aria-labelledby="h">
   <div class="wrap">
-    <p class="crumbs"><a href="{% url 'home:index' %}">Home</a> / Page not found</p>
+    <p class="crumbs"><a href="{% pageurl current_site.root_page %}">Home</a> / Page not found</p>
     <span class="eyebrow">404</span>
     <h1 id="h" data-split>We couldn't find <em>that</em> page.</h1>
     <p class="lead" data-reveal>The page may have moved, or the link may be out of date. Try the homepage, or go straight to booking a reading.</p>
@@ -22,8 +31,8 @@ for why that one stays standalone.
 <section class="cta" aria-labelledby="cta-h">
   <div class="wrap"><div class="cta-box">
     <span class="eyebrow">Where to next</span><h2 id="cta-h" data-split>Book your reading with Leslie</h2>
-    <p>Choose a time that suits you, or <a class="link" href="{% url 'home:index' %}">go back to the homepage</a>.</p>
-    <a class="btn btn-solid" href="{% url 'bookings:booking' %}">Book a Reading</a>
+    <p>Choose a time that suits you, or <a class="link" href="{% pageurl current_site.root_page %}">go back to the homepage</a>.</p>
+    {% include "includes/_page_link.html" with app_label="bookings" model="bookingpage" text="Book a Reading" css_class="btn btn-solid" %}
   </div></div>
 </section>
 {% endblock %}

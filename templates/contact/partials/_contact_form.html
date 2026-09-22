@@ -12,11 +12,17 @@ Context (apps.contact view):
   contact_values     dict of posted values, for re-populating after an error
   contact_errors     dict of field -> [messages]
   contact_submitted  bool
+
+Posts to contact:submit (apps/contact/urls.py) — a real, plain Django URL
+for this non-page form endpoint. `contact:contact` never existed; the
+Contact page itself is a Wagtail page and is linked elsewhere with
+{% pageurl %}/includes/_page_link.html, not this name (reviews/2026-09-22-
+project-structure-scaffold.md findings 1-2).
 {% endcomment %}
 <form class="form panel{% if contact_submitted %} sent{% endif %}{% if contact_errors %} invalid{% endif %}"
       id="contact-form-wrap" novalidate
-      method="post" action="{% url 'contact:contact' %}"
-      hx-post="{% url 'contact:contact' %}" hx-target="#contact-form-wrap" hx-swap="outerHTML"
+      method="post" action="{% url 'contact:submit' %}"
+      hx-post="{% url 'contact:submit' %}" hx-target="#contact-form-wrap" hx-swap="outerHTML"
       aria-live="polite">
   {% csrf_token %}
   <div class="form-row">

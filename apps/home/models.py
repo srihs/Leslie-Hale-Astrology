@@ -27,6 +27,11 @@ from apps.home.blocks import (
 
 
 class HomePage(Page):
+    # templates/home/index.html is the real file (see FINDING 3, review
+    # 2026-09-22-project-structure-scaffold.md) — Wagtail's default lookup
+    # would otherwise look for home/home_page.html and never find it.
+    template = "home/index.html"
+
     hero = StreamField(
         [("hero", HeroBlock())],
         min_num=1,
@@ -88,7 +93,36 @@ class HomePage(Page):
         verbose_name = "Homepage"
 
     def get_context(self, request, *args, **kwargs):
+        """
+        FINDING 4 fix: the template's own section markup (hero/services/
+        about/testimonials/latest_blog/final_cta) needs each section's
+        *content*, not the raw StreamField wrapper. Each of those fields is
+        restricted to exactly one block (min_num=1, max_num=1 — see the
+        module docstring), so `self.<field>[0].value` is that section's
+        StructValue: e.g. context["about"].portrait / .story / .pull_quote
+        / .link_text / .link_page — there is no `.years` or
+        `.practising_since` on it or anywhere else in this model; the
+        years-of-experience figure is ContactSettings.years_experience_label
+        (already available site-wide as settings.core.ContactSettings, see
+        apps/core/models.py), not homepage content.
+
+        The `[0]` is guarded rather than assumed, because min_num/max_num
+        are editor-form validation, not a database constraint — a HomePage
+        created outside the admin (a fixture, a script) could still have an
+        empty StreamField.
+        """
         context = super().get_context(request, *args, **kwargs)
+
+        def section(stream_field):
+            return stream_field[0].value if stream_field else None
+
+        context["hero"] = section(self.hero)
+        context["services"] = section(self.services)
+        context["about"] = section(self.about)
+        context["testimonials"] = section(self.testimonials)
+        context["latest_blog"] = section(self.latest_blog)
+        context["final_cta"] = section(self.final_cta)
+
         # Deferred import avoids a hard cross-app import at module load time.
         from apps.blog.models import BlogPost
 

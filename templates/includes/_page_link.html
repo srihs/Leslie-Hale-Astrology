@@ -1,0 +1,36 @@
+{% load wagtailcore_tags %}
+{% comment %}
+Resolves and renders a link to one of the site's fixed singleton pages
+(About, Readings/Services, Blog, Contact, Booking) by Wagtail content
+type, and renders nothing if it can't be found.
+
+Why: these are Wagtail pages, not named Django URLs — `{% url 'core:about' %}`
+etc never existed (reviews/2026-09-22-project-structure-scaffold.md
+findings 1-2). Wagtail pages are addressed with {% pageurl %} against an
+actual Page instance, but a fixed nav/footer/CTA link isn't "the current
+page" so there's no `page` variable already pointing at it. Slugs are
+editor-controlled (Leslie can rename any page's URL in the admin) so they
+aren't a safe assumption either. Matching on `content_type` is the one
+thing guaranteed stable regardless of what Leslie titles or slugs the
+page — it's a real field on every Wagtail Page (see wagtail/models.py),
+not invented for this template.
+
+Expects `current_site` already in context (set once in base.html via
+{% wagtail_site %} — see the comment there) — this only iterates its
+root page's live children, so it works for any page one level under
+Home (About, Readings, Blog, Contact, Booking all are, per each model's
+`parent_page_types`). If the target page doesn't exist yet or isn't
+published, this renders nothing rather than a broken link.
+
+Required:
+  app_label   e.g. "core", "readings", "blog", "contact", "bookings"
+  model       lowercase model name, e.g. "aboutpage"
+  text        the link text
+Optional:
+  css_class   class attribute on the <a>
+  nav_key     compared against `active_nav` (already in context from the
+              owning view) to add aria-current="page"
+  query       raw string appended to the href, e.g. "?reading=natal-chart"
+              — pre-escape any "&" as "&amp;" yourself, same as elsewhere
+              in this codebase.
+{% endcomment %}{% for target_page in current_site.root_page.get_children.live %}{% if target_page.content_type.app_label == app_label and target_page.content_type.model == model %}<a{% if css_class %} class="{{ css_class }}"{% endif %} href="{% pageurl target_page %}{{ query|default:"" }}"{% if nav_key and active_nav == nav_key %} aria-current="page"{% endif %}>{{ text }}</a>{% endif %}{% endfor %}

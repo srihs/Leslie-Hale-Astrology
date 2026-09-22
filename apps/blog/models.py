@@ -22,6 +22,9 @@ from apps.core.blocks import BodyTextBlock, CaptionedImageBlock
 class BlogIndexPage(Page):
     """The blog listing page."""
 
+    # templates/blog/index.html is the real file (FINDING 3).
+    template = "blog/index.html"
+
     intro = models.TextField(
         blank=True,
         help_text="Optional introduction shown above the list of posts.",
@@ -37,6 +40,23 @@ class BlogIndexPage(Page):
         verbose_name = "Blog index page"
 
     def get_context(self, request, *args, **kwargs):
+        """
+        FINDING 4 note: `posts` is a queryset of real `BlogPost` pages —
+        each has `.title`, `.url` (both from Page), `.published_date` (not
+        `date`), `.excerpt`, `.featured_image` (an Image object, not
+        `image_url` — render with {% image %}), and `.tags` (a taggable
+        manager; there is no single `category` field on this model, only
+        tags — see the module docstring). The queryset itself was already
+        correctly scoped and prefetched; nothing here needed to change,
+        only the field names templates read off each post.
+
+        The category-filter/pagination htmx contract documented in
+        templates/blog/partials/_post_list.html (`categories`, `pager`) is
+        out of scope for this fix — it needs a decision about mapping tags
+        to "categories" and paginating this same queryset, which belongs
+        with whoever builds that htmx endpoint against this page's own
+        URL, not a model/context change.
+        """
         context = super().get_context(request, *args, **kwargs)
         context["posts"] = (
             BlogPost.objects.child_of(self)
@@ -104,6 +124,9 @@ class BlogPost(Page):
         "'Relationships'. Used to group related posts.",
     )
 
+    # templates/blog/post.html is the real file (FINDING 3).
+    template = "blog/post.html"
+
     content_panels = Page.content_panels + [
         MultiFieldPanel(
             [FieldPanel("published_date"), FieldPanel("excerpt"), FieldPanel("featured_image")],
@@ -122,3 +145,22 @@ class BlogPost(Page):
 
     class Meta:
         verbose_name = "Blog post"
+
+    def get_context(self, request, *args, **kwargs):
+        """
+        FINDING 4 fix: this post's own fields are already on `page`
+        (title, published_date, author_name, featured_image, tags, body —
+        Wagtail puts `self` there automatically); no shadow context is
+        added for those. `related_posts` is the one thing the template
+        can't get any other way.
+        """
+        context = super().get_context(request, *args, **kwargs)
+        context["related_posts"] = (
+            BlogPost.objects.live()
+            .public()
+            .exclude(pk=self.pk)
+            .order_by("-published_date")
+            .select_related("featured_image")
+            .prefetch_related("tags")[:2]
+        )
+        return context

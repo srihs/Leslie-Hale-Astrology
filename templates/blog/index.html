@@ -1,7 +1,9 @@
 {% extends "base.html" %}
+{% load wagtailcore_tags %}
 {% comment %}
-Blog index. See partials/_post_list.html for the filter/pagination htmx
-contract — that is the only interactive part of this page.
+Blog index. See partials/_post_list.html for what this page can and can't
+do with the current BlogIndexPage.get_context contract (no category
+filter or pagination yet — see that file's own comment).
 {% endcomment %}
 
 {% block title %}Blog — Leslie Hale Astrology{% endblock %}
@@ -10,10 +12,10 @@ contract — that is the only interactive part of this page.
 {% block content %}
 <section class="page-hero" aria-labelledby="h">
   <div class="wrap">
-    <p class="crumbs"><a href="{% url 'home:index' %}">Home</a> / Blog</p>
+    <p class="crumbs"><a href="{% pageurl current_site.root_page %}">Home</a> / Blog</p>
     <span class="eyebrow">Blog</span>
     <h1 id="h" data-split>Notes on the <em>sky</em>, in plain words.</h1>
-    <p class="lead" data-reveal>What's moving overhead, what it tends to mean, and what to do about it. Posts migrated from Leslie's Blogger archive.</p>
+    <p class="lead" data-reveal>{{ page.intro|default:"What's moving overhead, what it tends to mean, and what to do about it." }}</p>
   </div>
 </section>
 

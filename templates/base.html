@@ -1,4 +1,4 @@
-{% load static %}<!doctype html>
+{% load static wagtailcore_tags %}<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -19,12 +19,24 @@
 <body class="no-js{% block body_class %}{% endblock %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 <a class="skip" href="#main">Skip to content</a>
 
+{% comment %}
+Site pages (Home, About, Readings, Blog, Contact, Booking) are Wagtail
+pages served by wagtail_urls, not named Django URLs (reviews/2026-09-22-
+project-structure-scaffold.md findings 1-2) — `home:index`, `core:about`,
+etc never existed. `current_site` is resolved once here and stays in
+scope for every include and {% block content %} below it (Django template
+inheritance shares one context; it isn't a fresh scope per block), so
+includes/_nav.html, includes/_footer.html, includes/_page_link.html and
+every page template's own CTAs can reuse it instead of re-querying.
+{% endcomment %}
+{% wagtail_site as current_site %}
+
 <header class="nav">
   <div class="wrap">
-    <a class="brand" href="{% url 'home:index' %}" aria-label="Leslie Hale Astrology home">Leslie Hale</a>
+    <a class="brand" href="{% pageurl current_site.root_page %}" aria-label="Leslie Hale Astrology home">Leslie Hale</a>
     {% include "includes/_nav.html" %}
     <div class="nav-right">
-      <a class="btn btn-ghost btn-nav" href="{% url 'bookings:booking' %}">Book a Reading</a>
+      {% include "includes/_page_link.html" with app_label="bookings" model="bookingpage" text="Book a Reading" css_class="btn btn-ghost btn-nav" %}
       <button class="menu-btn" aria-expanded="false" aria-controls="menu">Menu</button>
     </div>
   </div>

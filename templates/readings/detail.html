@@ -1,39 +1,44 @@
 {% extends "base.html" %}
+{% load wagtailcore_tags wagtailimages_tags %}
 {% comment %}
 Single reading detail page — one per reading type, linked from the
 readings index and from service cards elsewhere. Reuses the same `.detail`
 block the index uses for each reading, at page scale, following the same
 pattern as blog/post.html (hero + body + "more" + CTA).
 
-Context (apps.readings view / ReadingDetailPage):
-  reading        {slug, number_label, tag_label, title, description,
-                  bullets, price, duration_minutes, image_url, image_alt}
-  other_readings list of the same shape, for "Other readings" below
+Context (ReadingDetailPage.get_context — see apps/readings/models.py):
+  page            the ReadingDetailPage itself (title, url, body — a
+                   StreamField, rendered with {% include_block %} below)
+  page.reading    the linked readings.Reading snippet: name, summary,
+                   description, duration_minutes, price, price_note, image
+  other_readings  queryset of the other active Reading snippets, same
+                   shape as readings/index.html, for "Other readings"
 {% endcomment %}
 
-{% block title %}{{ reading.title|default:"Reading" }} — Leslie Hale Astrology{% endblock %}
-{% block meta_description %}{{ reading.description|default:"A personal astrology reading with Leslie Hale, online or by phone." }}{% endblock %}
+{% block title %}{{ page.reading.name|default:"Reading" }} — Leslie Hale Astrology{% endblock %}
+{% block meta_description %}{{ page.reading.description|default:page.reading.summary|default:"A personal astrology reading with Leslie Hale, online or by phone." }}{% endblock %}
 
 {% block content %}
 <section class="page-hero" aria-labelledby="h">
   <div class="wrap">
-    <p class="crumbs"><a href="{% url 'home:index' %}">Home</a> / <a href="{% url 'readings:index' %}">Readings</a> / {{ reading.title }}</p>
-    <span class="eyebrow">{{ reading.number_label }}{% if reading.tag_label %} · {{ reading.tag_label }}{% endif %}</span>
-    <h1 id="h" data-split>{{ reading.title }}</h1>
-    <p class="lead" data-reveal>{{ reading.description }}</p>
+    <p class="crumbs"><a href="{% pageurl current_site.root_page %}">Home</a> / {% include "includes/_page_link.html" with app_label="readings" model="readingsindexpage" text="Readings" %} / {{ page.reading.name }}</p>
+    {% if page.reading.duration_minutes %}<span class="eyebrow">{{ page.reading.duration_minutes }} minutes</span>{% endif %}
+    <h1 id="h" data-split>{{ page.reading.name }}</h1>
+    <p class="lead" data-reveal>{{ page.reading.description|default:page.reading.summary }}</p>
   </div>
 </section>
 
 <div class="wrap">
   <article class="detail" aria-labelledby="h">
-    <figure class="detail-media" data-reveal><img src="{{ reading.image_url }}" width="1000" height="750" alt="{{ reading.image_alt }}" loading="lazy" onerror="this.style.display='none'"></figure>
+    <figure class="detail-media" data-reveal>{% if page.reading.image %}{% image page.reading.image fill-1000x750 alt=page.reading.name %}{% endif %}</figure>
     <div>
-      <ul data-reveal>
-        {% for bullet in reading.bullets %}<li>{{ bullet }}</li>{% endfor %}
-      </ul>
+      {% if page.body %}{% include_block page.body %}{% endif %}
       <div class="meta" data-reveal>
-        <div><b>${{ reading.price|default:"[price TBC]" }}</b><small>{{ reading.duration_minutes|default:"[TBC]" }} minutes</small></div>
-        <a class="btn btn-solid" href="{% url 'bookings:booking' %}?reading={{ reading.slug }}">Book this reading</a>
+        <div>
+          {% if page.reading.price %}<b>${{ page.reading.price }}</b>{% else %}<b>{{ page.reading.price_note }}</b>{% endif %}
+          {% if page.reading.duration_minutes %}<small>{{ page.reading.duration_minutes }} minutes</small>{% endif %}
+        </div>
+        {% include "includes/_page_link.html" with app_label="bookings" model="bookingpage" text="Book this reading" css_class="btn btn-solid" %}
       </div>
     </div>
   </article>
@@ -41,14 +46,19 @@ Context (apps.readings view / ReadingDetailPage):
 
 <section class="tint" aria-labelledby="more-h">
   <div class="wrap">
-    <div class="sec-head"><div><span class="eyebrow">Other readings</span><h2 id="more-h" data-split>You might also like</h2></div><a class="link" href="{% url 'readings:index' %}">All readings</a></div>
+    <div class="sec-head"><div><span class="eyebrow">Other readings</span><h2 id="more-h" data-split>You might also like</h2></div>{% include "includes/_page_link.html" with app_label="readings" model="readingsindexpage" text="All readings" css_class="link" %}</div>
     <div class="svc-grid">
       {% for other in other_readings %}
       <article class="svc" data-reveal>
-        <span class="num">{{ other.number_label }}</span>
-        <h3>{{ other.title }}</h3>
-        <p>{{ other.description }}</p>
-        <div class="price"><div><b>${{ other.price|default:"[price TBC]" }}</b><small>{{ other.duration_minutes|default:"[TBC]" }} minutes</small></div><a href="{% url 'readings:detail' other.slug %}">View →</a></div>
+        <h3>{{ other.name }}</h3>
+        <p>{{ other.summary }}</p>
+        <div class="price">
+          <div>
+            {% if other.price %}<b>${{ other.price }}</b>{% else %}<b>{{ other.price_note }}</b>{% endif %}
+            {% if other.duration_minutes %}<small>{{ other.duration_minutes }} minutes</small>{% endif %}
+          </div>
+          {% if other.detail_page %}<a href="{% pageurl other.detail_page %}">View →</a>{% endif %}
+        </div>
       </article>
       {% endfor %}
     </div>
@@ -59,7 +69,7 @@ Context (apps.readings view / ReadingDetailPage):
   <div class="wrap"><div class="cta-box">
     <span class="eyebrow">Ready when you are</span><h2 id="cta-h" data-split>Book your reading with Leslie</h2>
     <p>Choose a time that suits you. Sessions are online or by phone, wherever you are.</p>
-    <a class="btn btn-solid" href="{% url 'bookings:booking' %}?reading={{ reading.slug }}">Book a Reading</a>
+    {% include "includes/_page_link.html" with app_label="bookings" model="bookingpage" text="Book a Reading" css_class="btn btn-solid" %}
   </div></div>
 </section>
 {% endblock %}

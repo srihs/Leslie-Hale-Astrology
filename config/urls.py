@@ -23,9 +23,15 @@ urlpatterns = [
     path("admin/", include(wagtailadmin_urls)),
     path("documents/", include(wagtaildocs_urls)),
     path("sitemap.xml", sitemap),
-    # apps.contact, apps.bookings and apps.blog register their own url
-    # patterns here once those packages exist (wagtail-backend /
-    # booking-payments / blog-migration / htmx-frontend own that include()).
+    # Non-page htmx/no-JS form endpoints only (FINDING 1, reviews/
+    # 2026-09-22-project-structure-scaffold.md). Wagtail pages (Home,
+    # About, Readings, Blog, Booking, Contact) are all served by the
+    # wagtail_urls catch-all below and are addressed with {% pageurl %},
+    # not a name here. "forms/" keeps these off the same path space as
+    # Leslie's page slugs, so a page she creates can never be shadowed by
+    # one of these endpoints.
+    path("forms/contact/", include("apps.contact.urls")),
+    path("forms/booking/", include("apps.bookings.urls")),
 ]
 
 if settings.DEBUG:

@@ -109,6 +109,9 @@ class Reading(models.Model):
 class ReadingsIndexPage(Page):
     """The Services page: an introduction plus the list of active readings."""
 
+    # templates/readings/index.html is the real file (FINDING 3).
+    template = "readings/index.html"
+
     intro = models.TextField(
         blank=True,
         help_text="Optional introduction shown above the list of readings.",
@@ -124,9 +127,23 @@ class ReadingsIndexPage(Page):
         verbose_name = "Services page"
 
     def get_context(self, request, *args, **kwargs):
+        """
+        FINDING 4 fix: `readings` is a queryset of `Reading` snippets, not
+        Page objects — a Reading has no `slug`, `title`, `bullets` or
+        `image_url` (see the model above). The real fields are `name`,
+        `summary`, `description`, `duration_minutes`, `price`,
+        `price_note`, `image` (a wagtailimages.Image, render with
+        {% image %}, not a bare URL). For linking to a reading's own page,
+        use `reading.detail_page.url` / `.title` (the reverse side of
+        ReadingDetailPage.reading) — `select_related("detail_page")` below
+        avoids a query per card for that lookup; it will be None for any
+        reading that doesn't have its own detail page yet.
+        """
         context = super().get_context(request, *args, **kwargs)
         context["readings"] = (
-            Reading.objects.filter(is_active=True).select_related("image").order_by("order", "name")
+            Reading.objects.filter(is_active=True)
+            .select_related("image", "detail_page")
+            .order_by("order", "name")
         )
         return context
 
@@ -157,6 +174,9 @@ class ReadingDetailPage(Page):
         "what to expect, how to prepare, or a short FAQ.",
     )
 
+    # templates/readings/detail.html is the real file (FINDING 3).
+    template = "readings/detail.html"
+
     content_panels = Page.content_panels + [
         FieldPanel("reading"),
         FieldPanel("body", heading="Extra detail"),
@@ -167,3 +187,22 @@ class ReadingDetailPage(Page):
 
     class Meta:
         verbose_name = "Reading detail page"
+
+    def get_context(self, request, *args, **kwargs):
+        """
+        FINDING 4 fix: this page's own title/url/body are already on
+        `page` (Wagtail puts `self` there automatically) and its reading's
+        name/summary/price/etc are on `page.reading` — neither needs
+        duplicating into context under guessed names. What the template
+        can't get any other way is the "other readings" list, so that's
+        the only thing added here, in the same shape as
+        ReadingsIndexPage.get_context above.
+        """
+        context = super().get_context(request, *args, **kwargs)
+        context["other_readings"] = (
+            Reading.objects.filter(is_active=True)
+            .exclude(pk=self.reading_id)
+            .select_related("image", "detail_page")
+            .order_by("order", "name")
+        )
+        return context

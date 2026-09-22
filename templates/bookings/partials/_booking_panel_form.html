@@ -1,3 +1,4 @@
+{% load wagtailcore_tags %}
 {% comment %}
 Steps 1–2 of booking: reading type, month, day, time. This is the *left*
 grid child's top part — see booking.html for how it, partials/_details_form.html
@@ -21,16 +22,24 @@ Context (apps.bookings view):
   prev_month_iso / next_month_iso
   calendar_cells  35/42 cells, row-major, Monday-first: {day, iso, available, selected}
   slots           list of {value, label, selected} for the selected day
+
+Every control below gets and re-gets this same BookingPage — a Wagtail
+page, not a named Django URL (reviews/2026-09-22-project-structure-
+scaffold.md findings 1-2) — so `{% pageurl page %}` is used throughout
+rather than an invented `bookings:booking` URL name. `page` is the
+current BookingPage instance, already in context whether this renders as
+the full page or as an htmx fragment (both go through Wagtail's own
+page-serving, which always puts `self` on `page`).
 {% endcomment %}
 <div id="booking-panel" aria-live="polite">
-  <form method="get" action="{% url 'bookings:booking' %}">
+  <form method="get" action="{% pageurl page %}">
     <div class="panel" style="margin-bottom:20px">
       <span class="eyebrow">Step 1</span><h3>Choose your reading</h3><p class="sub">All readings are online or by phone and include a recording.</p>
       <div class="options" role="radiogroup" aria-label="Reading type">
         {% for r in reading_types %}
         <label class="opt">
           <input type="radio" name="reading" value="{{ r.slug }}" {% if r.selected %}checked{% endif %}
-                 hx-get="{% url 'bookings:booking' %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true" hx-trigger="change">
+                 hx-get="{% pageurl page %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true" hx-trigger="change">
           <div><b>{{ r.label }}</b><span>{{ r.duration_minutes|default:"[TBC]" }} minutes · {{ r.blurb }}</span></div>
           <span class="p">${{ r.price|default:"[TBC]" }}</span>
         </label>
@@ -44,10 +53,10 @@ Context (apps.bookings view):
       <span class="eyebrow">Step 2</span><h3>Pick a date and time</h3><p class="sub">Times shown in your local timezone.</p>
       <div class="cal-head">
         <button type="submit" name="month" value="{{ prev_month_iso }}" aria-label="Previous month"
-                hx-get="{% url 'bookings:booking' %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true">‹</button>
+                hx-get="{% pageurl page %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true">‹</button>
         <b>{{ month_label }}</b>
         <button type="submit" name="month" value="{{ next_month_iso }}" aria-label="Next month"
-                hx-get="{% url 'bookings:booking' %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true">›</button>
+                hx-get="{% pageurl page %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true">›</button>
       </div>
       <div class="cal" role="group" aria-label="Choose a day in {{ month_label }}">
         <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
@@ -55,7 +64,7 @@ Context (apps.bookings view):
           {% if cell.day %}
           <button type="submit" name="day" value="{{ cell.iso }}" {% if not cell.available %}disabled{% endif %}
                   aria-pressed="{% if cell.selected %}true{% else %}false{% endif %}"
-                  hx-get="{% url 'bookings:booking' %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true">{{ cell.day }}</button>
+                  hx-get="{% pageurl page %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true">{{ cell.day }}</button>
           {% else %}
           <button disabled aria-hidden="true"></button>
           {% endif %}
@@ -66,7 +75,7 @@ Context (apps.bookings view):
         {% for slot in slots %}
         <button type="submit" name="slot" value="{{ slot.value }}"
                 aria-pressed="{% if slot.selected %}true{% else %}false{% endif %}"
-                hx-get="{% url 'bookings:booking' %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true">{{ slot.label }}</button>
+                hx-get="{% pageurl page %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-push-url="true">{{ slot.label }}</button>
         {% empty %}
         <p class="sub">Choose a day to see available times.</p>
         {% endfor %}
