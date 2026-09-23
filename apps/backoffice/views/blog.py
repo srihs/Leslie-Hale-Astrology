@@ -20,6 +20,14 @@ A post's slug (and so its URL) is set once, at creation, from its title,
 and is never recomputed on edit — changing a title later must not
 silently break an already-published link or the RSS feed
 (apps/blog/feeds.py) pointing at it.
+
+Title search (`?q=`) exists so Leslie can find her own post among the
+~1460 imported from Keen (~73 pages at PAGE_SIZE) — this is an internal
+find-my-own-content tool behind /manage/, not the public site search
+PROJECT-SCOPE.md §4 excludes. Matches on `title` only (case-insensitive
+substring): body text isn't indexed anywhere in this project and adding
+that would need a real search backend, which is out of scope for a
+"find one post by its title" control.
 """
 
 from __future__ import annotations
@@ -57,7 +65,25 @@ class BlogPostListView(BackofficeAccessRequiredMixin, ListView):
     template_name = "backoffice/blog_list.html"
     context_object_name = "posts"
     paginate_by = PAGE_SIZE
-    queryset = BlogPost.objects.select_related("featured_image", "category").order_by("-published_date")
+
+    def get_queryset(self):
+        queryset = BlogPost.objects.select_related("featured_image", "category").order_by(
+            "-published_date"
+        )
+        query = self.request.GET.get("q", "").strip()
+        if query:
+            queryset = queryset.filter(title__icontains=query)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # "q" — the search term, verbatim (may be ""), for pre-filling the
+        # search input's value and for {% querystring %} to carry over
+        # automatically onto the Previous/Next/"Go to page" pager controls
+        # (see blog_list.html) so paging through a filtered result set
+        # doesn't silently drop the filter.
+        context["q"] = self.request.GET.get("q", "").strip()
+        return context
 
 
 class BlogPostFormView(BackofficeAccessRequiredMixin, View):

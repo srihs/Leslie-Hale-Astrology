@@ -97,3 +97,36 @@ def test_payment_event_same_id_different_provider_is_allowed():
     different providers are free to reuse the same event id shape."""
     PaymentEventFactory(provider="stripe", event_id="evt_1")
     PaymentEventFactory(provider="other-provider", event_id="evt_1")
+
+
+class TestAmountDisplay:
+    """`Booking.amount_display` — money formatting moved out of
+    booking_detail.html (which previously divided `amount_minor` with
+    chained stringformat/slice/add template filters) and into the model,
+    per CLAUDE.md's "no business logic in templates" rule. `amount_minor`
+    itself stays an integer minor-unit field; only display formatting
+    happens here."""
+
+    @pytest.mark.parametrize(
+        "amount_minor, currency, expected",
+        [
+            (15000, "NZD", "NZD 150.00"),
+            (5, "NZD", "NZD 0.05"),
+            (0, "NZD", "NZD 0.00"),
+            (19999, "NZD", "NZD 199.99"),
+            (100, "NZD", "NZD 1.00"),
+            (1, "USD", "USD 0.01"),
+        ],
+    )
+    def test_formats_minor_units_as_two_decimal_places(self, amount_minor, currency, expected):
+        booking = BookingFactory(amount_minor=amount_minor, currency=currency)
+        assert booking.amount_display == expected
+
+    def test_never_uses_float_division(self):
+        """A regression guard for the exact failure mode this property
+        exists to avoid: binary floating-point division on cents can
+        misround (e.g. 0.1 + 0.2 != 0.3 style errors) for values a naive
+        `amount_minor / 100` implementation would get wrong. Integer
+        divmod is exact for every value tested here, however large."""
+        booking = BookingFactory(amount_minor=100_000_007, currency="NZD")
+        assert booking.amount_display == "NZD 1000000.07"

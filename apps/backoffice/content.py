@@ -22,6 +22,7 @@ StreamField UI" tool Leslie will use going forward.
 from __future__ import annotations
 
 import re
+from uuid import uuid4
 
 from django.utils.html import escape, strip_tags
 
@@ -186,7 +187,21 @@ def three_promises_value(stream) -> dict | None:
 
 def three_promises_stream(*, eyebrow: str, heading: str, promises: list[tuple[str, str]]) -> list[dict]:
     """Rebuilds AboutPage.three_promises from three plain (title,
-    description) pairs, in order."""
+    description) pairs, in order.
+
+    Every "item" dict below carries its own "id" (a fresh UUID4),
+    confirmed necessary against real StreamField data (see this task's
+    final report): a top-level StreamField block missing "id" gets one
+    generated for it automatically on save (`hero_stream_with_text`,
+    `body_from_story_text` above both rely on exactly that, and both were
+    round-tripped against real data to confirm it), but a `ListBlock`
+    child nested inside a StructBlock — `promises` here — does not get
+    the same treatment: omitting "id" silently produced
+    `StructValue({'title': None, 'description': None})` on read-back
+    after a real save, with no exception at save or load time. That
+    silent corruption, not a missing field, is why this is written out
+    explicitly rather than left to chance a second time.
+    """
     return [
         {
             "type": "section",
@@ -194,7 +209,11 @@ def three_promises_stream(*, eyebrow: str, heading: str, promises: list[tuple[st
                 "eyebrow": eyebrow,
                 "heading": heading,
                 "promises": [
-                    {"type": "item", "value": {"title": title, "description": description}}
+                    {
+                        "id": str(uuid4()),
+                        "type": "item",
+                        "value": {"title": title, "description": description},
+                    }
                     for title, description in promises
                 ],
             },

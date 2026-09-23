@@ -56,8 +56,18 @@ REQUIRED_PAGES = ("home", "about", "contact")
 
 
 def _promise_or_blank(promises, index: int) -> dict:
+    """
+    `promises` is `three_promises_value(...)["promises"]` — a ListBlock's
+    value, which Wagtail resolves to a `ListValue` of `StructValue`s the
+    moment it's accessed (confirmed against the real AboutPage row: see
+    this task's final report). Each item is already the promise's fields
+    (`title`, `description`) — there is no wrapping `{"type", "value"}`
+    dict to index into at read time; that shape only exists in the raw
+    StreamField JSON and in the list literals `three_promises_stream`
+    below builds to write a new value.
+    """
     if promises and len(promises) > index:
-        return promises[index]["value"]
+        return promises[index]
     return {"title": "", "description": ""}
 
 

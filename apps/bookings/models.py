@@ -421,6 +421,20 @@ class Booking(models.Model):
     def is_hold_expired(self) -> bool:
         return bool(self.hold_expires_at and self.hold_expires_at < timezone.now())
 
+    @property
+    def amount_display(self) -> str:
+        """`amount_minor`/`currency` formatted for display, e.g. "NZD
+        150.00". `amount_minor` stays an integer minor-unit field on the
+        model (never a float or Decimal dollars) — this only formats it
+        for reading, using integer division/modulo (never a float
+        division, which risks binary floating-point rounding on the
+        exact cents figure a client was charged) — the same conversion
+        booking_detail.html previously did itself with
+        stringformat/slice/add template filters. Money arithmetic
+        belongs here, not in a template."""
+        dollars, cents = divmod(self.amount_minor, 100)
+        return f"{self.currency} {dollars}.{cents:02d}"
+
 
 class PaymentEvent(models.Model):
     """
