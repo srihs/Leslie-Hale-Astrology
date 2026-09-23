@@ -4,9 +4,14 @@ contact/contact.html for the full page; the contact:contact view returns
 this same fragment (outerHTML) for htmx POSTs.
 
 No-JS path: identical to includes/_newsletter_form.html — a real
-<form method="post">, full page reload on submit, success/error expressed
-with the `.sent` / `.invalid` classes already defined in
-static/css/_components.css so no client script is needed to reveal them.
+<form method="post">, a genuine full page reload on submit (FINDING 1,
+reviews/2026-09-22-final-build-review.md — apps.contact.views.
+submit_contact now branches on request.htmx and renders the whole
+Contact page for a plain POST, not just this fragment), success/error
+expressed with the `.sent` class and the per-field `.field
+[aria-invalid=true] ~ .err` / `.form.invalid > .err` reveal rules already
+defined in static/css/_components.css so no client script is needed to
+reveal them.
 
 Context (apps.contact view):
   contact_values     dict of posted values, for re-populating after an error

@@ -47,7 +47,12 @@ own built-in Page fields, editable under this page's Promote tab.
 <div class="wrap">
   {% for reading in readings %}
   <article class="detail" id="reading-{{ reading.pk }}" aria-labelledby="r{{ forloop.counter }}">
-    <figure class="detail-media" data-reveal>{% if reading.image %}{% image reading.image fill-1000x750 alt=reading.name %}{% endif %}</figure>
+    {% comment %}
+    alt="" — decorative editorial photography (§7), not a diagram unique
+    to this reading, and the <h2> right below already announces the
+    name. A11Y FINDING 7, reviews/2026-09-22-final-accessibility-audit.md.
+    {% endcomment %}
+    <figure class="detail-media" data-reveal>{% if reading.image %}{% image reading.image fill-1000x750 alt="" %}{% endif %}</figure>
     <div>
       <span class="eyebrow">{{ forloop.counter|stringformat:"02d" }}{% if reading.tag_label %} / {{ reading.tag_label }}{% endif %}{% if reading.is_most_booked %} · Most booked{% endif %}</span>
       <h2 id="r{{ forloop.counter }}" data-split>{{ reading.name }}</h2>

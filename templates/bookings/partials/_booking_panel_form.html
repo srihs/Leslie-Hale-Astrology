@@ -54,6 +54,21 @@ rather than an invented `bookings:booking` URL name. `page` is the
 current BookingPage instance, already in context whether this renders as
 the full page or as an htmx fragment (both go through Wagtail's own
 page-serving, which always puts `self` on `page`).
+
+Every reading/month/day/slot control now also carries a stable `id`
+(keyed on what it *represents* — reading slug, day iso, slot value — not
+its position), because `#booking-panel`'s own `hx-swap="outerHTML"`
+removes the whole panel *including the control the visitor just
+activated*, and a browser moves focus to `<body>` when the focused node
+is removed from the document. htmx's own `swap()` already restores focus
+to whichever element in the freshly-swapped content shares the
+previously-focused element's `id`, if one exists — these ids are what
+make that automatic restoration actually find its target (e.g. picking
+the same day again after the calendar re-renders for a new month
+selection). static/js/main.js's own `htmx:afterSwap` handler is only the
+fallback for when no matching id survives the swap (e.g. the day just
+chosen is disabled in the newly-rendered calendar). A11Y FINDING 1,
+reviews/2026-09-22-final-accessibility-audit.md.
 {% endcomment %}
 <div id="booking-panel" aria-live="polite">
   <form method="get" action="{% pageurl page %}">
@@ -62,7 +77,7 @@ page-serving, which always puts `self` on `page`).
       <div class="options" role="radiogroup" aria-label="Reading type">
         {% for r in reading_types %}
         <label class="opt">
-          <input type="radio" name="reading" value="{{ r.slug }}" {% if r.selected %}checked{% endif %}
+          <input type="radio" name="reading" value="{{ r.slug }}" id="reading-{{ r.slug }}" {% if r.selected %}checked{% endif %}
                  hx-get="{% pageurl page %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-select="#booking-panel" hx-push-url="true" hx-trigger="change">
           <div><b>{{ r.label }}</b><span>{{ r.duration_minutes|default:"[TBC]" }} minutes · {{ r.blurb }}</span></div>
           <span class="p">${{ r.price|default:"[TBC]" }}</span>
@@ -76,17 +91,17 @@ page-serving, which always puts `self` on `page`).
     <div class="panel" style="margin-bottom:20px">
       <span class="eyebrow">Step 2</span><h3>Pick a date and time</h3><p class="sub">Times shown in your local timezone{% if timezone_label %} ({{ timezone_label }}){% endif %}.</p>
       <div class="cal-head">
-        <button type="submit" name="month" value="{{ prev_month_iso }}" aria-label="Previous month"
+        <button type="submit" name="month" value="{{ prev_month_iso }}" id="cal-prev" aria-label="Previous month"
                 hx-get="{% pageurl page %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-select="#booking-panel" hx-push-url="true">‹</button>
         <b>{{ month_label }}</b>
-        <button type="submit" name="month" value="{{ next_month_iso }}" aria-label="Next month"
+        <button type="submit" name="month" value="{{ next_month_iso }}" id="cal-next" aria-label="Next month"
                 hx-get="{% pageurl page %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-select="#booking-panel" hx-push-url="true">›</button>
       </div>
       <div class="cal" role="group" aria-label="Choose a day in {{ month_label }}">
         <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
         {% for cell in calendar_cells %}
           {% if cell.day %}
-          <button type="submit" name="day" value="{{ cell.iso }}" {% if not cell.available %}disabled{% endif %}
+          <button type="submit" name="day" value="{{ cell.iso }}" id="day-{{ cell.iso }}" {% if not cell.available %}disabled{% endif %}
                   aria-pressed="{% if cell.selected %}true{% else %}false{% endif %}"
                   hx-get="{% pageurl page %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-select="#booking-panel" hx-push-url="true">{{ cell.day }}</button>
           {% else %}
@@ -97,7 +112,7 @@ page-serving, which always puts `self` on `page`).
       <span class="eyebrow">Available times</span>
       <div class="slots" style="margin-top:10px">
         {% for slot in slots %}
-        <button type="submit" name="slot" value="{{ slot.value }}"
+        <button type="submit" name="slot" value="{{ slot.value }}" id="slot-{{ slot.value }}"
                 aria-pressed="{% if slot.selected %}true{% else %}false{% endif %}"
                 hx-get="{% pageurl page %}" hx-include="closest form" hx-target="#booking-panel" hx-swap="outerHTML" hx-select="#booking-panel" hx-push-url="true">{{ slot.label }}</button>
         {% empty %}

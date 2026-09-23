@@ -50,7 +50,12 @@ on this page).
 
 <div class="wrap">
   <article class="detail" aria-labelledby="h">
-    <figure class="detail-media" data-reveal>{% if page.reading.image %}{% image page.reading.image fill-1000x750 alt=page.reading.name %}{% endif %}</figure>
+    {% comment %}
+    alt="" — decorative editorial photography (§7), not a diagram unique
+    to this reading, and this page's own <h1> already announces the
+    name. A11Y FINDING 7, reviews/2026-09-22-final-accessibility-audit.md.
+    {% endcomment %}
+    <figure class="detail-media" data-reveal>{% if page.reading.image %}{% image page.reading.image fill-1000x750 alt="" %}{% endif %}</figure>
     <div>
       {% if page.reading.features %}
       <ul data-reveal>

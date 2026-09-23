@@ -97,7 +97,13 @@ HTML-entity-encode `&` inside canonical_url/image URLs, corrupting them.
     <div class="post-grid">
       {% for related in related_posts %}
       <a class="post" href="{{ related.url }}" data-reveal>
-        <figure>{% if related.featured_image %}{% image related.featured_image fill-1000x625 alt=related.title %}{% endif %}</figure>
+        {% comment %}
+        alt="" — same reasoning as blog/partials/_post_list.html:
+        decorative editorial photography, not unique to this post, and
+        the <h3> right below already announces the title. A11Y FINDING 7,
+        reviews/2026-09-22-final-accessibility-audit.md.
+        {% endcomment %}
+        <figure>{% if related.featured_image %}{% image related.featured_image fill-1000x625 alt="" %}{% endif %}</figure>
         <span class="eyebrow">{{ related.published_date|date:"j M Y" }}{% if related.category %} · {{ related.category.name }}{% endif %}</span>
         <h3>{{ related.title }}</h3>
         <p>{{ related.excerpt }}</p>

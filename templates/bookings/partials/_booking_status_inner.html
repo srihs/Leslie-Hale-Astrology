@@ -1,0 +1,90 @@
+{% load wagtailcore_tags tz %}
+{% comment %}
+The payment-status poll unit — the element htmx actually replaces
+(outerHTML) every 2s while `booking.status` is "pending". Deliberately
+one level *inside* the persistent `#booking-status` aria-live="polite"
+region in _booking_status.html, which is never itself swapped/removed —
+see that file's own comment for why: A11Y FINDING 4, reviews/2026-09-22-
+final-accessibility-audit.md. Replacing the very node that carries
+aria-live on every tick is a known weak spot — some assistive technology
+only reliably announces mutations *within* a live region it has already
+registered, so a wholesale replacement of that same node risked the
+"payment confirmed" update going unannounced altogether (the opposite
+failure — a full re-announcement of unchanged text every 2 seconds for
+as long as the payment takes to confirm — was the other risk the old
+single-node version carried). Splitting the swap unit out from the
+live-region node avoids both: the announcer never disappears, and it
+only ever sees the moment the message actually changes.
+
+Polling still stops itself exactly as it did before this split: once
+`booking.status` is no longer "pending", this same template renders
+without the hx-get/hx-trigger attributes below, so there is nothing left
+on the freshly-swapped-in element to fire another poll — htmx's timer
+lives on the DOM node these attributes are declared on, and that node is
+exactly what outerHTML replaces each tick.
+
+Rendered directly by apps.bookings.views.booking_status
+(GET forms/booking/status/<ref>/) for every poll response, and included
+once by _booking_status.html for the first load — same template, same
+`booking` variable, either way.
+
+Context (apps.bookings.views.booking_status / booking.html):
+  booking  a bookings.Booking, or None if the reference in the URL
+           didn't match any booking. When present: .status
+           (BookingStatus — pending/confirmed/cancelled/completed),
+           .reading (a readings.Reading snippet), .start_at (UTC),
+           .display_timezone (the IANA zone shown when the visitor
+           booked), .public_ref
+{% endcomment %}
+<div id="booking-status-inner"
+     {% if booking and booking.status == "pending" %}
+     hx-get="{% url 'bookings:booking_status' booking.public_ref %}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML"
+     {% endif %}>
+  {% if not booking %}
+  <span class="eyebrow">Booking status</span>
+  <h3>We couldn't find that booking</h3>
+  <p class="sub">If a payment was taken, it hasn't been lost — get in touch and Leslie will confirm it by hand.</p>
+  {% with contact=settings.core.ContactSettings %}
+  {% if contact.contact_email %}<a class="link" href="mailto:{{ contact.contact_email }}">Contact Leslie</a>{% endif %}
+  {% endwith %}
+
+  {% elif booking.status == "confirmed" or booking.status == "completed" %}
+  <span class="eyebrow">Booking status</span>
+  <h3>You're booked</h3>
+  <p class="sub">{{ booking.reading.name }} · {{ booking.start_at|timezone:booking.display_timezone|date:"l j F, g:i a" }} ({{ booking.display_timezone }})</p>
+  <p>A confirmation email is on its way to {{ booking.client_email }}.</p>
+  {% comment %}
+  §3 conversion: booking completed. Fired with NO parameters — no reading
+  name, price, appointment time or client email is ever sent to GA
+  ("Booking details are not event parameters", CLAUDE.md task brief). This
+  same template renders both on first load after Stripe's redirect and on
+  every 2s htmx status poll while still pending, and could be reached
+  again later via a bookmarked/emailed confirmation link — the
+  localStorage guard below (keyed on the booking's own public_ref, not
+  sent to GA) makes sure this browser only ever counts it once per
+  booking, however many times this markup renders. `gtag` is always
+  defined (see base.html's <head> shim) even when analytics is blank or
+  consent hasn't been granted — in both cases this call is a safe no-op.
+  {% endcomment %}
+  <script>
+  (function () {
+    var key = "lha-ga-booking-completed-{{ booking.public_ref|escapejs }}";
+    try {
+      if (window.localStorage.getItem(key)) return;
+      window.localStorage.setItem(key, "1");
+    } catch (e) {}
+    gtag("event", "booking_completed");
+  })();
+  </script>
+
+  {% elif booking.status == "cancelled" %}
+  <span class="eyebrow">Booking status</span>
+  <h3>This hold is no longer available</h3>
+  <p class="sub">Your hold expired or payment didn't complete, so the time was released. Nothing was charged — please choose a time again below.</p>
+
+  {% else %}
+  <span class="eyebrow">Booking status</span>
+  <h3>Confirming your payment…</h3>
+  <p class="sub">This usually takes a few seconds. Please don't close this page.</p>
+  {% endif %}
+</div>

@@ -3,9 +3,12 @@ Step 3 of booking — personal/birth details. Deliberately its own <form>,
 outside #booking-panel (see _booking_panel.html), so picking a day or time
 never wipes what the visitor has typed here.
 
-No-JS path: real POST to bookings:save_details; the server re-renders the
-full booking page with this partial showing the saved state or field
-errors via the `.sent` / `.invalid` classes (static/css/_components.css).
+No-JS path: real POST to bookings:save_details; the server genuinely
+re-renders the full booking page (FINDING 1, reviews/2026-09-22-final-
+build-review.md — it used to return this partial on its own, with no
+page chrome) with this partial showing the saved state or field errors
+via the `.sent` class and the per-field `.field [aria-invalid=true] ~ .err`
+/ `.form.invalid > .err` reveal rules (static/css/_components.css).
 With htmx: hx-post swaps only this <form id="booking-details-form">.
 
 Context (apps.bookings view):

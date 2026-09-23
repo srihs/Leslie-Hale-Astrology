@@ -10,22 +10,29 @@ Context (apps.bookings.views._checkout_error):
                    kept (see that view's own docstring for the exact
                    copy for each failure case)
 
-No new CSS class for this: `.form.invalid .err` (static/css/_components.css)
+No new CSS class for this: `.form.invalid > .err` (static/css/_components.css)
 already shows red, readable error text once its container carries both
-`.form` and `.invalid` — reused verbatim here as a plain alert container
-rather than inventing a new component for one string.
+`.form` and `.invalid` and the `.err` is a direct child of it — reused
+verbatim here as a plain alert container rather than inventing a new
+component for one string. (Was the descendant selector `.form.invalid
+.err` — narrowed to a direct-child selector, a11y finding 2, reviews/
+2026-09-22-final-accessibility-audit.md, so a form-level `.invalid` class
+can no longer reveal *every* field's error text regardless of which
+field actually failed; doesn't change anything here, since this `.err` is
+already a direct child of `.form.invalid`.)
 
 No-JS path: the Pay button's `<form>` has a real `method="post"
 action="{% url 'bookings:checkout' %}"`. Without JS/htmx, the browser
-posts and this same view returns this same fragment directly as the whole
-response body — a plain, unstyled page with the error message and nothing
-else (apps.bookings.views.start_checkout renders it standalone; see that
-file's own docstring). The message is still readable and the visitor's
-in-progress reading/day/slot selection is preserved server-side (their
-details are staged in the session by `bookings:save_details`, and the
-booking hold/session key persist), so pressing Back returns them to the
-booking page with that state intact — inelegant without JS, but not a
-dead end.
+posts and `apps.bookings.views._checkout_error` re-renders the *whole*
+booking page, with `checkout_error` reaching this same region via
+partials/_booking_summary.html (FINDING 1, reviews/2026-09-22-final-
+build-review.md — this fragment used to be the entire response body on
+its own, with no page chrome at all). The visitor's in-progress
+reading/day/slot selection is preserved server-side (their details are
+staged in the session by `bookings:save_details`, and the booking
+hold/session key persist), though steps 1-2's own on-page selection state
+isn't restored on that fallback render (no GET query string to read it
+from) — reselecting a day/time costs a moment, but isn't a dead end.
 {% endcomment %}
 <div id="checkout-error" class="form invalid" aria-live="assertive" role="alert">
   {% if checkout_error %}<p class="err">{{ checkout_error }}</p>{% endif %}

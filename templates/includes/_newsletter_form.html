@@ -4,11 +4,17 @@ Newsletter signup — included on the home page, blog index and contact page
 `id="newsletter-form"`/`id="em"` are safe.
 
 No-JS path: a real <form method="post" action="…">. The browser posts,
-apps.contact re-renders the *full page* with this same include, and the
-success/error state below is expressed purely with the `.sent` / `.invalid`
-classes already defined in static/css/_components.css (`.form.sent .ok`,
-`.form.invalid .err`) — so a plain server round trip shows the same result
-a JS user gets, no client script required to reveal it.
+apps.contact genuinely re-renders the *full page* this form was posted
+from with this same include (FINDING 1, reviews/2026-09-22-final-build-
+review.md — apps.contact.views.newsletter_signup now branches on
+request.htmx and resolves whichever page the visitor actually posted
+from — see that view's `_render_referring_page` — rather than returning
+just this fragment on its own), and the success/error state below is
+expressed purely with the `.sent` class and the per-field `.field
+[aria-invalid=true] ~ .err` / `.form.invalid > .err` reveal rules already
+defined in static/css/_components.css (`.form.sent .ok`) — so a plain
+server round trip shows the same result a JS user gets, no client script
+required to reveal it.
 
 With htmx: hx-post swaps just this <form id="newsletter-form"> (outerHTML),
 so the rest of the page — including any unrelated form the user is

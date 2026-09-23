@@ -46,6 +46,41 @@
     }
   });
 
+  /* ---------- htmx: keyboard focus survives #booking-panel / #post-list swaps ----------
+     A11Y FINDING 1, reviews/2026-09-22-final-accessibility-audit.md: both
+     regions carry hx-swap="outerHTML" on a container that includes the
+     very control the visitor just activated (reading radio, month nav,
+     day, slot in _booking_panel_form.html; category filter, pager in
+     _post_list.html) — the browser moves focus to <body> when the
+     currently-focused node is removed from the document, and the
+     form.sent handler just above only ever runs for a submitted form.
+
+     htmx's own swap() already restores focus by id: if the previously-
+     focused element had one and an element with the same id exists in
+     the freshly-swapped content, htmx focuses it, before this event even
+     fires — which is why every control in _booking_panel_form.html and
+     _post_list.html now carries a stable id keyed on what it represents
+     (reading slug, day iso, slot value, category slug, page number), not
+     on its position. That covers the common case: the same control (or
+     its equivalent after a month/category change) still exists after the
+     swap, so focus lands right back on it.
+
+     This handler is only the fallback for when nothing matched (e.g. the
+     day just chosen is now disabled in the freshly-rendered calendar) —
+     detected by focus having fallen through to <body> — and lands on the
+     swapped-in panel's own first heading instead, with a managed
+     tabindex so it's a genuine, announced landing point rather than
+     leaving the visitor's keyboard position undefined. */
+  document.body.addEventListener('htmx:afterSwap', function (e) {
+    var target = e.target;
+    if (!target || !target.id || (target.id !== 'booking-panel' && target.id !== 'post-list')) return;
+    if (document.activeElement && document.activeElement !== document.body) return;
+    var heading = target.querySelector('h2, h3');
+    if (!heading) return;
+    if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+    heading.focus();
+  });
+
   /* ---------- htmx: re-run scroll reveals for swapped-in content ----------
      #post-list (blog filter/pagination) is the one htmx target that can
      introduce fresh [data-reveal] cards after the page's initial GSAP pass

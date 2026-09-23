@@ -38,14 +38,23 @@ stays bookmarkable and back-button-safe. `aria-live="polite"` on
 static/js/main.js additionally makes freshly swapped-in [data-reveal]
 cards visible immediately (see its own comment) since the page's one-off
 GSAP scroll-reveal pass has already run by then.
+
+Every filter/pager control also carries a stable `id` (keyed on category
+slug / page number, not position) for the same reason
+_booking_panel_form.html's controls do: `#post-list`'s own
+`hx-swap="outerHTML"` removes the control the visitor just activated
+along with everything else, and htmx restores focus by matching id in
+the freshly-swapped content — static/js/main.js's own fallback only
+kicks in when nothing matches. A11Y FINDING 1, reviews/2026-09-22-final-
+accessibility-audit.md.
 {% endcomment %}
 <div id="post-list" aria-live="polite">
   {% if categories %}
   <nav class="filters" aria-label="Categories">
-    <a href="{% pageurl page %}"{% if not active_category %} aria-current="page"{% endif %}
+    <a href="{% pageurl page %}" id="cat-all"{% if not active_category %} aria-current="page"{% endif %}
        hx-get="{% pageurl page %}" hx-target="#post-list" hx-swap="outerHTML" hx-select="#post-list" hx-push-url="true">All</a>
     {% for category in categories %}
-    <a href="{% pageurl page %}?category={{ category.slug }}"{% if active_category and active_category.slug == category.slug %} aria-current="page"{% endif %}
+    <a href="{% pageurl page %}?category={{ category.slug }}" id="cat-{{ category.slug }}"{% if active_category and active_category.slug == category.slug %} aria-current="page"{% endif %}
        hx-get="{% pageurl page %}?category={{ category.slug }}" hx-target="#post-list" hx-swap="outerHTML" hx-select="#post-list" hx-push-url="true">{{ category.name }}</a>
     {% endfor %}
   </nav>
@@ -54,7 +63,15 @@ GSAP scroll-reveal pass has already run by then.
   <div class="post-grid three">
     {% for post in posts %}
     <a class="post" href="{{ post.url }}" data-reveal>
-      <figure>{% if post.featured_image %}{% image post.featured_image fill-800x500 alt=post.title %}{% endif %}</figure>
+      {% comment %}
+      alt="" — decorative editorial photography (§7: "monochrome
+      portrait, eclipse, astrolabe, navy still-life — cinematic"), not a
+      diagram unique to this post, and the card's own <h3> right below
+      already announces the title — a screen reader user doesn't need to
+      hear it twice. A11Y FINDING 7, reviews/2026-09-22-final-
+      accessibility-audit.md.
+      {% endcomment %}
+      <figure>{% if post.featured_image %}{% image post.featured_image fill-800x500 alt="" %}{% endif %}</figure>
       <span class="eyebrow">{{ post.published_date|date:"j M Y" }}{% if post.category %} · {{ post.category.name }}{% endif %}</span>
       <h3>{{ post.title }}</h3>
       <p>{{ post.excerpt }}</p>
@@ -71,15 +88,15 @@ GSAP scroll-reveal pass has already run by then.
   {% if posts_page.paginator.num_pages > 1 %}
   <nav class="pager" aria-label="Pagination">
     {% if posts_page.has_previous %}
-    <a href="{% pageurl page %}?page={{ posts_page.previous_page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" aria-label="Previous page"
+    <a href="{% pageurl page %}?page={{ posts_page.previous_page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" id="pager-prev" aria-label="Previous page"
        hx-get="{% pageurl page %}?page={{ posts_page.previous_page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" hx-target="#post-list" hx-swap="outerHTML" hx-select="#post-list" hx-push-url="true">‹</a>
     {% endif %}
     {% for page_number in posts_page.paginator.page_range %}
-    <a href="{% pageurl page %}?page={{ page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}"{% if page_number == posts_page.number %} aria-current="page"{% endif %}
+    <a href="{% pageurl page %}?page={{ page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" id="pager-{{ page_number }}"{% if page_number == posts_page.number %} aria-current="page"{% endif %}
        hx-get="{% pageurl page %}?page={{ page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" hx-target="#post-list" hx-swap="outerHTML" hx-select="#post-list" hx-push-url="true">{{ page_number }}</a>
     {% endfor %}
     {% if posts_page.has_next %}
-    <a href="{% pageurl page %}?page={{ posts_page.next_page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" aria-label="Next page"
+    <a href="{% pageurl page %}?page={{ posts_page.next_page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" id="pager-next" aria-label="Next page"
        hx-get="{% pageurl page %}?page={{ posts_page.next_page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" hx-target="#post-list" hx-swap="outerHTML" hx-select="#post-list" hx-push-url="true">›</a>
     {% endif %}
   </nav>

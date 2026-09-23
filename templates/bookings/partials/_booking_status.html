@@ -1,79 +1,29 @@
-{% load wagtailcore_tags tz %}
 {% comment %}
-The payment-return status region. Included once by booking.html when
-`payment_return` is present (the visitor has just come back from Stripe),
-and returned as-is by the `bookings:booking_status` polling endpoint
-(`GET forms/booking/status/<ref>/`) — same template, same `booking`
-variable, so a poll response can replace this element with itself.
+The payment-return status region — the persistent aria-live="polite"
+container. Included once by booking.html when `payment_return` is
+present (the visitor has just come back from Stripe). This element
+itself is never swapped or removed by the 2-second poll — only
+partials/_booking_status_inner.html, one level inside it, is. A11Y
+FINDING 4, reviews/2026-09-22-final-accessibility-audit.md: the previous
+version was one element carrying both `aria-live="polite"` and the poll's
+own `hx-swap="outerHTML"` target, so the live region itself got torn
+down and rebuilt every 2 seconds — see _booking_status_inner.html's own
+comment for why that's a real risk, not just tidiness.
 
-Context (apps.bookings.views.booking_status / booking.html):
-  booking  a bookings.Booking, or None if the reference in the URL
-           didn't match any booking. When present: .status
-           (BookingStatus — pending/confirmed/cancelled/completed),
-           .reading (a readings.Reading snippet), .start_at (UTC),
-           .display_timezone (the IANA zone shown when the visitor
-           booked), .public_ref
+Context: `booking` — see partials/_booking_status_inner.html's own
+Context comment.
 
-No-JS path: this region still renders correctly on the plain, non-htmx
-page load that follows Stripe's redirect back (BookingPage.get_context
-always resolves `payment_return` server-side from `?ref=`/`?result=` —
-see apps/bookings/availability.py:booking_panel_context). Without
-JS/htmx the "confirming" state simply doesn't self-update — the visitor
-reloads the page (or checks their email) to see it move to "confirmed";
-with htmx, `hx-get`/`hx-trigger="every 2s"` below does that automatically
-while `booking.status` is still pending, and stops polling on its own
-once the swapped-in response no longer carries those attributes (this
-same template only includes them while still pending).
+No-JS path: unchanged in substance from before this split — this region
+still renders correctly on the plain, non-htmx page load that follows
+Stripe's redirect back (BookingPage.get_context always resolves
+`payment_return` server-side from `?ref=`/`?result=` — see
+apps/bookings/availability.py:booking_panel_context). Without JS/htmx the
+"confirming" state simply doesn't self-update — the visitor reloads the
+page (or checks their email) to see it move to "confirmed"; with htmx,
+the inner element's own hx-get/hx-trigger="every 2s" does that
+automatically while still pending, and stops itself once the swapped-in
+response no longer carries those attributes.
 {% endcomment %}
-<div id="booking-status" class="panel" aria-live="polite"
-     {% if booking and booking.status == "pending" %}
-     hx-get="{% url 'bookings:booking_status' booking.public_ref %}" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML"
-     {% endif %}>
-  {% if not booking %}
-  <span class="eyebrow">Booking status</span>
-  <h3>We couldn't find that booking</h3>
-  <p class="sub">If a payment was taken, it hasn't been lost — get in touch and Leslie will confirm it by hand.</p>
-  {% with contact=settings.core.ContactSettings %}
-  {% if contact.contact_email %}<a class="link" href="mailto:{{ contact.contact_email }}">Contact Leslie</a>{% endif %}
-  {% endwith %}
-
-  {% elif booking.status == "confirmed" or booking.status == "completed" %}
-  <span class="eyebrow">Booking status</span>
-  <h3>You're booked</h3>
-  <p class="sub">{{ booking.reading.name }} · {{ booking.start_at|timezone:booking.display_timezone|date:"l j F, g:i a" }} ({{ booking.display_timezone }})</p>
-  <p>A confirmation email is on its way to {{ booking.client_email }}.</p>
-  {% comment %}
-  §3 conversion: booking completed. Fired with NO parameters — no reading
-  name, price, appointment time or client email is ever sent to GA
-  ("Booking details are not event parameters", CLAUDE.md task brief). This
-  same template renders both on first load after Stripe's redirect and on
-  every 2s htmx status poll while still pending, and could be reached
-  again later via a bookmarked/emailed confirmation link — the
-  localStorage guard below (keyed on the booking's own public_ref, not
-  sent to GA) makes sure this browser only ever counts it once per
-  booking, however many times this markup renders. `gtag` is always
-  defined (see base.html's <head> shim) even when analytics is blank or
-  consent hasn't been granted — in both cases this call is a safe no-op.
-  {% endcomment %}
-  <script>
-  (function () {
-    var key = "lha-ga-booking-completed-{{ booking.public_ref|escapejs }}";
-    try {
-      if (window.localStorage.getItem(key)) return;
-      window.localStorage.setItem(key, "1");
-    } catch (e) {}
-    gtag("event", "booking_completed");
-  })();
-  </script>
-
-  {% elif booking.status == "cancelled" %}
-  <span class="eyebrow">Booking status</span>
-  <h3>This hold is no longer available</h3>
-  <p class="sub">Your hold expired or payment didn't complete, so the time was released. Nothing was charged — please choose a time again below.</p>
-
-  {% else %}
-  <span class="eyebrow">Booking status</span>
-  <h3>Confirming your payment…</h3>
-  <p class="sub">This usually takes a few seconds. Please don't close this page.</p>
-  {% endif %}
+<div id="booking-status" class="panel" aria-live="polite">
+  {% include "bookings/partials/_booking_status_inner.html" %}
 </div>
