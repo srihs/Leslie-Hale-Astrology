@@ -145,6 +145,10 @@ LOCAL_APPS = [
     "apps.bookings",
     "apps.blog",
     "apps.contact",
+    # The bespoke admin at /manage/ (wagtail-backend, 2026-09-23) — see
+    # apps/backoffice/models.py's own docstring for why it defines a
+    # marker permission rather than content models.
+    "apps.backoffice",
 ]
 
 # django-axes — admin login brute-force protection (finding 4,
@@ -169,6 +173,13 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Explicit lock on /admin/ and /django-admin/ to superusers only
+    # (wagtail-backend, 2026-09-23 — task brief: "Wagtail's admin stays
+    # available to superusers only. Lock it down."). Must run after
+    # AuthenticationMiddleware (needs request.user) — see its own
+    # docstring for why this is a standing rule, not just relying on
+    # nobody granting Leslie's account a Wagtail admin group.
+    "apps.backoffice.middleware.WagtailAdminSuperuserOnlyMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",

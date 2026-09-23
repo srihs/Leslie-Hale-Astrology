@@ -40,6 +40,11 @@ urlpatterns = [
     # one of these endpoints.
     path("forms/contact/", include("apps.contact.urls")),
     path("forms/booking/", include("apps.bookings.urls")),
+    # The bespoke admin (task brief: "Wagtail's own admin is too complex
+    # for the client, so she will never see it"). Ahead of the wagtail_urls
+    # catch-all below, same as "forms/" above, so no page Leslie creates
+    # can ever shadow it.
+    path("manage/", include("apps.backoffice.urls")),
 ]
 
 if settings.DEBUG:
