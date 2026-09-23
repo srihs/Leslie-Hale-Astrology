@@ -30,6 +30,30 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && menu.classList.contains('open')) { menu.classList.remove('open'); mb.setAttribute('aria-expanded', 'false'); mb.focus(); } });
   }
 
+  /* ---------- htmx event-detail rule (read this before adding a handler below) ----------
+     Every htmx:afterSwap handler in this file that needs the element
+     htmx just swapped in MUST read it off `e.target` — the event's
+     native, bubbled DOM target — never off `e.detail.target`.
+     `e.detail.target` is set once, at request time, to the element that
+     was ABOUT to be replaced, and htmx never updates it afterwards. For
+     hx-swap="outerHTML" (every swap in this file: #post-list,
+     #booking-panel, and the self-targeting contact/newsletter/booking-
+     details forms) that old element is removed from the document as
+     part of the swap, so anything read off `e.detail.target` after that
+     point — a querySelector, a classList check, anything — runs against
+     a detached node: present in memory, invisible on screen, unreachable
+     by the CSS or the visitor. `e.detail.elt` is safe to use below, but
+     only on events that fire before any swap is attempted
+     (htmx:sendError / htmx:responseError / htmx:timeout, immediately
+     below) — nothing has been replaced yet at that point, so it still
+     points at a live, attached element.
+     This exact mistake has now shipped twice from this file on
+     `e.detail.target` in an afterSwap handler: the blog-filter reveal
+     fix below, and the form.sent focus handler further down, caught in
+     the same sweep. If you're adding a third afterSwap handler, check it
+     against this comment before it ships a third instance of the same
+     bug. */
+
   /* ---------- htmx: fall back to a real navigation when a request fails ----------
      ROOT CAUSE of "the blog category filters don't work" (reproduced live
      with Playwright: aborting the XHR for one `?category=` click leaves
@@ -68,9 +92,17 @@
      managed focus move on top of that: once the server marks a form
      "sent" (static/css/_components.css .form.sent reveals .ok), move
      focus to the confirmation so sighted keyboard users land there too,
-     instead of staying on a button that just disappeared. */
+     instead of staying on a button that just disappeared.
+
+     Reads `e.target`, not `e.detail.target` — see the htmx event-detail
+     rule above. Each of these forms self-targets with hx-swap="outerHTML"
+     (_contact_form.html, _newsletter_form.html, _details_form.html all
+     set hx-target to their own id), so `e.detail.target` was the old,
+     pre-submission form: never `.sent`, so `target.matches('form.sent')`
+     was always false and this handler never fired. Found in the same
+     sweep as the blog-filter reveal bug below; same fix. */
   document.body.addEventListener('htmx:afterSwap', function (e) {
-    var target = e.detail.target;
+    var target = e.target;
     if (target && target.matches && target.matches('form.sent')) {
       var ok = target.querySelector('.ok');
       if (ok) ok.focus();
@@ -118,10 +150,22 @@
      has already run (see "section reveals" below, which only scans once
      on load). Rather than re-triggering a scroll-in animation for content
      the visitor just explicitly asked for, just make it visible —
-     consistent with how [data-reveal] already degrades for .no-js/.reduced. */
+     consistent with how [data-reveal] already degrades for .no-js/.reduced.
+
+     ROOT CAUSE of "selecting a category filter leaves the post tiles
+     invisible" (reproduced live: pagination and aria-current update
+     correctly, no tiles render): this used to read `e.detail.target`.
+     #post-list swaps with hx-swap="outerHTML", so `e.detail.target` is
+     the OLD #post-list — removed from the document by the time this
+     handler runs (see the htmx event-detail rule above) — so
+     `querySelectorAll('[data-reveal]')` found the detached old cards and
+     `gsap.set(..., {opacity:1})` made THOSE visible while the new cards,
+     still governed by `[data-reveal]{opacity:0}` in _base.css, stayed
+     invisible on screen. Fixed to `e.target`, matching the working
+     booking-panel/post-list focus handler above. */
   document.body.addEventListener('htmx:afterSwap', function (e) {
     if (!window.gsap || reduced) return;
-    var items = e.detail.target ? e.detail.target.querySelectorAll('[data-reveal]') : [];
+    var items = e.target ? e.target.querySelectorAll('[data-reveal]') : [];
     if (items.length) gsap.set(items, { opacity: 1, y: 0 });
     if (window.ScrollTrigger) ScrollTrigger.refresh();
   });
