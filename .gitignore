@@ -72,3 +72,8 @@ temp/
 
 # Stripe SDK telemetry state written at runtime
 /.config/
+
+# Keen.com blog archive — 69MB import source, not project source.
+# Must be present at the repo root to run: manage.py import_keen
+/keen_blog_archive/
+/keen_blog_archive.zip
