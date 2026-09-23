@@ -223,7 +223,7 @@ measurement.
   before it) while keeping it ahead of `<nav>` would fix the ordering without disturbing the CSS
   sibling-combinator mechanism.
 
-**Adjudication:** deferred — the trade-off was disclosed by `design-system` when it built the mechanism, and this audit independently judges it narrower in practice than it sounds. The only alternative that preserves tab order is `:has()`, whose failure mode is a silent regression to an unnavigable mobile menu. I would rather carry a known, documented tab-order irregularity than a mechanism that fails invisibly. Revisit if `:has()` support ever stops being the concern.
+**Adjudication:** deferred — the trade-off was disclosed by `design-system` when it built the mechanism, and this audit independently judges it narrower in practice than it sounds. The only alternative that preserves tab order is `:has()`, whose failure mode is a silent regression to an unnavigable mobile menu. I would rather carry a known, documented tab-order irregularity than a mechanism that fails invisibly. Revisit if `:has()` support ever stops being the concern. **Disposition:** carried as a known defect, not fixed. The finding stands.
 
 ### 7. Decorative editorial images carry alt text that duplicates the adjacent heading instead of alt=""
 
