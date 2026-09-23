@@ -67,6 +67,43 @@ from wagtail.snippets.models import register_snippet
 from apps.core.blocks import BodyTextBlock, CaptionedImageBlock
 
 
+def build_elided_page_range(paginator, current_page_number, *, on_each_side=1, on_ends=1):
+    """
+    Turns `Paginator.get_elided_page_range()` into a list a template can
+    loop safely regardless of `paginator.num_pages` — see the comment at
+    `BlogIndexPage.get_context`'s call site for why `paginator.page_range`
+    itself is unsafe to loop.
+
+    Pulled out as its own function (rather than inlined in `get_context`)
+    so it can be exercised directly against an arbitrarily large
+    `Paginator` in a test, without needing to create that many real pages
+    first.
+
+    Returns a list of dicts, one per item `get_elided_page_range` yields:
+      {"is_ellipsis": True}                                    — a gap
+      {"is_ellipsis": False, "number": <int>, "is_current": <bool>} — a page
+
+    A template distinguishes the two with the plain boolean
+    `item.is_ellipsis`, never by comparing `item.number` against
+    `Paginator.ELLIPSIS` (an actual "…" string) itself.
+    """
+    elided_page_range = []
+    for page_number in paginator.get_elided_page_range(
+        current_page_number, on_each_side=on_each_side, on_ends=on_ends
+    ):
+        if page_number == Paginator.ELLIPSIS:
+            elided_page_range.append({"is_ellipsis": True})
+        else:
+            elided_page_range.append(
+                {
+                    "is_ellipsis": False,
+                    "number": page_number,
+                    "is_current": page_number == current_page_number,
+                }
+            )
+    return elided_page_range
+
+
 @register_snippet
 class BlogCategory(models.Model):
     """
@@ -169,6 +206,12 @@ class BlogIndexPage(Page):
           posts             convenience alias for `posts_page.object_list`,
                              for anywhere that only needs the post list and
                              not the pager controls
+          elided_page_range a short pager, safe to loop directly even with
+                             hundreds of pages (the Keen import alone is
+                             ~163 pages at POSTS_PER_PAGE) — see this
+                             method's body for why `.paginator.page_range`
+                             is wrong for a template to loop and the shape
+                             of each item here
         """
         context = super().get_context(request, *args, **kwargs)
         context["active_nav"] = "blog"
@@ -197,10 +240,29 @@ class BlogIndexPage(Page):
         except EmptyPage:
             posts_page = paginator.page(paginator.num_pages)
 
+        # posts_page.paginator.page_range is every page number in the
+        # paginator — with the Keen import alone (1460 posts, ~163 pages at
+        # POSTS_PER_PAGE) a template looping that renders 163 links in one
+        # row and overflows the page horizontally (reported with a
+        # screenshot). That is the wrong contract to hand a template when
+        # the range can be arbitrarily long. build_elided_page_range()
+        # (above, wrapping Paginator.get_elided_page_range()) is Django's
+        # own fix: a short, bounded sequence of page numbers around the
+        # current page plus the first/last pages, with an ellipsis marker
+        # standing in for whatever run of pages got skipped. on_each_side=1,
+        # on_ends=1 keeps it short even at 163 pages — at most current
+        # page, one neighbour either side, the first page, the last page,
+        # and one ellipsis on each side of the gap: never more than 7
+        # items.
+        elided_page_range = build_elided_page_range(
+            paginator, posts_page.number, on_each_side=1, on_ends=1
+        )
+
         context["categories"] = categories
         context["active_category"] = active_category
         context["posts_page"] = posts_page
         context["posts"] = posts_page.object_list
+        context["elided_page_range"] = elided_page_range
         return context
 
 

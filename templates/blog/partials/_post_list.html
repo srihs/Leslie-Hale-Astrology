@@ -16,7 +16,18 @@ Context (BlogIndexPage.get_context — see apps/blog/models.py):
   posts_page       a django.core.paginator Page: .object_list,
                     .has_previous/.has_next,
                     .previous_page_number/.next_page_number, .number,
-                    .paginator.num_pages, .paginator.page_range
+                    .paginator.num_pages, .paginator.page_range (NOT
+                    looped directly below — see elided_page_range)
+  elided_page_range a short, bounded pager built from
+                    build_elided_page_range() (apps/blog/models.py) —
+                    looping posts_page.paginator.page_range directly
+                    rendered all ~163 pages of the Keen import in one row
+                    and overflowed the page horizontally (reported with a
+                    screenshot). Each item is a dict:
+                    {"is_ellipsis": True} for a gap, or {"is_ellipsis":
+                    False, "number": <int>, "is_current": <bool>} for a
+                    page — distinguish with the plain boolean, never by
+                    comparing item.number to Paginator.ELLIPSIS.
 
 No-JS path: every filter and pager control below is a real `<a href="…">`
 to this same BlogIndexPage with `?category=`/`?page=` query params — a
@@ -91,9 +102,13 @@ accessibility-audit.md.
     <a href="{% pageurl page %}?page={{ posts_page.previous_page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" id="pager-prev" aria-label="Previous page"
        hx-get="{% pageurl page %}?page={{ posts_page.previous_page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" hx-target="#post-list" hx-swap="outerHTML" hx-select="#post-list" hx-push-url="true">‹</a>
     {% endif %}
-    {% for page_number in posts_page.paginator.page_range %}
-    <a href="{% pageurl page %}?page={{ page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" id="pager-{{ page_number }}"{% if page_number == posts_page.number %} aria-current="page"{% endif %}
-       hx-get="{% pageurl page %}?page={{ page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" hx-target="#post-list" hx-swap="outerHTML" hx-select="#post-list" hx-push-url="true">{{ page_number }}</a>
+    {% for item in elided_page_range %}
+    {% if item.is_ellipsis %}
+    <span class="pager-ellipsis" aria-hidden="true">…</span>
+    {% else %}
+    <a href="{% pageurl page %}?page={{ item.number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" id="pager-{{ item.number }}"{% if item.is_current %} aria-current="page"{% endif %}
+       hx-get="{% pageurl page %}?page={{ item.number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" hx-target="#post-list" hx-swap="outerHTML" hx-select="#post-list" hx-push-url="true">{{ item.number }}</a>
+    {% endif %}
     {% endfor %}
     {% if posts_page.has_next %}
     <a href="{% pageurl page %}?page={{ posts_page.next_page_number }}{% if active_category %}&category={{ active_category.slug }}{% endif %}" id="pager-next" aria-label="Next page"

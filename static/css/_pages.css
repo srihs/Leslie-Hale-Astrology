@@ -121,11 +121,25 @@
 @media(max-width:900px){.post-grid,.post-grid.three{grid-template-columns:1fr 1fr}}
 @media(max-width:640px){.post-grid,.post-grid.three{grid-template-columns:1fr}}
 .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:36px}
-.filters a{font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;color:var(--muted);border:1px solid var(--line);padding:9px 14px;min-height:40px;display:inline-flex;align-items:center}
+.filters a{font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;color:var(--muted);border:1px solid var(--line);padding:9px 14px;min-height:44px;display:inline-flex;align-items:center}
 .filters a[aria-current],.filters a:hover{color:var(--gold);border-color:var(--gold)}
-.pager{display:flex;justify-content:center;gap:8px;margin-top:48px}
+/* .pager: flex-wrap added (root-cause fix, not just the template's elided
+   range) — a centred flex row with no wrap overflows horizontally the
+   moment its contents exceed the container width; body{overflow-x:hidden}
+   in _base.css then clips it instead of letting it scroll. gap:8px 12px
+   gives wrapped rows breathing room vertically too, not just between
+   same-row items. */
+.pager{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 12px;margin-top:48px}
 .pager a{border:1px solid var(--line);min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:var(--muted)}
 .pager a[aria-current]{color:var(--bg);background:var(--gold);border-color:var(--gold)}
+/* .pager-ellipsis: a gap marker between elided page ranges, not a control —
+   no border/background (unlike .pager a) so it never reads as a disabled or
+   clickable button, and aria-hidden in the template keeps assistive tech
+   from landing on it. Stretches to the row's 44px cross-size like its
+   sibling anchors (via .pager's own align-items:stretch default) purely for
+   baseline alignment; it carries no min-height itself since it is
+   non-interactive and has no tap-target requirement. */
+.pager-ellipsis{display:flex;align-items:center;justify-content:center;min-width:24px;color:var(--muted);user-select:none}
 /* article */
 .article{max-width:72ch;margin:0 auto}
 .article-hero{aspect-ratio:21/9;border:1px solid var(--line);overflow:hidden;margin:32px 0 48px;background:var(--bg-2)}
