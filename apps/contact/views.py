@@ -16,6 +16,32 @@ request still gets the bare fragment (that's correct — htmx swaps it into
 the form's own wrapper); a plain request gets the *page* that form lives
 on, rendered whole, with the same success/error context — see
 `_render_contact_page`/`_render_referring_page` below.
+
+Rate limiting (reviews/2026-09-22-final-security-review.md finding 1):
+both endpoints are public, unauthenticated POST forms with no other
+protection, so both carry `@ratelimit` (key="ip", against the cache
+config/settings/base.py configures for this — see CACHES/
+RATELIMIT_USE_CACHE there). The "lesser case" per the finding's
+adjudication — inbox spam and junk rows, not the booking calendar
+`apps.bookings.views` protects — so both get the same moderate two-window
+shape (a burst limit and an hourly ceiling) rather than the tighter one
+`start_checkout` needs: 5/minute covers a real visitor resubmitting after
+fixing a typo a couple of times, or a shared office/household IP with
+several people using the form in the same few minutes; 20/hour is far
+more than any genuine visitor needs but caps a script's junk-row output
+per IP hard. `block=False` throughout, checked explicitly
+(`request.limited`) so a limited visitor gets this module's own warm,
+in-voice response — never django-ratelimit's bare 403 — on both the htmx
+and no-JS path, exactly like every other failure this file already
+handles.
+
+Proxy caveat (identical reasoning to apps/bookings/views.py, not
+repeated in full here): `key="ip"` reads `request.META['REMOTE_ADDR']`
+only — never a client-supplied header, so it cannot be spoofed by one —
+but it is only accurate per-visitor if the process serving Django sees
+the real client socket, which depends on Prohosting's actual proxy
+topology (PROJECT-SCOPE.md §1, unconfirmed). See that module's docstring
+for the full reasoning and what to verify at deploy time.
 """
 
 from urllib.parse import urlparse
@@ -24,9 +50,21 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import render
+from django_ratelimit.decorators import ratelimit
 from wagtail.models import Page
 
 from apps.contact.models import ContactPage, ContactSubmission, NewsletterSignup
+
+# Rate-limited copy — Leslie's own voice (§2: warm, grounded, never
+# "invalid"), not django-ratelimit's bare 403. Reassures the visitor
+# nothing was lost and says what to do next.
+CONTACT_RATE_LIMIT_MESSAGE = (
+    "That's a few messages in quick succession — please wait a minute "
+    "before sending again. Leslie will still get it as soon as you do."
+)
+NEWSLETTER_RATE_LIMIT_MESSAGE = (
+    "That's a few tries in a row — please wait a minute before trying again."
+)
 
 
 def _render_contact_page(request, extra_context, *, status=200):
@@ -90,8 +128,12 @@ def _render_referring_page(request, hint_path, partial_template, extra_context, 
     return render(request, page.get_template(request, *args, **kwargs), context, status=status)
 
 
+@ratelimit(key="ip", rate="5/m", method="POST", block=False)
+@ratelimit(key="ip", rate="20/h", method="POST", block=False)
 def submit_contact(request):
-    """Validate and save a contact enquiry (POST only)."""
+    """Validate and save a contact enquiry (POST only).
+
+    Rate limit: 5/minute and 20/hour per IP (see module docstring)."""
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
 
@@ -101,6 +143,17 @@ def submit_contact(request):
         "subject": request.POST.get("subject", "").strip(),
         "message": request.POST.get("message", "").strip(),
     }
+
+    if getattr(request, "limited", False):
+        context = {
+            "contact_values": values,
+            "contact_errors": {"rate_limited": [CONTACT_RATE_LIMIT_MESSAGE]},
+            "contact_submitted": False,
+        }
+        if getattr(request, "htmx", False):
+            return render(request, "contact/partials/_contact_form.html", context, status=429)
+        return _render_contact_page(request, context, status=429)
+
     errors = {}
     if not values["name"]:
         errors.setdefault("name", []).append("Please enter your name.")
@@ -135,13 +188,30 @@ def submit_contact(request):
     return _render_contact_page(request, context)
 
 
+@ratelimit(key="ip", rate="5/m", method="POST", block=False)
+@ratelimit(key="ip", rate="20/h", method="POST", block=False)
 def newsletter_signup(request):
-    """Validate and save a newsletter signup (POST only)."""
+    """Validate and save a newsletter signup (POST only).
+
+    Rate limit: 5/minute and 20/hour per IP (see module docstring)."""
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
 
     email = request.POST.get("email", "").strip()
     source = request.POST.get("next", "").strip() or "unknown page"
+
+    if getattr(request, "limited", False):
+        context = {
+            "newsletter_email": email,
+            "newsletter_errors": {"rate_limited": [NEWSLETTER_RATE_LIMIT_MESSAGE]},
+            "newsletter_submitted": False,
+        }
+        if getattr(request, "htmx", False):
+            return render(request, "includes/_newsletter_form.html", context, status=429)
+        return _render_referring_page(
+            request, request.POST.get("next", "").strip(), "includes/_newsletter_form.html", context, status=429
+        )
+
     errors = {}
     try:
         validate_email(email)

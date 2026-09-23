@@ -23,7 +23,17 @@ the swapped result to screen reader users without moving focus.
 
 Context (all optional — default is the untouched, unsubmitted form):
   newsletter_submitted  bool  — True once the email has been accepted
-  newsletter_errors     dict  — {"email": ["message"]} when invalid
+  newsletter_errors     dict  — {"email": ["message"]} when invalid;
+                         "rate_limited" is not a real field — it is how
+                         apps.contact.views.newsletter_signup reports a
+                         429 through this same partial, rendered as a
+                         direct-child `.err` right below, which
+                         `.form.invalid > .err`
+                         (static/css/_components.css) already reveals the
+                         same way bookings/partials/_checkout_error.html's
+                         standalone alert does, with no per-field
+                         aria-invalid falsely set (reviews/2026-09-22-
+                         final-security-review.md finding 1)
   newsletter_email      str   — re-populate the field after a failed submit
 {% endcomment %}
 <form class="form{% if newsletter_submitted %} sent{% endif %}{% if newsletter_errors %} invalid{% endif %}"
@@ -32,6 +42,7 @@ Context (all optional — default is the untouched, unsubmitted form):
       hx-post="{% url 'contact:newsletter_signup' %}" hx-target="#newsletter-form" hx-swap="outerHTML"
       aria-live="polite">
   {% csrf_token %}
+  {% if newsletter_errors.rate_limited %}<p class="err">{{ newsletter_errors.rate_limited.0 }}</p>{% endif %}
   <input type="hidden" name="next" value="{{ request.path }}">
   <div class="field">
     <label for="em">Email address</label>

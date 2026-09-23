@@ -30,6 +30,53 @@ Three views live here:
 Sensitive data discipline: nothing in this file logs a card number,
 token, email address, or birth detail — only `booking.public_ref` and,
 for provider failures, an exception's type name.
+
+Rate limiting (reviews/2026-09-22-final-security-review.md finding 1):
+`save_details` and `start_checkout` are both public, unauthenticated POST
+endpoints, and `start_checkout` is the one the finding names as serious —
+a scripted attacker who never intends to pay can hold every visible slot
+for HOLD_MINUTES at a time, indefinitely, by re-submitting before each
+hold expires, which is a direct attack on the site's only revenue
+mechanism. Both carry `@ratelimit` (key="ip", the cache configured in
+config/settings/base.py CACHES/RATELIMIT_USE_CACHE). `start_checkout`
+stacks two windows — a burst limit generous enough for a genuine retry
+after a declined card or a "someone just took that slot" conflict, and an
+hourly ceiling that caps how much of the calendar one IP can hold at all,
+independent of how it paces its requests. `save_details` gets one
+looser window: it only stages session data, so the blast radius of
+flooding it is smaller, but it is the endpoint that must tolerate a
+visitor genuinely re-typing/correcting their details several times.
+
+Every limiter uses `block=False` and is checked explicitly
+(`request.limited`) so a rate-limited visitor gets the same warm,
+in-voice response the rest of this module already gives failures —
+never django-ratelimit's bare default 403 — on both the htmx and the
+no-JS path (see `_checkout_error`/`_render_booking_page`, reused as-is).
+
+Proxy caveat: `key="ip"` resolves to `request.META['REMOTE_ADDR']` only
+(django_ratelimit.core._get_ip) — it never reads X-Forwarded-For or any
+other client-supplied header, so it cannot be spoofed by a header an
+attacker sets themselves. That is also its limit: it is only *accurate*
+— i.e. actually distinguishes one visitor's IP from another's, rather
+than counting every request behind the same front door as one visitor —
+if the process serving Django sees the real client socket. `prod.py`'s
+own `SECURE_PROXY_SSL_HEADER` comment says a proxy sits in front of this
+container, and Prohosting's actual proxy topology is unconfirmed
+(PROJECT-SCOPE.md §1, same open item the CACHES backend comment already
+flags). If that proxy forwards to gunicorn without preserving the real
+client address, every visitor behind it collapses onto one REMOTE_ADDR
+and shares one limit — worse for real visitors, not exploitable by an
+attacker, but not the intended behaviour either. Deliberately not
+"fixed" here by trusting X-Forwarded-For instead: that header is
+attacker-writable unless the proxy is verified to strip any
+client-supplied copy before appending its own, and that verification
+depends on infrastructure this repo does not control and §1 does not yet
+confirm. Whoever deploys this needs to confirm gunicorn actually sees
+genuine per-visitor REMOTE_ADDR values (direct exposure, or a proxy that
+preserves the real address) before trusting this limit's accuracy in
+production; if that turns out not to hold, the fix is
+`RATELIMIT_IP_META_KEY` pointed at whichever header the confirmed proxy
+guarantees is clean, not a change to the key type here.
 """
 
 from __future__ import annotations
@@ -52,6 +99,7 @@ from django.shortcuts import render
 from django.utils import timezone as dj_timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
 
 from apps.bookings import availability
 from apps.bookings.emails import send_booking_emails, send_payment_needs_attention_email
@@ -72,6 +120,19 @@ logger = logging.getLogger(__name__)
 
 SESSION_KEY = "booking_details"
 SESSION_KEY_HOLD = "booking_hold_ref"
+
+# Rate-limited copy — Leslie's own voice (§2: warm, grounded, never
+# "invalid"), not django-ratelimit's bare 403. Reassures nothing was lost
+# or charged and says what to do next, per the same error-handling
+# philosophy _checkout_error already documents.
+DETAILS_RATE_LIMIT_MESSAGE = (
+    "That's a few tries in a row — nothing you've typed has been lost. "
+    "Please wait a minute and try again."
+)
+CHECKOUT_RATE_LIMIT_MESSAGE = (
+    "That's a few attempts in quick succession — nothing has been charged, "
+    "and your details are still here. Please wait a minute and try again."
+)
 
 
 def _render_booking_page(request, extra_context, *, status=200):
@@ -102,13 +163,19 @@ def _render_booking_page(request, extra_context, *, status=200):
     return render(request, page.get_template(request), context, status=status)
 
 
+@ratelimit(key="ip", rate="10/m", method="POST", block=False)
 def save_details(request):
     """Validate the client's personal/birth details (POST only) and stage
     them in the session for `start_checkout` to read. htmx requests get
     the bare `_details_form.html` fragment back (correct — htmx swaps it
     into the form's own wrapper); a plain no-JS POST gets the whole
     booking page re-rendered with this same partial showing the saved
-    state or field errors (see `_render_booking_page` above)."""
+    state or field errors (see `_render_booking_page` above).
+
+    Rate limit: 10/minute per IP (see module docstring). Generous enough
+    for a visitor genuinely correcting a mistyped field several times in
+    a row — this endpoint only stages session data, so the limit exists
+    to stop cheap scripted flooding, not to police normal revision."""
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
 
@@ -121,6 +188,19 @@ def save_details(request):
         "pob": request.POST.get("pob", "").strip(),
         "focus": request.POST.get("focus", "").strip(),
     }
+
+    if getattr(request, "limited", False):
+        context = {
+            "details_values": values,
+            "details_errors": {"rate_limited": [DETAILS_RATE_LIMIT_MESSAGE]},
+            "details_submitted": False,
+        }
+        if getattr(request, "htmx", False):
+            return render(request, "bookings/partials/_details_form.html", context, status=429)
+        return _render_booking_page(request, context, status=429) or render(
+            request, "bookings/partials/_details_form.html", context, status=429
+        )
+
     errors = {}
     if not values["first_name"]:
         errors.setdefault("first_name", []).append("Please enter your first name.")
@@ -207,6 +287,8 @@ def _redirect_or_htmx(request, url: str):
 
 
 @require_POST
+@ratelimit(key="ip", rate="5/m", method="POST", block=False)
+@ratelimit(key="ip", rate="20/h", method="POST", block=False)
 def start_checkout(request):
     """
     Combines the reading/day/slot chosen in steps 1-2 (posted as hidden
@@ -221,7 +303,21 @@ def start_checkout(request):
     would otherwise collide with the first under the same exclusion
     constraint that protects against two different people booking the
     same slot.
+
+    Rate limit: 5/minute and 20/hour per IP (see module docstring) — the
+    serious one. A genuine visitor retrying after a declined card or a
+    slot taken out from under them stays well inside 5/minute; nobody
+    legitimately needs 20 checkout attempts in an hour. This is what
+    stops a script from holding every visible slot for HOLD_MINUTES at a
+    time, indefinitely, without ever paying (reviews/2026-09-22-final-
+    security-review.md finding 1) — from one IP. It does not, and cannot,
+    stop the same abuse spread across many IPs; see that finding's
+    adjudication and the final report for why that is a separate,
+    unbuilt defence, not something rate limiting solves.
     """
+    if getattr(request, "limited", False):
+        return _checkout_error(request, CHECKOUT_RATE_LIMIT_MESSAGE, status=429)
+
     details = request.session.get(SESSION_KEY)
     if not details:
         return _checkout_error(

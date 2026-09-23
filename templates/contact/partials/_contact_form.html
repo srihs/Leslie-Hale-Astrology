@@ -15,7 +15,16 @@ reveal them.
 
 Context (apps.contact view):
   contact_values     dict of posted values, for re-populating after an error
-  contact_errors     dict of field -> [messages]
+  contact_errors     dict of field -> [messages]; "rate_limited" is not a
+                      real field — it is how apps.contact.views.
+                      submit_contact reports a 429 through this same
+                      partial, rendered as a direct-child `.err` right
+                      below, which `.form.invalid > .err`
+                      (static/css/_components.css) already reveals the
+                      same way bookings/partials/_checkout_error.html's
+                      standalone alert does, with no per-field
+                      aria-invalid falsely set (reviews/2026-09-22-final-
+                      security-review.md finding 1)
   contact_submitted  bool
 
 Posts to contact:submit (apps/contact/urls.py) — a real, plain Django URL
@@ -30,6 +39,7 @@ project-structure-scaffold.md findings 1-2).
       hx-post="{% url 'contact:submit' %}" hx-target="#contact-form-wrap" hx-swap="outerHTML"
       aria-live="polite">
   {% csrf_token %}
+  {% if contact_errors.rate_limited %}<p class="err">{{ contact_errors.rate_limited.0 }}</p>{% endif %}
   <div class="form-row">
     <div class="field">
       <label for="n">Name</label>
