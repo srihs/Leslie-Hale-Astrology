@@ -119,4 +119,8 @@ Dark, celestial, editorial‑luxury. Calm and credible.
 - [ ] Blogger URL for migration
 - [ ] Portrait photo and any owned imagery
 - [ ] Testimonials (3+) and years of experience figure
-- [ ] Confirm CMS/platform choice
+- [ ] Confirm CMS/platform choice — RESOLVED 22 Sep 2026: Wagtail
+- [ ] Data-retention period for booking records (including birth date,
+      time and place), contact submissions and newsletter signups. Raised
+      by the final security review; a business and legal decision for the
+      client, deliberately not invented.

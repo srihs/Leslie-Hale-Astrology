@@ -178,7 +178,7 @@ patterns, manual read of every file listed above.
   Privacy Act principles around keeping personal information no longer than necessary,
   but this is a policy gap, not a bug.
 
-**Adjudication:** deferred — pending the client. A retention period for booking records, birth data and contact submissions is a business and legal decision Leslie has to make, not one I can pick for her. Added to the §8 open items rather than invented. The finding is right and stays open.
+**Adjudication:** deferred — pending the client. **Disposition:** added to PROJECT-SCOPE.md §8 as an open item on 23 September 2026. The finding stands and remains unresolved; it is not dismissed. A retention period for booking records, birth data and contact submissions is a business and legal decision Leslie has to make, not one I can pick for her. Added to the §8 open items rather than invented. The finding is right and stays open.
 
 ---
 
