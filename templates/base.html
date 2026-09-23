@@ -114,11 +114,25 @@ every page template's own CTAs can reuse it instead of re-querying.
   newsletter and blog-filter interactions listed in this app's CLAUDE.md;
   every one of those has a working no-JS path via a real <form>/<a> — these
   three tags, and static/js/main.js below, are enhancement only.
+
+  SECURITY FINDING 2, reviews/2026-09-22-final-security-review.md: none of
+  these four carried Subresource Integrity. Hashes below are sha384,
+  computed directly from each pinned version's actual bytes (not
+  invented) — `curl` each URL, `openssl dgst -sha384 -binary | openssl
+  base64 -A` — and cross-checked against each registry's own published
+  hash for the same file/version: cdnjs's own `/libraries/gsap/3.12.5?
+  fields=sri` API for gsap.min.js/ScrollTrigger.min.js (sha512, matched
+  byte-for-byte), jsdelivr's package-file API for lenis.min.js and
+  htmx.min.js (sha256, matched byte-for-byte, size 13485/50917
+  respectively). htmx's src is now the fully-resolved
+  .../dist/htmx.min.js URL rather than the bare-package URL that 301s
+  there, so integrity is checked against the actual file with no redirect
+  hop in between.
 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
-<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" integrity="sha384-Z3REaz79l2IaAZqJsSABtTbhjgOUYyV3p90XNnAPCSHg3EMTz1fouunq9WZRtj3d" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js" integrity="sha384-B2WBjDzEjJpYvhmi2UyEn7rektqkf5suS6sNoyyrf0EBAwBHdkiXxIlU0V5Ru2ed" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous" defer></script>
 <script src="{% static 'js/main.js' %}" defer></script>
 {% block extra_scripts %}{% endblock %}
 </body>
