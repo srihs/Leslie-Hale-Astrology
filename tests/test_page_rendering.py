@@ -14,7 +14,8 @@ from __future__ import annotations
 import pytest
 from django.test import Client
 
-from apps.blog.tests.factories import BlogCategoryFactory, make_blog_index_page, make_blog_post
+from apps.blog.models import BlogCategory
+from apps.blog.tests.factories import make_blog_index_page, make_blog_post
 from apps.bookings.models import BookingPage
 from apps.bookings.tests.factories import AvailabilityRuleFactory
 from apps.core.tests.factories import TestimonialFactory, make_about_page
@@ -105,7 +106,12 @@ def test_blog_index_page_renders_200_empty():
 def test_blog_index_page_renders_200_with_posts_and_category_filter():
     home = make_home_page()
     index = make_blog_index_page(home)
-    category = BlogCategoryFactory(name="Transits")
+    # Seeded by blog.0004_seed_keen_categories (runs against the test
+    # database too, like any other migration) — fetched, not
+    # re-created, so this doesn't collide with that row's own unique
+    # name/slug. Any real category would do here; this test only cares
+    # that filtering by one works.
+    category = BlogCategory.objects.get(slug="transits")
     make_blog_post(index, title="Post One", category=category)
     make_blog_post(index, title="Post Two")
 

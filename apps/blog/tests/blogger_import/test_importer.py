@@ -228,7 +228,11 @@ def test_uncategorised_posts_stay_uncategorised_without_a_category_map(tmp_path,
 
 
 def test_category_map_assigns_an_existing_category(tmp_path, index_page):
-    category = BlogCategory.objects.create(name="Transits", slug="transits")
+    # "transits" is seeded by blog.0004_seed_keen_categories (which runs
+    # against the test database too, like any other migration) — fetched
+    # here rather than (re-)created, to avoid colliding with that row's
+    # own unique name/slug.
+    category = BlogCategory.objects.get(slug="transits")
     xml = _atom_feed(
         _atom_entry(
             post_id="1", title="Labelled Post", content="<p>Text.</p>", published="2020-06-01T08:00:00.000-07:00",

@@ -31,6 +31,29 @@ is an internal-only fingerprint of what the importer last wrote, so an
 unchanged post can be recognised as unchanged and left untouched (no
 redundant writes or image re-downloads) rather than every re-run being
 treated as an update.
+
+Blogger correction (2026-09-23, blog-migration): §8's "existing blog is on
+Blogger" turned out to be wrong — Leslie's real archive is a local export
+of her old Keen.com blog (`keen_blog_archive/`, 1460 posts). The
+`blogger_*` fields and `apps.blog.blogger_import` above are left in place
+(they were built, reviewed and tested against the Blogger assumption, and
+nothing here deletes working code on a guess) but the live import path is
+`apps.blog.keen_import`, run via `manage.py import_keen`. It mirrors the
+same idempotency shape with its own fields:
+
+- `keen_post_id`: the numeric post ID at the end of each post's original
+  keen.com URL (e.g. `.../704013.aspx` -> `"704013"`) — confirmed unique
+  across all 1460 archived posts — is what the Keen importer matches on,
+  parallel to `blogger_post_id`.
+- `keen_content_hash`: same idea as `blogger_content_hash`, scoped to what
+  the Keen importer last wrote.
+- `original_category_label`: the Keen archive's "Filed Under: ..." text,
+  preserved verbatim (not reconstructed from `category`) so a post's full
+  original label set is never lost even though `category` can only hold
+  the one curated bucket the labels were mapped onto. See
+  `apps.blog.keen_import.categories` for the label -> bucket mapping and
+  why a single bucket is picked when a post carries several original
+  labels.
 """
 
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
@@ -228,8 +251,17 @@ class BlogPost(Page):
     )
     source_url = models.URLField(
         blank=True,
-        help_text="If this post was migrated from the old Blogger blog, paste "
-        "its original address here so old links can be redirected to this page.",
+        # Django's URLField default (200) is too short for real life: the
+        # Keen archive's longest genuine original URL is 250 characters
+        # (Keen generated the URL slug from the full post title, and
+        # Leslie's titles are sometimes long sentences) — confirmed by
+        # scanning all 1460 archived posts before picking this bound, not
+        # a guess. 500 leaves comfortable headroom over that without
+        # being unbounded.
+        max_length=500,
+        help_text="If this post was migrated from the old Blogger blog or the "
+        "old Keen.com blog, paste its original address here so old links can be "
+        "redirected to this page.",
     )
     blogger_post_id = models.CharField(
         max_length=100,
@@ -252,6 +284,35 @@ class BlogPost(Page):
         "Blogger importer, used to detect whether a post changed upstream "
         "since the last import run. Not shown in the editor.",
     )
+    keen_post_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        unique=True,
+        db_index=True,
+        help_text="Set automatically by the Keen archive importer (blog-migration). "
+        "The numeric post ID from this post's original keen.com URL, used to match "
+        "it on re-import so re-running the import updates this post instead of "
+        "creating a duplicate. Leave blank for posts written directly in Wagtail.",
+    )
+    keen_content_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        editable=False,
+        help_text="Internal checksum of the content last written by the Keen "
+        "archive importer, used to detect whether a re-run needs to update this "
+        "post. Not shown in the editor.",
+    )
+    original_category_label = models.TextField(
+        blank=True,
+        default="",
+        help_text="The original 'Filed Under' label text from the Keen archive, "
+        "preserved exactly as written. This post's own 'Category' field above is "
+        "a single curated bucket chosen from these labels for the site's filter "
+        "bar — this field keeps the full original text so nothing from the "
+        "source archive is lost.",
+    )
 
     # templates/blog/post.html is the real file (FINDING 3).
     template = "blog/post.html"
@@ -273,6 +334,8 @@ class BlogPost(Page):
     settings_panels = Page.settings_panels + [
         FieldPanel("source_url"),
         FieldPanel("blogger_post_id"),
+        FieldPanel("keen_post_id"),
+        FieldPanel("original_category_label"),
     ]
 
     parent_page_types = ["blog.BlogIndexPage"]
