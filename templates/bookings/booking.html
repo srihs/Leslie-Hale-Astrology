@@ -16,6 +16,17 @@ booking_panel_context — see apps/bookings/models.py):
                   _booking_status.html for why the booking's own
                   `.status` is what's actually trusted). `booking` may be
                   None if the ref didn't match anything.
+
+`page.cancellation_policy` (a real, Wagtail-editable field — "Policies &
+confirmation" on this page in the admin) is the FAQ's cancellation
+answer below, and nothing else on this page invents one. FINDING 2,
+reviews/2026-09-22-final-build-review.md: this page and
+partials/_booking_summary.html used to each hardcode their own invented,
+mutually contradictory cancellation/refund policy — one promised a
+refund, the other a free reschedule, neither ever confirmed (§8). Both
+literals are gone; the FAQ item only renders once Leslie has actually
+written a policy, same discipline apps.bookings.emails already applies
+to the confirmation email this same field feeds.
 {% endcomment %}
 
 {% comment %}
@@ -44,6 +55,17 @@ own built-in Page fields, editable under this page's Promote tab.
 {% if payment_return %}
 <section aria-label="Payment status">
   <div class="wrap">
+    {% comment %}
+    FINDING 5, reviews/2026-09-22-final-accessibility-audit.md: this page
+    used to jump straight from the h1 to a run of h3s (this section's own
+    "Checkout cancelled"/"You're booked"/etc, then Steps 1-3) with no h2
+    anywhere in between — a screen reader user navigating by heading
+    level found nothing at h2 across the whole booking flow. This h2 is
+    visually hidden (the visual design has no heading here — see §7) but
+    gives those h3s a real ancestor in the outline; the CSS classes below
+    are what carry the look, this element only carries the semantics.
+    {% endcomment %}
+    <h2 style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">Payment status</h2>
     {% if payment_return.result == "cancelled" and payment_return.booking.status == "pending" %}
     <div class="panel" aria-live="polite">
       <span class="eyebrow">Booking status</span>
@@ -58,6 +80,17 @@ own built-in Page fields, editable under this page's Promote tab.
 {% endif %}
 
 <section aria-label="Booking form">
+  {% comment %}
+  Same fix as the payment-status h2 above (FINDING 5, reviews/2026-09-22-
+  final-accessibility-audit.md) — a real h2 ancestor for the Step 1-3 h3s
+  in _booking_panel_form.html/_details_form.html, which are already
+  correct as h3s visually and semantically, just not currently nested
+  under one. Deliberately placed *outside* `.wrap.booking` below, not as
+  a third child of it: that div's CSS grid (static/css/_pages.css
+  `.booking{display:grid;grid-template-columns:…}`) keys off exactly two
+  direct children — see _booking_panel_form.html's own comment.
+  {% endcomment %}
+  <h2 style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">Your booking</h2>
   <div class="wrap booking" data-booking>
     <div>
       {% include "bookings/partials/_booking_panel_form.html" %}
@@ -73,7 +106,9 @@ own built-in Page fields, editable under this page's Promote tab.
     <div class="faq" data-reveal>
       <details><summary>What happens after I pay?</summary><p>You'll get a confirmation email with your session link, a calendar invite and a short form for your birth details.</p></details>
       <details><summary>What if I don't know my birth time?</summary><p>That's fine — many people don't. Leslie will explain what can and can't be read without it.</p></details>
-      <details><summary>Can I get a refund?</summary><p>Full refund if you cancel more than 24 hours before.</p></details>
+      {% if page.cancellation_policy %}
+      <details><summary>What's the cancellation policy?</summary><p>{{ page.cancellation_policy|linebreaksbr }}</p></details>
+      {% endif %}
     </div>
   </div>
 </section>

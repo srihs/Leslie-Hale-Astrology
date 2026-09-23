@@ -13,7 +13,16 @@ likewise but is heading/subline copy only — the two posts themselves are
 
   hero          eyebrow, headline, subheading, primary_button,
                 secondary_button (each button a CTALinkBlock — see
-                includes/_cta_button.html)
+                includes/_cta_button.html). HeroBlock has no duration
+                field of its own (FINDING 3, reviews/2026-09-22-final-
+                build-review.md: the hero-meta "60 min" stat used to be a
+                hardcoded, blanket claim, unconnected to any actual
+                Reading — the model deliberately leaves
+                duration_minutes nullable/per-reading because durations
+                vary) — the hero-meta duration stat below borrows the
+                first featured reading's own real duration_minutes
+                instead, and simply doesn't render that stat when it's
+                blank, rather than asserting a number nobody set.
   services      heading, subline, featured_readings (a LIST of 1-3
                 readings.Reading snippets: name, summary, description,
                 duration_minutes, price, price_note, image, detail_page —
@@ -86,7 +95,9 @@ base template's context), so the shared link always matches the tab title.
       </div>
       <div class="hero-meta" data-reveal>
         <div><strong>One‑to‑one</strong>Private sessions, online or by phone</div>
-        <div><strong>60 min</strong>Enough time to actually talk</div>
+        {% if services.featured_readings.0.duration_minutes %}
+        <div><strong>{{ services.featured_readings.0.duration_minutes }} min</strong>Enough time to actually talk</div>
+        {% endif %}
       </div>
     </div>
     <figure class="hero-media" data-reveal>
@@ -190,7 +201,14 @@ base template's context), so the shared link always matches the tab title.
     <div class="post-grid">
       {% for post in latest_posts %}
       <a class="post" href="{{ post.url }}" data-reveal>
-        <figure>{% if post.featured_image %}{% image post.featured_image fill-1000x625 alt=post.title %}{% endif %}</figure>
+        {% comment %}
+        alt="" — same reasoning/finding as blog/partials/_post_list.html
+        (decorative editorial photography, <h3> right below already
+        announces the title). A11Y FINDING 7, reviews/2026-09-22-final-
+        accessibility-audit.md names _post_list.html/post.html/readings'
+        templates explicitly; this card is the identical pattern.
+        {% endcomment %}
+        <figure>{% if post.featured_image %}{% image post.featured_image fill-1000x625 alt="" %}{% endif %}</figure>
         <span class="eyebrow">{{ post.published_date|date:"j M Y" }}{% if post.category %} · {{ post.category.name }}{% endif %}</span>
         <h3>{{ post.title }}</h3>
         <p>{{ post.excerpt }}</p>
