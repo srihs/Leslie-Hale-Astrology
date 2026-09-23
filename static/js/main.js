@@ -30,6 +30,37 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && menu.classList.contains('open')) { menu.classList.remove('open'); mb.setAttribute('aria-expanded', 'false'); mb.focus(); } });
   }
 
+  /* ---------- htmx: fall back to a real navigation when a request fails ----------
+     ROOT CAUSE of "the blog category filters don't work" (reproduced live
+     with Playwright: aborting the XHR for one `?category=` click leaves
+     the grid, the pager and aria-current completely unchanged, with no
+     error shown anywhere — indistinguishable from a dead control):
+     htmx calls preventDefault() on a hx-get anchor's click the moment it
+     decides to handle it, *before* the request is even sent. A plain
+     `<a href>` that failed to load would fall back to nothing special —
+     the browser just shows its own network-error page — but an
+     intercepted one has already had its default cancelled, so a failed
+     request (a dropped mobile connection, a mid-deploy server restart —
+     genuinely observed against the dev server while investigating this —
+     an ad-blocked or offline CDN, anything covered by this scope's "some
+     of them have flaky JS") leaves the visitor stuck exactly where they
+     clicked, with the chip they pressed still looking unpressed. Every
+     hx-get control in this site (blog category filters, blog pager,
+     booking calendar) is a real link/button with a working href/no-JS
+     path first, so recovering is just: do what the browser would have
+     done without htmx at all. Scoped to elements with an `href` (the
+     booking calendar's controls are plain submit buttons with none, so
+     this never touches them) so it only ever fires for a genuine
+     hx-get-anchor failure. */
+  function navigateOnHtmxFailure(e) {
+    var elt = e.detail && e.detail.elt;
+    var href = elt && elt.getAttribute && elt.getAttribute('href');
+    if (href) window.location.href = href;
+  }
+  document.body.addEventListener('htmx:sendError', navigateOnHtmxFailure);
+  document.body.addEventListener('htmx:responseError', navigateOnHtmxFailure);
+  document.body.addEventListener('htmx:timeout', navigateOnHtmxFailure);
+
   /* ---------- htmx: focus the result of a form swap ----------
      Every htmx-swapped form (newsletter, contact, booking details) is
      declared with aria-live="polite" in its template, so screen reader
