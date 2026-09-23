@@ -74,9 +74,41 @@ SESSION_KEY = "booking_details"
 SESSION_KEY_HOLD = "booking_hold_ref"
 
 
+def _render_booking_page(request, extra_context, *, status=200):
+    """
+    No-JS fallback for this module's booking-flow endpoints — BookingPage
+    is these forms' one and only home (`save_details`'s form and the Pay
+    form that leads to `start_checkout`/`_checkout_error` both only ever
+    live on it), so we can render it directly rather than guessing from a
+    referrer (contrast apps.contact.views._render_referring_page, needed
+    there because the newsletter form is shared across several pages).
+
+    FINDING 1, reviews/2026-09-22-final-build-review.md: `save_details`
+    and `_checkout_error` used to `render()` their own bare partial for
+    every request, htmx or not — a real no-JS POST (a full page
+    navigation) got back a fragment with no `<!DOCTYPE>`, no nav, no
+    stylesheet. Building the same context BookingPage's own GET would
+    (`page.get_context`) and rendering the whole page means a no-JS
+    visitor always lands back inside the site, styled, with a way back to
+    every other page — not a dead end.
+    """
+    page = BookingPage.objects.live().first()
+    if not page:
+        # No BookingPage published yet — an unusual/edge state this fix
+        # isn't responsible for.
+        return None
+    context = page.get_context(request)
+    context.update(extra_context)
+    return render(request, page.get_template(request), context, status=status)
+
+
 def save_details(request):
     """Validate the client's personal/birth details (POST only) and stage
-    them in the session for `start_checkout` to read."""
+    them in the session for `start_checkout` to read. htmx requests get
+    the bare `_details_form.html` fragment back (correct — htmx swaps it
+    into the form's own wrapper); a plain no-JS POST gets the whole
+    booking page re-rendered with this same partial showing the saved
+    state or field errors (see `_render_booking_page` above)."""
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
 
@@ -108,14 +140,15 @@ def save_details(request):
         request.session[SESSION_KEY] = values
         submitted = True
 
-    return render(
-        request,
-        "bookings/partials/_details_form.html",
-        {
-            "details_values": values,
-            "details_errors": errors,
-            "details_submitted": submitted,
-        },
+    context = {
+        "details_values": values,
+        "details_errors": errors,
+        "details_submitted": submitted,
+    }
+    if getattr(request, "htmx", False):
+        return render(request, "bookings/partials/_details_form.html", context)
+    return _render_booking_page(request, context) or render(
+        request, "bookings/partials/_details_form.html", context
     )
 
 
@@ -139,11 +172,20 @@ def _checkout_error(request, message: str, *, status: int = 400):
     error-handling-ux skill, this preserves everything the visitor has
     already entered (details stay staged in the session; reading/day/slot
     are re-posted, not lost) and explains what to do next rather than
-    surfacing a stack trace. Renders
-    bookings/partials/_checkout_error.html — a new template for
-    htmx-frontend to build; see the final report for its exact context.
+    surfacing a stack trace. An htmx request gets the bare
+    `_checkout_error.html` fragment back, swapped into `#checkout-error`
+    in place; a plain no-JS POST gets the whole booking page re-rendered
+    with the same message showing in that same region (see
+    `_render_booking_page` above and partials/_booking_summary.html,
+    which renders `checkout_error` inline) — FINDING 1, reviews/2026-09-22-
+    final-build-review.md.
     """
-    return render(request, "bookings/partials/_checkout_error.html", {"checkout_error": message}, status=status)
+    context = {"checkout_error": message}
+    if getattr(request, "htmx", False):
+        return render(request, "bookings/partials/_checkout_error.html", context, status=status)
+    return _render_booking_page(request, context, status=status) or render(
+        request, "bookings/partials/_checkout_error.html", context, status=status
+    )
 
 
 def _expire_stale_holds() -> None:
@@ -318,11 +360,14 @@ def booking_status(request, ref):
     arrive before `stripe_webhook` has actually processed the payment;
     this is how the UI finds out once it has, instead of trusting the
     redirect as the source of truth. Renders
-    bookings/partials/_booking_status.html — a new template for
-    htmx-frontend to build; see the final report for its exact context.
+    bookings/partials/_booking_status_inner.html — the poll's own swap
+    unit, one level inside the persistent aria-live region in
+    partials/_booking_status.html, which this view never re-renders (see
+    that template's own comment — A11Y FINDING 4, reviews/2026-09-22-
+    final-accessibility-audit.md — for why the two are now split).
     """
     booking = Booking.objects.filter(public_ref=ref).select_related("reading").first()
-    return render(request, "bookings/partials/_booking_status.html", {"booking": booking})
+    return render(request, "bookings/partials/_booking_status_inner.html", {"booking": booking})
 
 
 @csrf_exempt
