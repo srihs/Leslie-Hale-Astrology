@@ -147,7 +147,19 @@ LOCAL_APPS = [
     "apps.contact",
 ]
 
-INSTALLED_APPS = WAGTAIL_APPS + THIRD_PARTY_APPS + DJANGO_APPS + LOCAL_APPS
+# django-axes — admin login brute-force protection (finding 4,
+# reviews/2026-09-22-final-security-review.md). Listed after DJANGO_APPS
+# (which includes django.contrib.auth) since axes hooks auth's signals and
+# needs it already registered. Ships its own migrations (AccessAttempt /
+# AccessLog / AccessFailureLog), applied by the normal `manage.py migrate`
+# step in docker/entrypoint.sh — no app-owned migration needed for this.
+THIRD_PARTY_APPS_LATE = [
+    "axes",
+]
+
+INSTALLED_APPS = (
+    WAGTAIL_APPS + THIRD_PARTY_APPS + DJANGO_APPS + LOCAL_APPS + THIRD_PARTY_APPS_LATE
+)
 
 
 MIDDLEWARE = [
@@ -161,7 +173,38 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
     "wagtail.contrib.redirects.middleware.RedirectMiddleware",
+    # django-axes docs: must be the last middleware in the list — it needs
+    # every other middleware (notably AuthenticationMiddleware) to have run
+    # first. Finding 4, reviews/2026-09-22-final-security-review.md.
+    "axes.middleware.AxesMiddleware",
 ]
+
+# axes.backends.AxesStandaloneBackend must be listed first: it intercepts
+# every call to django.contrib.auth.authenticate() to enforce lockouts,
+# then falls through to ModelBackend for the actual credential check. This
+# is what gives brute-force coverage on BOTH admin entry points
+# (config/urls.py: "django-admin/" -> django.contrib.admin, "admin/" ->
+# Wagtail's own login view) from one settings-only change — Wagtail's login
+# view is a subclass of Django's own LoginView and still calls
+# authenticate(), so it goes through this backend chain too. Do not set
+# AXES_ONLY_ADMIN_SITE = True to "focus" this: that setting scopes
+# protection to whatever URL reverses as "admin:index", which in this
+# urlconf resolves only to /django-admin/ and would silently stop
+# protecting /admin/ — the one editors actually use day to day.
+AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+
+# --- django-axes tuning (finding 4) -----------------------------------
+# Realistic threat here is slow credential-stuffing against one or two
+# real accounts (Leslie, SAS Creative), not a targeted attack — see the
+# review's own severity call. A short cooloff over a permanent lockout
+# means a genuine user who mistypes a password repeatedly is never
+# permanently locked out of their own site.
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = 1  # hours
+AXES_RESET_ON_SUCCESS = True
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +240,48 @@ DATABASES = {
         conn_max_age=600,
     ),
 }
+
+
+# ---------------------------------------------------------------------------
+# Cache — shared backend for django-ratelimit (finding 1,
+# reviews/2026-09-22-final-security-review.md)
+# ---------------------------------------------------------------------------
+#
+# django-ratelimit counts requests through Django's cache framework. The
+# default LocMemCache is per-process: gunicorn runs WEB_CONCURRENCY worker
+# processes (see .env.example, docker/Dockerfile CMD), so local-memory
+# counts would let an attacker's requests spread across workers each get
+# their own separate, useless counter — the exact bug this exists to avoid.
+#
+# Backend chosen: Django's own database cache, against the "default"
+# Postgres connection this project already requires (DATABASE_URL is not
+# optional — see env() above) rather than adding Redis or another new
+# service. This project's touch scope for this change is settings/deps
+# only (docker-compose.yml is out of scope here), and Prohosting's actual
+# capabilities beyond shared PHP/MySQL-style hosting are unconfirmed per
+# PROJECT-SCOPE.md §1 — reusing the database every environment already has
+# is the more portable choice than assuming Prohosting can also run Redis.
+# If sustained rate-limit traffic ever makes the extra DB writes a real
+# cost, revisit with Redis once Prohosting's actual capabilities are
+# confirmed, not before.
+#
+# The "django_cache" table is created by docker/entrypoint.sh
+# (`manage.py createcachetable`, idempotent — checks
+# connection.introspection.table_names() first) under the same
+# RUN_MIGRATIONS=true guard as `migrate`, so it is a deliberate one-off
+# step, not something that races across replicas on every container start.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "django_cache",
+    },
+}
+
+# Explicit rather than relying on django-ratelimit's own default (which is
+# already "default", but an unreviewed default is not a decision) — the
+# views that apply @ratelimit (booking-payments, contact) rate-limit
+# against this cache.
+RATELIMIT_USE_CACHE = "default"
 
 
 # ---------------------------------------------------------------------------
@@ -247,6 +332,45 @@ WHITENOISE_AUTOREFRESH = False
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", required=False, default="Leslie Hale Astrology")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL")
 WAGTAIL_ENABLE_UPDATE_CHECK = False
+
+# --- Upload limits (finding 3, reviews/2026-09-22-final-security-review.md) ---
+# Uploads are admin-only (Wagtail admin, not a public form) so severity is
+# bounded, but an unreviewed framework default is still not a decision.
+#
+# Two settings named in this project's brief for this fix,
+# WAGTAILIMAGES_MAX_ANIMATED_GIF_SIZE and WAGTAILDOCS_MAX_UPLOAD_SIZE, do
+# not exist on the Wagtail branch this project is pinned to (verified
+# against wagtail==6.3.8's own source and docs, both pulled from GitHub at
+# that tag — neither name appears anywhere). WAGTAILDOCS_MAX_UPLOAD_SIZE is
+# real, but only from Wagtail 7.4 onward (CHANGELOG.txt); pulling it in
+# would mean the minor/major version jump task 1 explicitly rules out, not
+# a same-branch patch. WAGTAILIMAGES_MAX_ANIMATED_GIF_SIZE does not appear
+# in any Wagtail release, past or current main branch. Neither is set here
+# — a setting Wagtail never reads is not a control, just a comment that
+# looks like one.
+#
+# What this branch actually offers, and what's set instead:
+#
+# Images — a portrait and blog photos, nothing larger expected:
+WAGTAILIMAGES_MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB — Wagtail's own
+# default value, made explicit rather than implicit.
+WAGTAILIMAGES_MAX_IMAGE_PIXELS = 40 * 1_000_000  # 40 megapixels — tightened
+# from Wagtail's 128-megapixel default. Generous for a professional
+# portrait or blog photo (well beyond any consumer camera's native
+# resolution) while bounding decompression-bomb-style originals; the pixel
+# count is calculated across animation frames too (Wagtail's own docs), so
+# this is also the real lever against an oversized animated GIF on this
+# branch, not a same-named setting that does not exist here.
+#
+# Documents — Wagtail's own default (WAGTAILDOCS_EXTENSIONS unset) accepts
+# any file extension at all. There is no size-limiting equivalent on this
+# branch (Django's DATA_UPLOAD_MAX_MEMORY_SIZE explicitly excludes file
+# uploads — confirmed against django==5.1's global_settings.py), so the
+# only lever available without an app-level form change (wagtail-backend's
+# file, not this one) is the extension allowlist. Kept small and
+# unsurprising for a solo astrologer's site — a downloadable PDF is
+# plausible, an uploaded spreadsheet or archive is not:
+WAGTAILDOCS_EXTENSIONS = ["pdf", "doc", "docx"]
 
 
 # ---------------------------------------------------------------------------

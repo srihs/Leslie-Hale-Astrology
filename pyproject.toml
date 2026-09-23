@@ -9,8 +9,14 @@ description = "Leslie Hale Astrology — Django + Wagtail site (not a distribute
 requires-python = "==3.12.*"
 dependencies = [
     # Framework
-    "Django==5.1.4",
-    "wagtail==6.3.1",
+    # Same-branch patch bumps only (reviews/2026-09-22-final-security-review.md
+    # finding 5): Django 5.1.4 -> 5.1.15, wagtail 6.3.1 -> 6.3.8, Pillow
+    # 11.0.0 -> 11.3.0 — every advisory pip-audit reported at the old pins is
+    # already fixed on the same branch already committed to; none of these is
+    # a major/minor jump. Verified against PyPI's release/yanked metadata and
+    # Wagtail 6.3.8's own requires_dist (Django<6.0,>=4.2) before bumping.
+    "Django==5.1.15",
+    "wagtail==6.3.8",
     "django-modelcluster==6.3",
     "django-taggit==6.1.0",
     # htmx integration
@@ -20,13 +26,28 @@ dependencies = [
     "dj-database-url==2.3.0",
     # Static / media
     "whitenoise==6.7.0",
-    "Pillow==11.0.0",
+    "Pillow==11.3.0",
     # WSGI server
     "gunicorn==23.0.0",
     # Payments
     "stripe==15.6.1",
     # XML parsing (Blogger feed import) — hardened against XXE/entity expansion
     "defusedxml==0.7.1",
+    # Rate limiting (reviews/2026-09-22-final-security-review.md finding 1) —
+    # decorator library only, no INSTALLED_APPS entry and no models of its
+    # own (verified against its PyPI long description). booking-payments and
+    # the contact endpoints apply @ratelimit to their own views; this repo
+    # only supplies the pinned dependency and the shared cache backend it
+    # rate-limits against (config/settings/base.py CACHES).
+    "django-ratelimit==4.1.0",
+    # Admin login brute-force protection (finding 4). Chosen over reusing
+    # django-ratelimit for this: django-ratelimit is a per-view decorator,
+    # and neither Django's nor Wagtail's own admin login view is ours to
+    # decorate from this repo's settings-only scope. django-axes hooks
+    # AUTHENTICATION_BACKENDS/MIDDLEWARE instead, so it covers both
+    # /django-admin/ and /admin/ (Wagtail's own login view still calls
+    # Django's authenticate()) with a settings-only change.
+    "django-axes==8.3.1",
 ]
 
 # Test tooling — installed in the "dev" Dockerfile stage only (`pip install

@@ -39,6 +39,17 @@ PYEOF
 if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
     echo "entrypoint: RUN_MIGRATIONS=true, applying migrations..."
     python manage.py migrate --noinput
+
+    # The rate-limit cache table (CACHES in config/settings/base.py, finding
+    # 1 in reviews/2026-09-22-final-security-review.md) is schema, same as a
+    # migration — created here, once, deliberately, not on every container
+    # start. createcachetable is safe to run against a table that already
+    # exists: it checks connection.introspection.table_names() first and
+    # returns without error (verified against django==5.1's own
+    # createcachetable command source), so re-running this step on a later
+    # one-off deploy is a no-op, not a failure.
+    echo "entrypoint: ensuring the rate-limit cache table exists..."
+    python manage.py createcachetable
 else
     echo "entrypoint: RUN_MIGRATIONS is not true, skipping migrations."
 fi
