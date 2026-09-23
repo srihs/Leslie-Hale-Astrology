@@ -11,6 +11,9 @@ import pytest
 from django.test import Client
 
 from apps.contact.models import ContactSubmission, NewsletterSignup
+from apps.contact.tests.factories import make_contact_page
+from apps.home.tests.factories import make_home_page
+from conftest import assert_full_page_response, assert_htmx_fragment_response
 
 pytestmark = pytest.mark.django_db
 
@@ -24,6 +27,7 @@ def _client(use_htmx: bool) -> Client:
 
 @pytest.mark.parametrize("use_htmx", [False, True])
 def test_valid_contact_submission_is_saved(use_htmx):
+    make_contact_page()
     client = _client(use_htmx)
     response = client.post(
         CONTACT_URL,
@@ -37,6 +41,15 @@ def test_valid_contact_submission_is_saved(use_htmx):
     assert submission.message == "[Question] Hello there."
     assert submission.newsletter_opt_in is False
     assert b"sent" in response.content.lower() or b"thank" in response.content.lower()
+
+    # FINDING 1, reviews/2026-09-22-final-build-review.md: a no-JS POST
+    # used to get the bare `_contact_form.html` fragment back — no
+    # <!DOCTYPE>, no nav, no stylesheet — identical to the htmx response.
+    # These two branches must not converge in either direction.
+    if use_htmx:
+        assert_htmx_fragment_response(response, fragment_id="contact-form-wrap")
+    else:
+        assert_full_page_response(response, fragment_id="contact-form-wrap")
 
 
 @pytest.mark.parametrize("use_htmx", [False, True])
@@ -108,6 +121,27 @@ def test_missing_name_error_is_visible_to_the_visitor(use_htmx):
 def test_contact_get_is_not_allowed():
     response = Client().get(CONTACT_URL)
     assert response.status_code == 405
+
+
+@pytest.mark.parametrize("use_htmx", [False, True])
+def test_newsletter_signup_response_shape_matches_the_request_type(use_htmx):
+    """FINDING 1, reviews/2026-09-22-final-build-review.md: a no-JS
+    newsletter POST used to get the bare `_newsletter_form.html` fragment
+    back — no <!DOCTYPE>, no nav, no stylesheet — identical to the htmx
+    response, contradicting the template's own "full page reload on
+    submit" comment. `next` is set to a real page path here (as the real
+    hidden field always is — `includes/_newsletter_form.html` sets it to
+    `request.path`) so `_render_referring_page` actually resolves and
+    exercises the full-page branch, not its no-page-found fallback."""
+    home = make_home_page()
+    client = _client(use_htmx)
+    response = client.post(NEWSLETTER_URL, data={"email": "reader@example.com", "next": home.url})
+
+    assert response.status_code == 200
+    if use_htmx:
+        assert_htmx_fragment_response(response, fragment_id="newsletter-form")
+    else:
+        assert_full_page_response(response, fragment_id="newsletter-form")
 
 
 @pytest.mark.parametrize("use_htmx", [False, True])

@@ -25,9 +25,10 @@ from freezegun import freeze_time
 
 from apps.bookings import views as bookings_views
 from apps.bookings.models import Booking, BookingStatus
-from apps.bookings.tests.factories import BookingFactory
+from apps.bookings.tests.factories import BookingFactory, make_booking_page
 from apps.bookings.tests.payments import CheckoutSession, PaymentProviderError, StubPaymentProvider
 from apps.readings.tests.factories import ReadingFactory
+from conftest import assert_full_page_response, assert_htmx_fragment_response
 
 pytestmark = pytest.mark.django_db
 
@@ -76,6 +77,14 @@ def _availability_stub(monkeypatch, reading, slots):
 
 @freeze_time(NOW)
 def test_checkout_without_staged_details_shows_a_friendly_error(client, monkeypatch):
+    """The no-JS checkout-error path: a plain POST (Django's test `client`
+    fixture sends no `HX-Request` header) must get the *whole* booking
+    page back with the error shown in place, not the bare
+    `_checkout_error.html` fragment on its own — FINDING 1, reviews/
+    2026-09-22-final-build-review.md. Compare
+    `test_checkout_without_staged_details_shows_a_friendly_error_via_htmx`
+    below, which proves the inverse for the same failure."""
+    make_booking_page()
     reading = ReadingFactory()
     _availability_stub(monkeypatch, reading, [SLOT_START])
     monkeypatch.setattr(
@@ -87,6 +96,29 @@ def test_checkout_without_staged_details_shows_a_friendly_error(client, monkeypa
     assert response.status_code == 400
     assert b"details" in response.content.lower()
     assert Booking.objects.count() == 0
+    assert_full_page_response(response, fragment_id="checkout-error")
+
+
+@freeze_time(NOW)
+def test_checkout_without_staged_details_shows_a_friendly_error_via_htmx(monkeypatch):
+    """The htmx twin of the test above, proving the two branches don't
+    converge: an htmx request for the same failure must get back only the
+    bare `_checkout_error.html` fragment, not the whole page nested inside
+    the swap target."""
+    make_booking_page()
+    reading = ReadingFactory()
+    _availability_stub(monkeypatch, reading, [SLOT_START])
+    monkeypatch.setattr(
+        bookings_views, "get_provider", lambda: StubPaymentProvider(checkout_session=CheckoutSession("x", "https://x"))
+    )
+    htmx_client = Client(headers={"HX-Request": "true"})
+
+    response = htmx_client.post(CHECKOUT_URL, data=_checkout_payload(reading))
+
+    assert response.status_code == 400
+    assert b"details" in response.content.lower()
+    assert Booking.objects.count() == 0
+    assert_htmx_fragment_response(response, fragment_id="checkout-error")
 
 
 @freeze_time(NOW)

@@ -71,3 +71,27 @@ class PaymentEventFactory(factory.django.DjangoModelFactory):
     provider = "stripe"
     event_id = factory.Sequence(lambda n: f"evt_{n}")
     event_type = "payment_succeeded"
+
+
+def make_booking_page(**overrides):
+    """
+    A real, live `bookings.BookingPage` under a real HomePage.
+
+    Needed by any test asserting the non-htmx branch of `save_details` /
+    `_checkout_error` actually renders the *owning page*
+    (`apps.bookings.views._render_booking_page`) rather than its "no
+    BookingPage published" fallback — without a live BookingPage in the
+    test database, `BookingPage.objects.live().first()` is `None` and
+    every one of those views silently takes the fallback path instead of
+    the one FINDING 1 (reviews/2026-09-22-final-build-review.md) fixed,
+    which would make a shape assertion pass for the wrong reason.
+    """
+    from apps.bookings.models import BookingPage
+    from apps.home.tests.factories import make_home_page
+
+    home = overrides.pop("home", None) or make_home_page()
+    field_defaults = dict(title="Book a Reading", slug=overrides.pop("slug", "book-a-reading-test"))
+    field_defaults.update(overrides)
+    page = BookingPage(**field_defaults)
+    home.add_child(instance=page)
+    return page

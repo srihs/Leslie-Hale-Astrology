@@ -13,7 +13,8 @@ import pytest
 from django.test import Client
 
 from apps.bookings.models import BookingStatus
-from apps.bookings.tests.factories import BookingFactory
+from apps.bookings.tests.factories import BookingFactory, make_booking_page
+from conftest import assert_full_page_response, assert_htmx_fragment_response
 
 pytestmark = pytest.mark.django_db
 
@@ -32,6 +33,7 @@ VALID = {
 
 @pytest.mark.parametrize("use_htmx", [False, True])
 def test_valid_details_are_staged_in_the_session(use_htmx):
+    make_booking_page()
     client = Client(headers={"HX-Request": "true"} if use_htmx else {})
 
     response = client.post(DETAILS_URL, data=VALID)
@@ -39,6 +41,15 @@ def test_valid_details_are_staged_in_the_session(use_htmx):
     assert response.status_code == 200
     assert client.session["booking_details"]["email"] == "jamie@example.com"
     assert b"saved" in response.content.lower()
+
+    # FINDING 1, reviews/2026-09-22-final-build-review.md: a no-JS POST
+    # here used to get the bare `_details_form.html` fragment back — no
+    # <!DOCTYPE>, no nav, no stylesheet — identical to the htmx response.
+    # These two branches must not converge in either direction.
+    if use_htmx:
+        assert_htmx_fragment_response(response, fragment_id="booking-details-form")
+    else:
+        assert_full_page_response(response, fragment_id="booking-details-form")
 
 
 @pytest.mark.parametrize("use_htmx", [False, True])
