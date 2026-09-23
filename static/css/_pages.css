@@ -158,6 +158,20 @@
 .opt .p{margin-left:auto;font-family:var(--serif);font-size:22px;color:var(--gold);white-space:nowrap}
 .opt:has(input:checked){border-color:var(--gold);background:var(--bg-3)}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:8px 0 22px}
+/* Narrow-viewport tap-target fix (reviews/2026-09-22-final-accessibility-
+   audit.md finding 8): confirmed live at 320px, day buttons computed to
+   ~29.4px wide against a 44px min-height. The 7-column grid inside the
+   panel's own clamp(24px,3vw,36px) padding cannot reach 44px square without
+   either dropping a column (breaks the calendar's week structure) or
+   shrinking --pad/.panel padding for every other element in the panel, not
+   just the calendar. Instead the calendar alone bleeds into the panel's
+   padding (negative margin mirrors the same clamp() the padding uses, so it
+   tracks correctly above 320px too) and reclaims most of that space with a
+   much smaller padding of its own — every other element in .panel keeps its
+   original padding untouched. This does not reach 44px; see delivery report
+   for the measured result and why 44px square is not reachable here without
+   a structural change outside static/css/. */
+@media(max-width:380px){.cal{gap:2px;margin-inline:calc(clamp(24px,3vw,36px) * -1);padding-inline:2px}}
 .cal span{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:center;padding:6px 0}
 .cal button{background:var(--bg);border:1px solid var(--line);color:var(--ink);min-height:44px;font:inherit;cursor:pointer}
 .cal button:hover{border-color:var(--gold)}
