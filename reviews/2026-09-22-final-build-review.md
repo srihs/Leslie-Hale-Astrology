@@ -67,7 +67,7 @@ config, migrations, tests); stack run live via `docker compose` on
   existing parametrized tests that the non-htmx branch's response contains
   the site chrome.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. The no-JS claim was made in my own commit message for c3a6aa7 and was false. Owner: `htmx-frontend`. The tests asserting only status and body text are themselves a finding: `test-engineer` should assert response shape so this cannot pass again.
 
 ### 2. The booking page hardcodes two different, invented cancellation/refund policies directly in the template, bypassing the CMS field built for exactly this purpose
 
@@ -118,7 +118,7 @@ config, migrations, tests); stack run live via `docker compose` on
   model, documented in the template's own header comment as a context
   value, and never output.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. This is 6947cc5's §8 violation reintroduced in a different file, and two invented policies that contradict each other is worse than one. Render `BookingPage.cancellation_policy` and delete both literals. Owner: `htmx-frontend`.
 
 ### 3. Homepage hero hardcodes "60 min" as a blanket duration claim, contradicting the per-reading duration model
 
@@ -148,7 +148,7 @@ config, migrations, tests); stack run live via `docker compose` on
   (not a specific claim), or make it CMS-editable/derived from the
   featured readings' actual durations.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. Same defect class: a blanket duration asserted over a per-reading model. Owner: `htmx-frontend`.
 
 ### 4. The one pre-existing box-shadow focus ring is still unreconciled with §7 at final handover
 
@@ -175,7 +175,7 @@ config, migrations, tests); stack run live via `docker compose` on
   drop-shadow) or explicitly accept the exception and remove the "not
   fixed" language.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now, together with accessibility finding 3, which measured the substitute ring at 1.46:1 against a 3:1 requirement. That measurement settles the §7 tension: the ring fails WCAG, so it is not a house-style preference to preserve. Owner: `design-system`.
 
 ## Reviewed and found sound
 

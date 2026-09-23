@@ -62,7 +62,7 @@ measurement.
   content - e.g. the just-selected control's equivalent in the new DOM, or the panel's own heading
   with `tabindex="-1"` - mirroring the pattern `main.js` already uses for `.ok` on form success.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. This is the conversion path, and it breaks for keyboard users at every step. Owner: `htmx-frontend`, in `static/js/main.js`.
 
 ### 2. Validation errors are shown for fields that are not in error - the fix in `3c76760` is incomplete
 
@@ -99,7 +99,7 @@ measurement.
   `.field [aria-invalid="true"] ~ .err{display:block}` (the existing markup order - input, then
   `.err` - already supports a sibling selector), and remove `.form.invalid .err`.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. My fix in 3c76760 was incomplete and I described it as complete. A form-level class cannot scope a per-field message. Owner: `design-system`.
 
 ### 3. Text inputs lose the sitewide focus-visible contract; the substitute focus ring measures approx 1.46:1, far under the 3:1 minimum - escalates the open item in final-build-review finding 4
 
@@ -137,7 +137,7 @@ measurement.
   of the already-pending item in `reviews/2026-09-22-final-build-review.md` #4, not a duplicate -
   that review's adjudication should account for the measured ratio.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now, with build-review finding 4. The measured 1.46:1 is what decides it.
 
 ### 4. The booking-status poller replaces its own aria-live region wholesale every 2 seconds
 
@@ -168,7 +168,7 @@ measurement.
   re-render when the status actually changes rather than on every tick; consider slowing the
   interval or backing off geometrically instead of a flat 2s while pending.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. Owner: `htmx-frontend`.
 
 ### 5. Booking page skips from H1 straight to H3 throughout its main content
 
@@ -191,7 +191,7 @@ measurement.
   "Payment status"), and demote Steps 1-3 to genuine h3 children of it - which they already are
   visually, just not structurally.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. Owner: `htmx-frontend`.
 
 ### 6. No-JS mobile-menu checkbox sits before the brand link in tab order - already-disclosed trade-off, narrower in practice than it first appears
 
@@ -223,7 +223,7 @@ measurement.
   before it) while keeping it ahead of `<nav>` would fix the ordering without disturbing the CSS
   sibling-combinator mechanism.
 
-**Adjudication:** _pending_
+**Adjudication:** deferred — the trade-off was disclosed by `design-system` when it built the mechanism, and this audit independently judges it narrower in practice than it sounds. The only alternative that preserves tab order is `:has()`, whose failure mode is a silent regression to an unnavigable mobile menu. I would rather carry a known, documented tab-order irregularity than a mechanism that fails invisibly. Revisit if `:has()` support ever stops being the concern.
 
 ### 7. Decorative editorial images carry alt text that duplicates the adjacent heading instead of alt=""
 
@@ -249,7 +249,7 @@ measurement.
   the scope's own framing of this imagery as decorative; keep real alt text only where the image
   is genuinely informative (the About portrait).
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. Owner: `htmx-frontend`.
 
 ### 8. Booking-calendar day buttons compute to roughly 30px wide at 320px viewport width
 
@@ -274,7 +274,7 @@ measurement.
   a scrollable/paginated day list or reducing the number of visible weeks rather than shrinking
   every cell.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. Owner: `design-system`. The audience is women 27–70 (§2), which makes small targets a real failure rather than a checkbox.
 
 ## Reviewed and found sound
 

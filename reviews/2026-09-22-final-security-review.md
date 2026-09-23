@@ -56,7 +56,7 @@ patterns, manual read of every file listed above.
   session/IP, independent of the general rate limit, since the exclusion constraint alone
   does not stop one actor from holding many different slots.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. A scripted attacker holding every slot for 15 minutes at a time, indefinitely, without paying, takes out the site's only revenue mechanism. Owners: `docker-infra` for the dependency, then `booking-payments` and the contact endpoints.
 
 ### 2. No Subresource Integrity on third-party CDN scripts
 
@@ -81,7 +81,7 @@ patterns, manual read of every file listed above.
   publish stable hashes for pinned versions); low effort for the residual defence-in-depth
   it buys given the booking form now sits behind these scripts.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. Four fixed-version URLs is the cheapest this will ever be. Owner: `htmx-frontend`.
 
 ### 3. Wagtail image/document upload limits still not configured
 
@@ -101,7 +101,7 @@ patterns, manual read of every file listed above.
   server-side, which is more a resource-exhaustion/storage-cost issue than a direct
   security hole given the admin-only reach.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. Admin-only reach bounds the severity, but relying on an unreviewed framework default is not a decision. Owner: `docker-infra`.
 
 ### 4. No brute-force protection on the Wagtail/Django admin login
 
@@ -121,7 +121,7 @@ patterns, manual read of every file listed above.
   with a sane lockout threshold; alternatively, restrict `/admin/` and `/django-admin/` at
   the edge/proxy to known IPs if Leslie and the agency work from stable locations.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. Owner: `docker-infra`.
 
 ---
 
@@ -157,7 +157,7 @@ patterns, manual read of every file listed above.
   otherwise on the roadmap, do it as part of that) before go-live, then re-run
   `pip-audit`. This is routine maintenance, not a redesign.
 
-**Adjudication:** _pending_
+**Adjudication:** accepted — fix now. 94 advisories, all fixed in later point releases on the branch already pinned, is not a defensible thing to hand over. I flagged the upgrade as carrying its own risk: that risk is managed by the 110-test suite, which must pass after the bump, not by leaving the CVEs in place. Owner: `docker-infra`.
 
 ### 6. No data-retention policy for collected personal data
 
@@ -178,7 +178,7 @@ patterns, manual read of every file listed above.
   Privacy Act principles around keeping personal information no longer than necessary,
   but this is a policy gap, not a bug.
 
-**Adjudication:** _pending_
+**Adjudication:** deferred — pending the client. A retention period for booking records, birth data and contact submissions is a business and legal decision Leslie has to make, not one I can pick for her. Added to the §8 open items rather than invented. The finding is right and stays open.
 
 ---
 
