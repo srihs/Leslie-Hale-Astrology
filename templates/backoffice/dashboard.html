@@ -1,0 +1,44 @@
+{% extends "backoffice/base.html" %}
+{% comment %}
+Context (apps.backoffice.views.dashboard.DashboardView): upcoming_booking_count
+(int), next_booking (a bookings.Booking with .start_at_local/.display_tz_label
+attached, or None — see that view's own docstring), active_reading_count (int).
+No editing happens here; every link below goes to the screen that does.
+{% endcomment %}
+{% block title %}Dashboard — Manage — Leslie Hale Astrology{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<p class="bo-lede">Welcome back{% if request.user.get_short_name %}, {{ request.user.get_short_name }}{% elif request.user.username %}, {{ request.user.username }}{% endif %}.</p>
+
+<div class="bo-stat-grid">
+  <div class="bo-stat-card">
+    <p class="bo-stat-number">{{ upcoming_booking_count }}</p>
+    <p class="bo-stat-label">Upcoming booking{{ upcoming_booking_count|pluralize }}</p>
+  </div>
+  <div class="bo-stat-card">
+    <p class="bo-stat-number">{{ active_reading_count }}</p>
+    <p class="bo-stat-label">Reading{{ active_reading_count|pluralize }} shown on your site</p>
+  </div>
+</div>
+
+<section class="bo-panel" aria-labelledby="next-booking-heading">
+  <h2 id="next-booking-heading">Next booking</h2>
+  {% if next_booking %}
+  <p>
+    <strong>{{ next_booking.reading.name }}</strong> with {{ next_booking.client_first_name }} {{ next_booking.client_last_name }}<br>
+    {{ next_booking.start_at_local|date:"l j F, g:ia" }} ({{ next_booking.display_tz_label }})
+  </p>
+  <a class="bo-btn bo-btn-secondary" href="{% url 'backoffice:booking_detail' next_booking.public_ref %}">View this booking</a>
+  {% else %}
+  <p class="bo-empty">No upcoming bookings yet.</p>
+  {% endif %}
+</section>
+
+<nav class="bo-quick-links" aria-label="Quick links">
+  <a class="bo-btn bo-btn-primary" href="{% url 'backoffice:booking_list' %}">View all bookings</a>
+  <a class="bo-btn" href="{% url 'backoffice:reading_list' %}">Manage readings &amp; prices</a>
+  <a class="bo-btn" href="{% url 'backoffice:availability' %}">Set your availability</a>
+  <a class="bo-btn" href="{% url 'backoffice:blog_list' %}">Write a blog post</a>
+  <a class="bo-btn" href="{% url 'backoffice:website_text' %}">Edit website text</a>
+</nav>
+{% endblock %}

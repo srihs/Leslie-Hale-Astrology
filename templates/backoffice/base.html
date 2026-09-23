@@ -1,0 +1,105 @@
+{% comment %}
+Base template for /manage/, the bespoke admin htmx-frontend owns (see this
+task's final report for the full template/endpoint list).
+
+Deliberately NOT an extension of the public site's templates/base.html:
+that template carries v1-ephemeris's locked brand (§7) — GSAP/ScrollTrigger/
+Lenis, the Cormorant/Inter font pair, the marketing nav. This is an
+internal tool for Leslie alone; the task brief is explicit that legibility
+beats brand here and that the public site's motion/decorative treatments
+must NOT be imported. So /manage/ gets its own base, its own stylesheet
+(static/css/backoffice.css — design-system's to build; this template only
+links to it), and only the one piece of the public stack that genuinely
+earns its place here too: htmx, for the two interactions named in the
+task brief (bookings status filter, blog pagination) — see booking_list.html
+and blog_list.html for exactly how, and their own comments for the no-JS
+path each keeps.
+
+CSS classes this template expects design-system to provide (see final
+report for the complete list across every /manage/ template): .bo-skip,
+.bo-header, .bo-brand, .bo-nav, .bo-nav a[aria-current], .bo-logout-form,
+.bo-logout-btn, .bo-main, .bo-messages, .bo-message,
+.bo-message--success/error/warning/info, .bo-visually-hidden.
+
+Every /manage/ view runs through BackofficeAccessRequiredMixin
+(apps/backoffice/permissions.py) except login/logout, so `request.user` is
+either anonymous (login page only) or a permitted account — the nav below
+is hidden for the former without a second permission check.
+{% endcomment %}
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{% block title %}Manage — Leslie Hale Astrology{% endblock %}</title>
+<link rel="stylesheet" href="{% static 'css/backoffice.css' %}">
+{% block extra_head %}{% endblock %}
+</head>
+<body class="bo{% block body_class %}{% endblock %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<a class="bo-skip" href="#main">Skip to content</a>
+
+{% if request.user.is_authenticated %}
+<header class="bo-header">
+  <div class="bo-header-inner">
+    <a class="bo-brand" href="{% url 'backoffice:dashboard' %}">Leslie Hale — Manage</a>
+    <nav class="bo-nav" aria-label="Manage menu">
+      <ul>
+        <li><a href="{% url 'backoffice:dashboard' %}"{% if request.resolver_match.url_name == "dashboard" %} aria-current="page"{% endif %}>Dashboard</a></li>
+        <li><a href="{% url 'backoffice:booking_list' %}"{% if "booking" in request.resolver_match.url_name %} aria-current="page"{% endif %}>Bookings</a></li>
+        <li><a href="{% url 'backoffice:reading_list' %}"{% if "reading" in request.resolver_match.url_name %} aria-current="page"{% endif %}>Readings &amp; prices</a></li>
+        <li><a href="{% url 'backoffice:availability' %}"{% if "availability" in request.resolver_match.url_name %} aria-current="page"{% endif %}>Availability</a></li>
+        <li><a href="{% url 'backoffice:blog_list' %}"{% if "blog" in request.resolver_match.url_name %} aria-current="page"{% endif %}>Blog</a></li>
+        <li><a href="{% url 'backoffice:website_text' %}"{% if request.resolver_match.url_name == "website_text" %} aria-current="page"{% endif %}>Website text</a></li>
+      </ul>
+    </nav>
+    <form class="bo-logout-form" method="post" action="{% url 'backoffice:logout' %}">
+      {% csrf_token %}
+      <button class="bo-logout-btn" type="submit">Log out</button>
+    </form>
+  </div>
+</header>
+{% endif %}
+
+<main id="main" class="bo-main">
+  {% if messages %}
+  <ul class="bo-messages" role="status">
+    {% for message in messages %}
+    <li class="bo-message bo-message--{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% block content %}{% endblock %}
+</main>
+
+{% comment %}
+htmx only — same pinned version/SRI as the public site's templates/base.html
+(reviews/2026-09-22-final-security-review.md finding 2), reused verbatim
+since it's the same already-vetted file. No GSAP, no Lenis, no
+static/js/main.js: this screen carries none of the public site's motion.
+
+The tiny inline script below is the one JS-only enhancement /manage/ adds
+of its own: a generic double-check on any form marked `data-confirm="…"`
+before it submits (used by booking_detail.html's cancel form and every
+delete-confirm screen's own form, alongside that screen's own permanent,
+always-visible warning text — see each template's comment). With
+JavaScript off, `data-confirm` is inert and the form submits directly to
+its normal POST endpoint, which is why every one of those screens states
+what the action does in plain, permanent text ABOVE the button rather
+than relying on this dialog to carry that information — the dialog is a
+second check, not the only one.
+{% endcomment %}
+<script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous" defer></script>
+<script>
+document.addEventListener("submit", function (event) {
+  var form = event.target;
+  if (form.hasAttribute && form.hasAttribute("data-confirm")) {
+    if (!window.confirm(form.getAttribute("data-confirm"))) {
+      event.preventDefault();
+    }
+  }
+});
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

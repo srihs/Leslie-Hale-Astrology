@@ -1,0 +1,103 @@
+{% extends "backoffice/base.html" %}
+{% comment %}
+Context (apps.backoffice.views.blog.BlogPostListView): posts (a Page of
+blog.BlogPost, .featured_image/.category select_related, ordered by
+-published_date), page_obj, is_paginated (paginate_by = 20 —
+apps/backoffice/views/blog.py), q (the cleaned `?q=` value, "" when no
+search is active — see that view). ~1460 posts migrated from the Keen
+archive means up to ~73 pages; `q` filters by title only
+(case-insensitive substring) so Leslie can find her own post among them
+— see BlogPostListView's docstring for why title-only.
+
+The "Go to page" control below is NOT a new feature — it posts to the same
+`?page=` the Previous/Next links already use, just letting Leslie jump
+straight to a page number instead of clicking through 70-odd of them. It
+now also carries `q` forward as a hidden field, same as the Previous/Next
+links do via {% querystring %} — without that, jumping to a page while a
+search is active would silently drop the search.
+
+htmx: same technique as templates/blog/partials/_post_list.html on the
+public site (BlogPostListView never branches on request.htmx either) —
+hx-select pulls #post-table out of the full-page response client-side.
+No-JS path: the search box is a real `<form method="get">` and every
+pager control is a real `<a href="?page=…">` or a real
+`<form method="get">`; typing a term and pressing "Search" (or Enter)
+reloads the page with `?q=` set, exactly as htmx does it via hx-get on
+the same form.
+{% endcomment %}
+{% block title %}Blog — Manage — Leslie Hale Astrology{% endblock %}
+{% block content %}
+<div class="bo-section-header">
+  <h1>Blog</h1>
+  <a class="bo-btn bo-btn-primary" href="{% url 'backoffice:blog_create' %}">Write a new post</a>
+</div>
+
+<form class="bo-filter-form" method="get" aria-label="Search blog posts by title"
+      hx-get="{% url 'backoffice:blog_list' %}" hx-target="#post-table" hx-select="#post-table" hx-swap="outerHTML" hx-push-url="true">
+  <div class="bo-field bo-field-inline">
+    <label for="q">Search by title</label>
+    <input type="text" id="q" name="q" value="{{ q }}" placeholder="e.g. Saturn return">
+  </div>
+  <button class="bo-btn" type="submit">Search</button>
+  {% if q %}<a class="bo-btn" href="{% url 'backoffice:blog_list' %}">Clear search</a>{% endif %}
+</form>
+
+<div id="post-table" aria-live="polite">
+  {% if posts %}
+  <table class="bo-table">
+    <caption class="bo-visually-hidden">Blog posts</caption>
+    <thead>
+      <tr>
+        <th scope="col">Title</th>
+        <th scope="col">Category</th>
+        <th scope="col">Published</th>
+        <th scope="col">Status</th>
+        <th scope="col"><span class="bo-visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for post in posts %}
+      <tr>
+        <td>{{ post.title }}</td>
+        <td>{{ post.category.name|default:"—" }}</td>
+        <td>{{ post.published_date|date:"j M Y" }}</td>
+        <td>{% if post.live %}<span class="bo-badge bo-badge-live">Published</span>{% else %}<span class="bo-badge bo-badge-draft">Draft</span>{% endif %}</td>
+        <td class="bo-row-actions">
+          <a href="{% url 'backoffice:blog_update' post.pk %}">Edit</a>
+          <a href="{% url 'backoffice:blog_delete' post.pk %}">Delete</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if is_paginated %}
+  <nav class="bo-pager" aria-label="Blog post pages">
+    {% if page_obj.has_previous %}
+    <a id="pager-prev" href="{% querystring page=page_obj.previous_page_number %}"
+       hx-get="{% querystring page=page_obj.previous_page_number %}" hx-target="#post-table" hx-select="#post-table" hx-swap="outerHTML" hx-push-url="true">Previous</a>
+    {% endif %}
+    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a id="pager-next" href="{% querystring page=page_obj.next_page_number %}"
+       hx-get="{% querystring page=page_obj.next_page_number %}" hx-target="#post-table" hx-select="#post-table" hx-swap="outerHTML" hx-push-url="true">Next</a>
+    {% endif %}
+  </nav>
+  <form class="bo-jump-form" method="get" aria-label="Go to a specific page"
+        hx-get="{% url 'backoffice:blog_list' %}" hx-target="#post-table" hx-select="#post-table" hx-swap="outerHTML" hx-push-url="true">
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    <label for="jump-page">Go to page (1–{{ page_obj.paginator.num_pages }})</label>
+    <input type="number" id="jump-page" name="page" min="1" max="{{ page_obj.paginator.num_pages }}" value="{{ page_obj.number }}">
+    <button class="bo-btn" type="submit">Go</button>
+  </form>
+  {% endif %}
+
+  {% else %}
+  {% if q %}
+  <p class="bo-empty">No posts match &ldquo;{{ q }}&rdquo;.<br><a class="bo-btn" href="{% url 'backoffice:blog_list' %}">Clear search</a></p>
+  {% else %}
+  <p class="bo-empty">No blog posts yet — write your first one.</p>
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

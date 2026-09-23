@@ -1,0 +1,114 @@
+{% extends "backoffice/base.html" %}
+{% load wagtailimages_tags %}
+{% comment %}
+Context (apps.backoffice.views.readings.ReadingCreateView/UpdateView): form
+— a ReadingForm (apps/backoffice/forms.py). Every label there already spells
+out which public page(s) it affects; this template just renders them as-is
+rather than repeating shorter versions that could drift out of sync.
+{% endcomment %}
+{% block title %}{% if form.instance.pk %}Edit reading{% else %}Add a reading{% endif %} — Manage — Leslie Hale Astrology{% endblock %}
+{% block content %}
+<a class="bo-back-link" href="{% url 'backoffice:reading_list' %}">&larr; Back to readings</a>
+<h1>{% if form.instance.pk %}Edit '{{ form.instance.name }}'{% else %}Add a reading{% endif %}</h1>
+
+<form class="bo-form" method="post" enctype="multipart/form-data" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="bo-form-error" role="alert">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+  {% endif %}
+
+  <div class="bo-field">
+    <label for="id_name">{{ form.name.label }}</label>
+    <input type="text" id="id_name" name="name" required value="{{ form.name.value|default_if_none:'' }}"
+           aria-describedby="name-err" aria-invalid="{% if form.name.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="name-err">{{ form.name.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_tag_label">{{ form.tag_label.label }}</label>
+    <input type="text" id="id_tag_label" name="tag_label" value="{{ form.tag_label.value|default_if_none:'' }}"
+           aria-describedby="tag_label-err" aria-invalid="{% if form.tag_label.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="tag_label-err">{{ form.tag_label.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_summary">{{ form.summary.label }}</label>
+    <textarea id="id_summary" name="summary" rows="2" required
+              aria-describedby="summary-err" aria-invalid="{% if form.summary.errors %}true{% else %}false{% endif %}">{{ form.summary.value|default_if_none:"" }}</textarea>
+    <span class="bo-err" id="summary-err">{{ form.summary.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_description">{{ form.description.label }}</label>
+    <textarea id="id_description" name="description" rows="6"
+              aria-describedby="description-err" aria-invalid="{% if form.description.errors %}true{% else %}false{% endif %}">{{ form.description.value|default_if_none:"" }}</textarea>
+    <span class="bo-err" id="description-err">{{ form.description.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_features_text">{{ form.features_text.label }}</label>
+    <p class="bo-hint">{{ form.features_text.help_text }}</p>
+    <textarea id="id_features_text" name="features_text" rows="4"
+              aria-describedby="features_text-err" aria-invalid="{% if form.features_text.errors %}true{% else %}false{% endif %}">{{ form.features_text.value|default_if_none:"" }}</textarea>
+    <span class="bo-err" id="features_text-err">{{ form.features_text.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_duration_minutes">{{ form.duration_minutes.label }}</label>
+    <input type="number" id="id_duration_minutes" name="duration_minutes" min="0" step="1"
+           value="{{ form.duration_minutes.value|default_if_none:'' }}"
+           aria-describedby="duration_minutes-err" aria-invalid="{% if form.duration_minutes.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="duration_minutes-err">{{ form.duration_minutes.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_price">{{ form.price.label }}</label>
+    <input type="number" id="id_price" name="price" min="0" step="0.01"
+           value="{{ form.price.value|default_if_none:'' }}"
+           aria-describedby="price-err" aria-invalid="{% if form.price.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="price-err">{{ form.price.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_price_note">{{ form.price_note.label }}</label>
+    <input type="text" id="id_price_note" name="price_note" value="{{ form.price_note.value|default_if_none:'' }}"
+           aria-describedby="price_note-err" aria-invalid="{% if form.price_note.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="price_note-err">{{ form.price_note.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_order">{{ form.order.label }}</label>
+    <input type="number" id="id_order" name="order" step="1" value="{{ form.order.value|default_if_none:'0' }}"
+           aria-describedby="order-err" aria-invalid="{% if form.order.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="order-err">{{ form.order.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field bo-field--checkbox">
+    <label class="bo-checkbox-label"><input type="checkbox" id="id_is_active" name="is_active"{% if form.is_active.value %} checked{% endif %}> {{ form.is_active.label }}</label>
+  </div>
+
+  <div class="bo-field bo-field--checkbox">
+    <label class="bo-checkbox-label"><input type="checkbox" id="id_is_most_booked" name="is_most_booked"{% if form.is_most_booked.value %} checked{% endif %}> {{ form.is_most_booked.label }}</label>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_image_upload">{{ form.image_upload.label }}</label>
+    <p class="bo-hint">{{ form.image_upload.help_text }}</p>
+    {% if form.instance.image %}
+    <p class="bo-current-image">{% image form.instance.image fill-160x120 alt="" %}</p>
+    {% endif %}
+    <input type="file" id="id_image_upload" name="image_upload" accept="image/*"
+           aria-describedby="image_upload-err" aria-invalid="{% if form.image_upload.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="image_upload-err">{{ form.image_upload.errors.0|default:"" }}</span>
+  </div>
+
+  {% if form.instance.image %}
+  <div class="bo-field bo-field--checkbox">
+    <label class="bo-checkbox-label"><input type="checkbox" id="id_remove_image" name="remove_image"> {{ form.remove_image.label }}</label>
+  </div>
+  {% endif %}
+
+  <button class="bo-btn bo-btn-primary" type="submit">Save</button>
+  <a class="bo-btn" href="{% url 'backoffice:reading_list' %}">Cancel</a>
+</form>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "backoffice/base.html" %}
+{% comment %}
+Context (apps.backoffice.views.availability.AvailabilityRuleCreateView/
+UpdateView): form — an AvailabilityRuleForm (apps/backoffice/forms.py).
+Choices for the weekday <select> come from `form.weekday.field.choices`
+(bookings.models.Weekday) rather than being hardcoded here, so this stays
+correct if that list ever changes.
+{% endcomment %}
+{% block title %}{% if form.instance.pk %}Edit weekly window{% else %}Add a weekly window{% endif %} — Manage — Leslie Hale Astrology{% endblock %}
+{% block content %}
+<a class="bo-back-link" href="{% url 'backoffice:availability' %}">&larr; Back to availability</a>
+<h1>{% if form.instance.pk %}Edit weekly window{% else %}Add a weekly window{% endif %}</h1>
+<p class="bo-lede">A weekly window repeats every week until you switch it off or delete it.</p>
+
+<form class="bo-form" method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="bo-form-error" role="alert">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+  {% endif %}
+
+  <div class="bo-field">
+    <label for="id_weekday">{{ form.weekday.label }}</label>
+    <select id="id_weekday" name="weekday" required
+            aria-describedby="weekday-err" aria-invalid="{% if form.weekday.errors %}true{% else %}false{% endif %}">
+      {% for choice_value, choice_label in form.weekday.field.choices %}
+      <option value="{{ choice_value }}"{% if form.weekday.value|stringformat:"s" == choice_value|stringformat:"s" %} selected{% endif %}>{{ choice_label }}</option>
+      {% endfor %}
+    </select>
+    <span class="bo-err" id="weekday-err">{{ form.weekday.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_start_time">{{ form.start_time.label }}</label>
+    <input type="time" id="id_start_time" name="start_time"
+           value="{% if form.is_bound %}{{ form.start_time.value|default:'' }}{% else %}{{ form.start_time.value|time:'H:i' }}{% endif %}"
+           aria-describedby="start_time-err" aria-invalid="{% if form.start_time.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="start_time-err">{{ form.start_time.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_end_time">{{ form.end_time.label }}</label>
+    <input type="time" id="id_end_time" name="end_time"
+           value="{% if form.is_bound %}{{ form.end_time.value|default:'' }}{% else %}{{ form.end_time.value|time:'H:i' }}{% endif %}"
+           aria-describedby="end_time-err" aria-invalid="{% if form.end_time.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="end_time-err">{{ form.end_time.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field bo-field--checkbox">
+    <label class="bo-checkbox-label"><input type="checkbox" id="id_is_active" name="is_active"{% if form.is_active.value %} checked{% endif %}> {{ form.is_active.label }}</label>
+  </div>
+
+  <button class="bo-btn bo-btn-primary" type="submit">Save</button>
+  <a class="bo-btn" href="{% url 'backoffice:availability' %}">Cancel</a>
+</form>
+{% endblock %}

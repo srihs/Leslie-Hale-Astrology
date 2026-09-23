@@ -1,0 +1,93 @@
+{% extends "backoffice/base.html" %}
+{% load wagtailimages_tags %}
+{% comment %}
+Context (apps.backoffice.views.blog.BlogPostFormView, shared for create and
+edit — see that view's own docstring for why): form — a BlogPostForm
+(apps/backoffice/forms.py), post — the blog.BlogPost being edited, or None
+when creating. A post's slug/URL is set once at creation from its title and
+never recomputed on edit (see that view's docstring) — this form has no
+slug field at all, so there's nothing here that could accidentally change
+an already-published link.
+{% endcomment %}
+{% block title %}{% if post %}Edit '{{ post.title }}'{% else %}Write a new post{% endif %} — Manage — Leslie Hale Astrology{% endblock %}
+{% block content %}
+<a class="bo-back-link" href="{% url 'backoffice:blog_list' %}">&larr; Back to blog posts</a>
+<h1>{% if post %}Edit '{{ post.title }}'{% else %}Write a new post{% endif %}</h1>
+
+<form class="bo-form" method="post" enctype="multipart/form-data" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="bo-form-error" role="alert">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+  {% endif %}
+
+  <div class="bo-field">
+    <label for="id_title">{{ form.title.label }}</label>
+    <input type="text" id="id_title" name="title" required value="{{ form.title.value|default_if_none:'' }}"
+           aria-describedby="title-err" aria-invalid="{% if form.title.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="title-err">{{ form.title.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_excerpt">{{ form.excerpt.label }}</label>
+    <p class="bo-hint">{{ form.excerpt.help_text }}</p>
+    <textarea id="id_excerpt" name="excerpt" rows="2"
+              aria-describedby="excerpt-err" aria-invalid="{% if form.excerpt.errors %}true{% else %}false{% endif %}">{{ form.excerpt.value|default_if_none:"" }}</textarea>
+    <span class="bo-err" id="excerpt-err">{{ form.excerpt.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_body_text">{{ form.body_text.label }}</label>
+    <p class="bo-hint">{{ form.body_text.help_text }}</p>
+    <textarea id="id_body_text" name="body_text" rows="14" required
+              aria-describedby="body_text-err" aria-invalid="{% if form.body_text.errors %}true{% else %}false{% endif %}">{{ form.body_text.value|default_if_none:"" }}</textarea>
+    <span class="bo-err" id="body_text-err">{{ form.body_text.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_category">{{ form.category.label }}</label>
+    <p class="bo-hint">{{ form.category.help_text }}</p>
+    <select id="id_category" name="category"
+            aria-describedby="category-err" aria-invalid="{% if form.category.errors %}true{% else %}false{% endif %}">
+      <option value=""{% if not form.category.value %} selected{% endif %}>No category</option>
+      {% for choice in form.category.field.queryset %}
+      <option value="{{ choice.pk }}"{% if form.category.value|stringformat:"s" == choice.pk|stringformat:"s" %} selected{% endif %}>{{ choice.name }}</option>
+      {% endfor %}
+    </select>
+    <span class="bo-err" id="category-err">{{ form.category.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_published_date">{{ form.published_date.label }}</label>
+    <p class="bo-hint">{{ form.published_date.help_text }}</p>
+    <input type="datetime-local" id="id_published_date" name="published_date" required
+           value="{% if form.is_bound %}{{ form.published_date.value|default:'' }}{% else %}{{ form.published_date.value|date:'Y-m-d\TH:i' }}{% endif %}"
+           aria-describedby="published_date-err" aria-invalid="{% if form.published_date.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="published_date-err">{{ form.published_date.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_featured_image_upload">{{ form.featured_image_upload.label }}</label>
+    <p class="bo-hint">{{ form.featured_image_upload.help_text }}</p>
+    {% if post.featured_image %}
+    <p class="bo-current-image">{% image post.featured_image fill-160x120 alt="" %}</p>
+    {% endif %}
+    <input type="file" id="id_featured_image_upload" name="featured_image_upload" accept="image/*"
+           aria-describedby="featured_image_upload-err" aria-invalid="{% if form.featured_image_upload.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="featured_image_upload-err">{{ form.featured_image_upload.errors.0|default:"" }}</span>
+  </div>
+
+  {% if post.featured_image %}
+  <div class="bo-field bo-field--checkbox">
+    <label class="bo-checkbox-label"><input type="checkbox" id="id_remove_featured_image" name="remove_featured_image"> {{ form.remove_featured_image.label }}</label>
+  </div>
+  {% endif %}
+
+  <div class="bo-field bo-field--checkbox">
+    <label class="bo-checkbox-label"><input type="checkbox" id="id_is_live" name="is_live"{% if form.is_live.value %} checked{% endif %}> {{ form.is_live.label }}</label>
+    <p class="bo-hint">{{ form.is_live.help_text }}</p>
+  </div>
+
+  <button class="bo-btn bo-btn-primary" type="submit">Save</button>
+  <a class="bo-btn" href="{% url 'backoffice:blog_list' %}">Cancel</a>
+</form>
+{% endblock %}

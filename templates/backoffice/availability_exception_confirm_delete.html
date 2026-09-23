@@ -1,0 +1,18 @@
+{% extends "backoffice/base.html" %}
+{% comment %}
+Context (apps.backoffice.views.availability.AvailabilityExceptionDeleteView,
+a generic Django DeleteView): form (empty), object — the
+AvailabilityException about to be deleted.
+{% endcomment %}
+{% block title %}Delete this exception? — Manage — Leslie Hale Astrology{% endblock %}
+{% block content %}
+<a class="bo-back-link" href="{% url 'backoffice:availability' %}">&larr; Back to availability</a>
+<h1>Delete this exception?</h1>
+<p>You're about to permanently delete the exception for <strong>{{ object.date|date:"l j F Y" }}</strong>. Once deleted, that date goes back to following your usual weekly pattern. This can't be undone.</p>
+<form method="post" data-confirm="Delete the exception for {{ object.date|date:'j F Y' }}? This can't be undone.">
+  {% csrf_token %}
+  {{ form }}
+  <button class="bo-btn bo-btn-danger" type="submit">Yes, delete this exception</button>
+  <a class="bo-btn" href="{% url 'backoffice:availability' %}">Cancel</a>
+</form>
+{% endblock %}

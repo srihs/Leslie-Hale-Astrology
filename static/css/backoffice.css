@@ -1,0 +1,990 @@
+/* =========================================================================
+   BACKOFFICE — styling for /manage/, Leslie's own bespoke admin
+   (templates/backoffice/). Standalone: not linked from any public-site
+   template, and imports nothing from _tokens.css / _base.css / etc. so it
+   can never leak into versions/v1-ephemeris.
+
+   DESIGN DECISION — read this before changing anything below
+   -------------------------------------------------------------------------
+   The public site (templates/base.html + static/css/main.css) is locked to
+   v1-ephemeris: dark navy, 1px low-opacity gold hairlines, serif display
+   type, fluid clamp() sizing, cinematic restraint. That is a MARKETING
+   aesthetic, tuned for a visitor spending a few minutes on a handful of
+   pages.
+
+   /manage/ is the opposite brief: one non-technical user (Leslie), reading
+   it every day, scanning dense tables of bookings and forms full of prices
+   and dates. Wagtail's own admin was removed from this project specifically
+   because it overwhelmed her. So this file DELIBERATELY departs from the
+   locked brand in the ways the task brief invites:
+
+   - LIGHT surface, not dark. Dense body text reads faster on a light
+     ground, and a light surface makes per-row/per-field boundaries (table
+     rows, input borders, card edges) far easier to see than they would be
+     as 1px gold hairlines at .22 opacity — that opacity was tuned for
+     spacious marketing sections, not a table with 20 rows on screen.
+   - SANS throughout, no serif. Cormorant Garamond is a display face; at
+     14–16px in a data table or form label it costs legibility for a
+     "premium" feeling Leslie doesn't need eight hours a day. Inter (the
+     public site's own body face) covers everything here, headings
+     included. This overrides `book-serif-index`/`editorial-tech`'s serif
+     display convention on purpose.
+   - FIXED type scale, not clamp(). This tool is used on a laptop or,
+     occasionally, a phone — not across an open range of marketing
+     viewport widths — so a small set of fixed sizes plus two breakpoints
+     is more predictable than fluid interpolation.
+   - a SMALL border radius (4–6px) on cards, panels, buttons and inputs.
+     The locked public site is hard-square by brand rule (§7); that rule
+     doesn't govern this screen, and a slight radius softens what is
+     otherwise a wall of rectangles (stat cards, table, panels, buttons)
+     stacked on one page. This is the one deliberate visual-language
+     departure beyond light-vs-dark — flagged explicitly per the task
+     brief's instruction to say which way this was decided and why.
+   - a WIDER accent palette for status badges (green/red/blue/grey) than
+     the three-colour public palette allows. Eight distinct booking/reading/
+     blog states (pending/confirmed/cancelled/completed, hidden/featured,
+     live/draft) cannot be told apart on a gold/navy/danger palette alone
+     without colour becoming the only signal — which the brief explicitly
+     forbids for cancelled/confirmed. Every new colour introduced here is
+     measured below and in the final report.
+
+   What is KEPT from the locked brand, deliberately, for continuity rather
+   than because §7 requires it here:
+   - the navy header (--bo-navy) and gold accent (--bo-gold/--bo-gold-2) as
+     the site's identity marks — Leslie should recognise this as "her site"
+     the moment the page loads, even though the workspace below it is light.
+   - restraint on box-shadow. Even freed from the public site's rule, a
+     shadow-free, border-based hierarchy is simply calmer in a dense UI —
+     this file uses zero box-shadows, by choice, not by lock.
+   - the Inter stack itself (--sans), verbatim from _tokens.css's value.
+
+   COLOUR TOKENS below are local to this file (prefixed --bo-) rather than
+   importing static/css/_tokens.css: several (the light surfaces, the new
+   status hues) don't exist in that locked token set at all, and the ones
+   that ARE shared (navy, gold, ink, danger) are copied verbatim with a
+   note of their source so they can't silently drift from the locked hex
+   values. Every pair introduced here that is NOT already pre-measured in
+   PROJECT-SCOPE.md §7 has its contrast ratio measured in a comment beside
+   it; see the task's final report for the full table.
+   ========================================================================= */
+
+:root{
+  /* --- copied verbatim from static/css/_tokens.css (locked hex values) --- */
+  --bo-navy:#0B1526;         /* = --bg */
+  --bo-navy-2:#0E1B33;       /* = --bg-2 */
+  --bo-gold:#D9C08A;         /* = --gold */
+  --bo-gold-2:#B89B5E;       /* = --gold-2 */
+  --bo-cream:#F2EEE6;        /* = --ink */
+  --bo-danger-soft:#E08A8A;  /* = --danger (used as-is only on dark chrome) */
+  --bo-sans:Inter,system-ui,-apple-system,"Segoe UI",sans-serif; /* = --sans */
+
+  /* --- new: light workspace surfaces (not in the locked token set) --- */
+  --bo-bg:#F2EEE6;           /* page background = the locked --ink value,
+                                 reused so the light admin still quotes the
+                                 same brand cream rather than inventing an
+                                 unrelated off-white */
+  --bo-surface:#FFFFFF;      /* cards, panels, table, inputs */
+  --bo-surface-2:#FAF8F3;    /* zebra row / subtle recessed tint */
+
+  /* --- new: text on light surfaces --- */
+  --bo-text:#0B1526;         /* = --bo-navy reused as body text colour —
+                                 18.27:1 on white, 15.79:1 on --bo-bg */
+  --bo-muted:#4A5568;        /* new — 7.53:1 on white, 6.50:1 on --bo-bg */
+
+  /* --- new: structural borders --- */
+  --bo-border:#D9D2C2;       /* decorative dividers only (row separators
+                                 inside a table body) — 1.51:1 on white, not
+                                 relied on alone: rows are also distinguished
+                                 by zebra tint and generous padding */
+  --bo-border-strong:#8D8573;/* real component boundaries — inputs,
+                                 buttons, card/panel/table outer edges —
+                                 3.66:1 on white, 3.16:1 on --bo-bg, clears
+                                 the 3:1 non-text contrast a UI component
+                                 boundary needs */
+
+  /* --- focus --- */
+  --bo-focus:#0B1526;        /* navy, not gold: --bo-gold-2 only reaches
+                                 2.66:1 on white, short of the 3:1 a focus
+                                 indicator needs (measured, rejected). Navy
+                                 gives 18.27:1 on white / 15.79:1 on --bo-bg */
+
+  /* --- action colours --- */
+  --bo-danger:#9B3B3B;       /* new — darkened from --danger's hue for use
+                                 as TEXT/border on a light surface; --danger
+                                 itself (#E08A8A) was measured for text on
+                                 dark chrome only and reads as ~2.6:1 on
+                                 white, nowhere near AA. 6.81:1 on white as
+                                 text; 8.77:1 white-on-#832E2E as a button
+                                 fill (its darker hover shade) */
+  --bo-danger-fill:#9B3B3B;
+  --bo-danger-fill-hover:#832E2E;
+  --bo-danger-tint:#FBEAEA;
+
+  /* --- status-badge hues (new — see file header for why the palette
+     widens here) --- */
+  --bo-amber:#7A5D19;    --bo-amber-tint:#FBF1DC;   /* pending: 6.16:1 on white, 5.49:1 on tint */
+  --bo-green:#2F6B4F;    --bo-green-tint:#E4F3E8;   /* confirmed/live: 6.29:1 on white, 5.48:1 on tint */
+  --bo-red:#9B3B3B;      --bo-red-tint:#FBEAEA;     /* cancelled: 6.81:1 on white, 5.86:1 on tint */
+  --bo-blue:#2C3E63;     --bo-blue-tint:#E7ECF5;    /* completed: 10.63:1 on white, 8.96:1 on tint */
+  --bo-grey:#6B6458;     --bo-grey-tint:#EEECE6;    /* hidden/draft: 5.85:1 on white, 4.95:1 on tint */
+  --bo-gold-text:#7A5D19; --bo-gold-tint:#FBF1DC;   /* featured: same pair as amber */
+
+  /* --- shape & spacing --- */
+  --bo-radius:6px;
+  --bo-radius-sm:4px;
+  --bo-pad:20px;
+  --bo-max:1100px;
+
+  color-scheme:light;
+}
+
+@media (min-width:640px){ :root{ --bo-pad:32px; } }
+@media (min-width:1024px){ :root{ --bo-pad:48px; } }
+
+/* =========================================================================
+   RESET / BASE
+   ========================================================================= */
+
+.bo, .bo *, .bo *::before, .bo *::after{ box-sizing:border-box; }
+
+.bo{
+  margin:0;
+  min-height:100vh;
+  background:var(--bo-bg);
+  color:var(--bo-text);
+  font-family:var(--bo-sans);
+  font-size:16px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+
+.bo h1, .bo h2, .bo h3{
+  font-family:var(--bo-sans);
+  font-weight:700;
+  line-height:1.25;
+  color:var(--bo-text);
+  margin:0 0 .5em;
+}
+.bo h1{ font-size:1.75rem; }
+.bo h2{ font-size:1.25rem; }
+.bo h3{ font-size:1.0625rem; }
+
+.bo p{ margin:0 0 1em; }
+/* :where() keeps this at zero extra specificity beyond `.bo` itself, so
+   every single-class component below (`.bo-btn-primary`, `.bo-brand`,
+   `.bo-badge-*`, …) can override an anchor's colour without a specificity
+   fight — a plain `.bo a{ color: … }` here out-specifies any one-class
+   selector on an <a> (class+type beats class alone) and silently forced
+   navy text onto anchors that had their own colour set, including the
+   navy-on-navy "View all bookings" button and the header brand link,
+   until this was caught in the screenshot verification pass below. */
+.bo :where(a){ color:var(--bo-navy); text-underline-offset:.15em; }
+.bo :where(a):hover{ color:var(--bo-gold-2); }
+
+/* Focus — visible everywhere, high contrast, never removed. */
+.bo :focus{ outline:none; }
+.bo :focus-visible{
+  outline:3px solid var(--bo-focus);
+  outline-offset:2px;
+  border-radius:2px;
+}
+
+@media (prefers-reduced-motion:no-preference){
+  .bo a, .bo button, .bo input, .bo select, .bo textarea, .bo .bo-badge{
+    transition:background-color .12s ease, border-color .12s ease, color .12s ease;
+  }
+}
+
+/* =========================================================================
+   SKIP LINK
+   ========================================================================= */
+
+.bo-skip{
+  position:absolute;
+  left:-9999px;
+  top:0;
+  z-index:100;
+  background:var(--bo-navy);
+  color:var(--bo-cream);
+  padding:.75rem 1.25rem;
+  font-weight:600;
+  text-decoration:none;
+  border-radius:0 0 var(--bo-radius-sm) 0;
+}
+.bo-skip:focus{
+  left:0;
+}
+
+/* =========================================================================
+   HEADER / NAV
+   ========================================================================= */
+
+.bo-header{
+  background:var(--bo-navy);
+  border-bottom:1px solid rgba(217,192,138,.35);
+  position:sticky;
+  top:0;
+  z-index:20;
+}
+
+.bo-header-inner{
+  max-width:var(--bo-max);
+  margin:0 auto;
+  padding:.75rem var(--bo-pad);
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:.75rem 1.5rem;
+}
+
+.bo-brand{
+  color:var(--bo-cream);
+  font-weight:700;
+  font-size:1.0625rem;
+  text-decoration:none;
+  margin-right:auto;
+  white-space:nowrap;
+}
+.bo-brand:hover{ color:var(--bo-gold); }
+
+.bo-nav{
+  flex:1 1 auto;
+  min-width:0;
+}
+.bo-nav ul{
+  list-style:none;
+  display:flex;
+  flex-wrap:wrap; /* every nav item stays fully visible and reachable by
+                      tap — wraps onto a second line in the sticky header
+                      rather than hiding items behind a horizontal scroll
+                      Leslie would have no visual cue to find */
+  gap:.25rem;
+  margin:0;
+  padding:0;
+}
+.bo-nav a{
+  display:flex;
+  align-items:center;
+  min-height:44px;
+  padding:.5rem .75rem;
+  color:var(--bo-cream);
+  text-decoration:none;
+  font-size:.9375rem;
+  font-weight:500;
+  white-space:nowrap;
+  border-bottom:2px solid transparent;
+  border-radius:var(--bo-radius-sm) var(--bo-radius-sm) 0 0;
+}
+.bo-nav a:hover{
+  background:var(--bo-navy-2);
+  color:var(--bo-cream);
+}
+.bo-nav a[aria-current="page"]{
+  color:var(--bo-gold);
+  font-weight:700;
+  border-bottom-color:var(--bo-gold);
+}
+
+.bo-logout-form{ flex:0 0 auto; }
+.bo-logout-btn{
+  min-height:44px;
+  padding:.5rem 1rem;
+  background:transparent;
+  color:var(--bo-cream);
+  border:1px solid rgba(217,192,138,.45);
+  border-radius:var(--bo-radius-sm);
+  font-family:var(--bo-sans);
+  font-size:.9375rem;
+  font-weight:600;
+  cursor:pointer;
+}
+.bo-logout-btn:hover{
+  background:var(--bo-navy-2);
+  border-color:var(--bo-gold);
+}
+
+@media (max-width:780px){
+  .bo-header-inner{ padding:.625rem var(--bo-pad); }
+  .bo-brand{ flex:1 0 100%; }
+  .bo-nav{ order:3; flex:1 0 100%; }
+  .bo-logout-form{ order:2; margin-left:auto; }
+}
+
+/* =========================================================================
+   MAIN / MESSAGES
+   ========================================================================= */
+
+.bo-main{
+  max-width:var(--bo-max);
+  margin:0 auto;
+  padding:2rem var(--bo-pad) 4rem;
+}
+
+.bo-messages{
+  list-style:none;
+  margin:0 0 1.5rem;
+  padding:0;
+  display:grid;
+  gap:.75rem;
+}
+.bo-message{
+  padding:.875rem 1rem;
+  border:1px solid var(--bo-border-strong);
+  border-left-width:4px;
+  border-radius:var(--bo-radius-sm);
+  background:var(--bo-surface);
+  font-size:.9375rem;
+}
+.bo-message--success{ border-left-color:var(--bo-green); background:var(--bo-green-tint); }
+.bo-message--error{ border-left-color:var(--bo-red); background:var(--bo-red-tint); }
+.bo-message--warning{ border-left-color:var(--bo-amber); background:var(--bo-amber-tint); }
+.bo-message--info{ border-left-color:var(--bo-blue); background:var(--bo-blue-tint); }
+
+/* =========================================================================
+   TYPOGRAPHY / CONTENT HELPERS
+   ========================================================================= */
+
+.bo-lede{
+  font-size:1.0625rem;
+  color:var(--bo-muted);
+  max-width:60ch;
+}
+
+.bo-hint{
+  font-size:.875rem;
+  color:var(--bo-muted);
+  margin:.25rem 0 .75rem;
+}
+
+.bo-note{
+  font-size:.875rem;
+  color:var(--bo-muted);
+  font-style:italic;
+}
+
+.bo-empty{
+  padding:1.5rem;
+  border:1px dashed var(--bo-border-strong);
+  border-radius:var(--bo-radius);
+  background:var(--bo-surface);
+  color:var(--bo-muted);
+  text-align:left;
+}
+
+.bo-back-link{
+  display:inline-flex;
+  align-items:center;
+  min-height:44px;
+  padding:.25rem .5rem .25rem 0;
+  margin-left:-.5rem;
+  color:var(--bo-navy);
+  font-weight:600;
+  text-decoration:none;
+}
+.bo-back-link:hover{ text-decoration:underline; color:var(--bo-gold-2); }
+
+.bo-section-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:1rem;
+  margin-bottom:1.5rem;
+}
+.bo-section-header h1,
+.bo-section-header h2{ margin-bottom:.25rem; }
+
+.bo-required{
+  color:var(--bo-red);
+  font-weight:700;
+}
+
+/* =========================================================================
+   PANELS
+   ========================================================================= */
+
+.bo-panel{
+  background:var(--bo-surface);
+  border:1px solid var(--bo-border-strong);
+  border-radius:var(--bo-radius);
+  padding:1.25rem 1.5rem;
+  margin-bottom:1.5rem;
+}
+.bo-panel > h2:first-child,
+.bo-panel > h3:first-child{ margin-top:0; }
+
+.bo-panel-danger{
+  border-color:var(--bo-red);
+  background:var(--bo-red-tint);
+}
+.bo-panel-danger h2{ color:var(--bo-red); }
+
+.bo-warning{
+  background:var(--bo-amber-tint);
+  border:1px solid var(--bo-amber);
+  border-radius:var(--bo-radius-sm);
+  padding:.75rem 1rem;
+  color:#5C4712; /* darkened further than --bo-amber for body-text weight on this tint; see report */
+  font-weight:600;
+}
+
+/* =========================================================================
+   STAT GRID (dashboard)
+   ========================================================================= */
+
+.bo-stat-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+  gap:1rem;
+  margin-bottom:2rem;
+}
+.bo-stat-card{
+  background:var(--bo-surface);
+  border:1px solid var(--bo-border-strong);
+  border-radius:var(--bo-radius);
+  padding:1.25rem 1.5rem;
+}
+.bo-stat-number{
+  font-size:2.25rem;
+  font-weight:700;
+  color:var(--bo-navy);
+  margin:0;
+  line-height:1;
+}
+.bo-stat-label{
+  margin:.5rem 0 0;
+  color:var(--bo-muted);
+  font-size:.9375rem;
+}
+
+.bo-quick-links{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.75rem;
+  margin-top:1rem;
+}
+
+/* =========================================================================
+   BUTTONS
+   ========================================================================= */
+
+.bo-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:.4em;
+  min-height:44px;
+  padding:.625rem 1.25rem;
+  border:1px solid var(--bo-border-strong);
+  border-radius:var(--bo-radius-sm);
+  background:var(--bo-surface);
+  color:var(--bo-text);
+  font-family:var(--bo-sans);
+  font-size:.9375rem;
+  font-weight:600;
+  text-decoration:none;
+  cursor:pointer;
+  line-height:1.2;
+}
+.bo-btn:hover{
+  background:var(--bo-surface-2);
+  border-color:var(--bo-navy);
+}
+
+.bo-btn-primary{
+  background:var(--bo-navy);
+  border-color:var(--bo-navy);
+  color:var(--bo-cream); /* 15.79:1 */
+}
+.bo-btn-primary:hover{
+  background:var(--bo-navy-2);
+  border-color:var(--bo-navy-2);
+  color:var(--bo-cream);
+}
+
+.bo-btn-secondary{
+  background:var(--bo-gold-2);
+  border-color:var(--bo-gold-2);
+  color:var(--bo-navy); /* 6.86:1 */
+}
+.bo-btn-secondary:hover{
+  background:var(--bo-gold);
+  border-color:var(--bo-gold);
+  color:var(--bo-navy);
+}
+
+.bo-btn-danger{
+  background:var(--bo-danger-fill);
+  border-color:var(--bo-danger-fill);
+  color:#FFFFFF; /* 6.81:1 */
+}
+.bo-btn-danger:hover{
+  background:var(--bo-danger-fill-hover);
+  border-color:var(--bo-danger-fill-hover);
+  color:#FFFFFF; /* 8.77:1 */
+}
+
+.bo-btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+.bo-btn:disabled:hover{
+  background:var(--bo-surface);
+  border-color:var(--bo-border-strong);
+}
+
+/* =========================================================================
+   FORMS
+   ========================================================================= */
+
+.bo-form{
+  max-width:640px;
+}
+
+.bo-field{
+  margin-bottom:1.25rem;
+}
+.bo-field label,
+.bo-fieldset legend{
+  display:block;
+  font-weight:600;
+  margin-bottom:.375rem;
+  color:var(--bo-text);
+}
+
+.bo-field input[type="text"],
+.bo-field input[type="email"],
+.bo-field input[type="tel"],
+.bo-field input[type="url"],
+.bo-field input[type="password"],
+.bo-field input[type="number"],
+.bo-field input[type="date"],
+.bo-field input[type="time"],
+.bo-field input[type="datetime-local"],
+.bo-field input[type="file"],
+.bo-field select,
+.bo-field textarea{
+  width:100%;
+  min-height:44px;
+  padding:.625rem .75rem;
+  background:var(--bo-surface);
+  border:1px solid var(--bo-border-strong);
+  border-radius:var(--bo-radius-sm);
+  color:var(--bo-text);
+  font-family:var(--bo-sans);
+  font-size:1rem;
+  line-height:1.4;
+}
+.bo-field textarea{ min-height:auto; resize:vertical; }
+.bo-field input[type="file"]{ padding:.5rem .75rem; }
+
+.bo-field input:hover,
+.bo-field select:hover,
+.bo-field textarea:hover{
+  border-color:var(--bo-navy);
+}
+
+.bo-field input[aria-invalid="true"],
+.bo-field select[aria-invalid="true"],
+.bo-field textarea[aria-invalid="true"]{
+  border-color:var(--bo-red);
+  border-width:2px;
+}
+
+.bo-field-inline{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:.5rem .75rem;
+}
+.bo-field-inline label{ margin-bottom:0; }
+.bo-field-inline select{ width:auto; min-width:180px; }
+
+.bo-field--checkbox{
+  display:flex;
+}
+.bo-checkbox-label{
+  display:flex !important;
+  align-items:center;
+  gap:.625rem;
+  min-height:44px;
+  font-weight:500 !important;
+  cursor:pointer;
+  margin-bottom:0 !important;
+}
+.bo-checkbox-label input[type="checkbox"]{
+  width:20px;
+  height:20px;
+  flex:0 0 auto;
+  accent-color:var(--bo-navy);
+}
+
+/* Error text lives in the DOM on every field, always — only :empty hides
+   it. This is the per-field scoping the task brief calls out by name
+   (commit 0c0fa2a fixed a bug where a form-level rule hid ALL errors, not
+   just empty ones — this file never repeats that: the rule targets .bo-err
+   itself, nothing else, so a populated sibling error is never caught by a
+   parent-level display:none). */
+.bo-err{
+  display:block;
+  margin-top:.375rem;
+  color:var(--bo-red); /* 6.81:1 on white */
+  font-size:.875rem;
+  font-weight:600;
+}
+.bo-err:empty{ display:none; }
+
+.bo-form-error{
+  background:var(--bo-red-tint);
+  border:1px solid var(--bo-red);
+  border-radius:var(--bo-radius-sm);
+  padding:.875rem 1rem;
+  margin-bottom:1.25rem;
+  color:#5C1E1E; /* darkened further than --bo-red for extended body text on this tint */
+}
+.bo-form-error p{ margin:0; }
+.bo-form-error p + p{ margin-top:.375rem; }
+
+.bo-fieldset{
+  border:1px solid var(--bo-border-strong);
+  border-radius:var(--bo-radius);
+  padding:1rem 1.25rem 1.25rem;
+  margin:0 0 1.25rem;
+}
+.bo-fieldset legend{
+  padding:0 .5rem;
+  margin-left:-.5rem;
+}
+
+.bo-current-image{
+  margin:.5rem 0;
+}
+.bo-current-image img{
+  display:block;
+  border:1px solid var(--bo-border-strong);
+  border-radius:var(--bo-radius-sm);
+}
+
+.bo-form .bo-btn{ margin-right:.75rem; }
+
+/* Login page */
+.bo-auth{
+  max-width:420px;
+  margin:3rem auto 0;
+  background:var(--bo-surface);
+  border:1px solid var(--bo-border-strong);
+  border-radius:var(--bo-radius);
+  padding:2rem;
+}
+.bo-auth h1{ margin-bottom:.5rem; }
+.bo-auth .bo-lede{ margin-bottom:1.5rem; }
+.bo-auth .bo-form{ max-width:none; }
+
+/* =========================================================================
+   TABLES
+   ========================================================================= */
+
+.bo-table{
+  width:100%;
+  border-collapse:collapse;
+  background:var(--bo-surface);
+  border:1px solid var(--bo-border-strong);
+  border-radius:var(--bo-radius);
+  overflow:hidden;
+}
+.bo-table th,
+.bo-table td{
+  text-align:left;
+  padding:.875rem 1rem;
+  border-bottom:1px solid var(--bo-border);
+  vertical-align:middle;
+}
+.bo-table thead th{
+  background:var(--bo-navy);
+  color:var(--bo-cream);
+  font-size:.8125rem;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  font-weight:700;
+  border-bottom:none;
+}
+.bo-table tbody tr:last-child td{ border-bottom:none; }
+.bo-table tbody tr:nth-child(even){ background:var(--bo-surface-2); }
+.bo-table tbody tr:hover{ background:var(--bo-amber-tint); }
+
+.bo-row-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.5rem;
+  align-items:center;
+}
+.bo-row-actions a{
+  display:inline-flex;
+  align-items:center;
+  min-height:44px;
+  padding:.375rem .75rem;
+  border:1px solid var(--bo-border-strong);
+  border-radius:var(--bo-radius-sm);
+  text-decoration:none;
+  font-size:.875rem;
+  font-weight:600;
+  color:var(--bo-navy);
+  white-space:nowrap;
+}
+.bo-row-actions a:hover{
+  background:var(--bo-surface-2);
+  border-color:var(--bo-navy);
+}
+
+/* Phone-width tables: the horizontal scroll box, not a stacked-card
+   rewrite — the markup has no per-cell data-label attributes for a CSS
+   "label:value" collapse, and adding them is templates/htmx-frontend's
+   call, not this stylesheet's. `display:block` on the table element keeps
+   its internal row/column layout intact while turning the table itself
+   into a scrollable box, which is enough to keep every column reachable
+   and legible down to 360px. Verified in browser at 360px — see report. */
+@media (max-width:640px){
+  .bo-table{
+    display:block;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .bo-table thead, .bo-table tbody, .bo-table tr{ display:table; width:100%; table-layout:auto; }
+}
+
+/* =========================================================================
+   PAGER / FILTER / JUMP FORMS
+   ========================================================================= */
+
+.bo-filter-form,
+.bo-jump-form{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:.75rem 1rem;
+  margin-bottom:1.25rem;
+}
+.bo-filter-form .bo-field-inline select{ min-height:44px; }
+.bo-jump-form label{ font-weight:600; }
+.bo-jump-form input[type="number"]{
+  width:5rem;
+  min-height:44px;
+  padding:.5rem .625rem;
+  border:1px solid var(--bo-border-strong);
+  border-radius:var(--bo-radius-sm);
+  font-family:var(--bo-sans);
+  font-size:1rem;
+}
+
+.bo-pager{
+  display:flex;
+  align-items:center;
+  gap:1rem;
+  flex-wrap:wrap;
+  margin-top:1.25rem;
+  padding-top:1rem;
+}
+.bo-pager a{
+  display:inline-flex;
+  align-items:center;
+  min-height:44px;
+  padding:.5rem 1rem;
+  border:1px solid var(--bo-border-strong);
+  border-radius:var(--bo-radius-sm);
+  text-decoration:none;
+  font-weight:600;
+  color:var(--bo-navy);
+}
+.bo-pager a:hover{ background:var(--bo-surface-2); border-color:var(--bo-navy); }
+.bo-pager a[aria-current="page"]{
+  background:var(--bo-navy);
+  border-color:var(--bo-navy);
+  color:var(--bo-cream);
+}
+.bo-pager span{ color:var(--bo-muted); font-size:.9375rem; }
+
+/* =========================================================================
+   CARD LIST (readings)
+   ========================================================================= */
+
+.bo-card-list{
+  list-style:none;
+  margin:0;
+  padding:0;
+  display:grid;
+  gap:1rem;
+}
+.bo-card{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:1.5rem;
+  flex-wrap:wrap;
+  background:var(--bo-surface);
+  border:1px solid var(--bo-border-strong);
+  border-radius:var(--bo-radius);
+  padding:1.25rem 1.5rem;
+}
+.bo-card-main{ flex:1 1 320px; min-width:0; }
+.bo-card-main h2{ font-size:1.0625rem; margin-bottom:.375rem; }
+.bo-card-main p{ margin-bottom:.375rem; }
+.bo-card .bo-row-actions{ flex:0 0 auto; }
+
+/* =========================================================================
+   BADGES — text label always present; colour is reinforcement, never the
+   only signal. Each status also gets its own glyph so shape, not just
+   hue, tells pending/confirmed/cancelled/completed and hidden/featured/
+   live/draft apart (important for cancelled vs confirmed specifically —
+   task brief names that pair).
+   ========================================================================= */
+
+.bo-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:.35em;
+  padding:.25rem .625rem;
+  border-radius:999px; /* badges read as status "pills" even though the
+                           rest of this UI is square-ish-with-small-radius;
+                           a fully rounded shape is the one place a pill is
+                           earned, since it's the conventional shape for a
+                           status chip and helps it read as "not a button" */
+  border:1px solid transparent;
+  font-size:.8125rem;
+  font-weight:700;
+  line-height:1.4;
+  white-space:nowrap;
+}
+.bo-badge::before{
+  font-size:.9em;
+}
+
+.bo-badge-pending{ background:var(--bo-amber-tint); border-color:var(--bo-amber); color:var(--bo-amber); }
+.bo-badge-pending::before{ content:"\25CF"; } /* ● */
+
+.bo-badge-confirmed{ background:var(--bo-green-tint); border-color:var(--bo-green); color:var(--bo-green); }
+.bo-badge-confirmed::before{ content:"\2713"; } /* ✓ */
+
+.bo-badge-cancelled{ background:var(--bo-red-tint); border-color:var(--bo-red); color:var(--bo-red); }
+.bo-badge-cancelled::before{ content:"\2715"; } /* ✕ */
+
+.bo-badge-completed{ background:var(--bo-blue-tint); border-color:var(--bo-blue); color:var(--bo-blue); }
+.bo-badge-completed::before{ content:"\2713"; }
+
+.bo-badge-hidden{ background:var(--bo-grey-tint); border-color:var(--bo-grey); color:var(--bo-grey); }
+.bo-badge-hidden::before{ content:"\2013"; } /* – */
+
+.bo-badge-featured{ background:var(--bo-gold-tint); border-color:var(--bo-gold-text); color:var(--bo-gold-text); }
+.bo-badge-featured::before{ content:"\2605"; } /* ★ */
+
+.bo-badge-live{ background:var(--bo-green-tint); border-color:var(--bo-green); color:var(--bo-green); }
+.bo-badge-live::before{ content:"\2713"; }
+
+.bo-badge-draft{ background:var(--bo-grey-tint); border-color:var(--bo-grey); color:var(--bo-grey); }
+.bo-badge-draft::before{ content:"\270E"; } /* ✎ */
+
+/* =========================================================================
+   BOOKING DETAIL
+   ========================================================================= */
+
+.bo-detail-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+  gap:1.25rem;
+  margin-bottom:1.5rem;
+}
+
+.bo-deflist{
+  margin:0;
+}
+.bo-deflist > div{
+  display:flex;
+  gap:1rem;
+  padding:.5rem 0;
+  border-bottom:1px solid var(--bo-border);
+}
+.bo-deflist > div:last-child{ border-bottom:none; padding-bottom:0; }
+.bo-deflist > div:first-child{ padding-top:0; }
+.bo-deflist dt{
+  flex:0 0 9rem;
+  color:var(--bo-muted);
+  font-weight:600;
+  font-size:.875rem;
+}
+.bo-deflist dd{
+  margin:0;
+  flex:1 1 auto;
+  min-width:0;
+  word-break:break-word;
+}
+
+@media (max-width:480px){
+  .bo-deflist > div{ flex-direction:column; gap:.125rem; }
+  .bo-deflist dt{ flex:none; }
+}
+
+/* =========================================================================
+   AVAILABILITY
+   ========================================================================= */
+
+.bo-availability-list{
+  list-style:none;
+  margin:0 0 2rem;
+  padding:0;
+  display:grid;
+  gap:1rem;
+}
+.bo-availability-list > li{
+  background:var(--bo-surface);
+  border:1px solid var(--bo-border-strong);
+  border-radius:var(--bo-radius);
+  padding:1rem 1.25rem;
+}
+.bo-availability-list h3{
+  font-size:1rem;
+  margin:0 0 .625rem;
+}
+
+.bo-availability-windows{
+  list-style:none;
+  margin:0;
+  padding:0;
+  display:grid;
+  gap:.5rem;
+}
+
+.bo-availability-window{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:.5rem 1rem;
+  padding:.625rem .875rem;
+  background:var(--bo-surface-2);
+  border:1px solid var(--bo-border);
+  border-radius:var(--bo-radius-sm);
+}
+.bo-availability-window--off{
+  background:var(--bo-grey-tint);
+  color:var(--bo-muted);
+}
+/* Edit/Delete here inherit the standard 44px-tall .bo-row-actions a sizing
+   (TABLES section, above) rather than a smaller override — an earlier
+   draft shrank these to 36px to fit the compact row, which undercut the
+   44px minimum target size this task treats as non-negotiable. Fixed
+   during self-review; see final report. */
+
+/* =========================================================================
+   UTILITY
+   ========================================================================= */
+
+.bo-visually-hidden{
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  border:0;
+}

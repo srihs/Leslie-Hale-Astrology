@@ -1,0 +1,31 @@
+{% extends "backoffice/base.html" %}
+{% comment %}
+Context (apps.backoffice.views.readings.ReadingDeleteView, a generic Django
+DeleteView): form (empty — no fields, present only for CSRF via POST),
+object — the readings.Reading about to be deleted.
+
+This page IS the confirmation step: GET renders this template, and only a
+POST to the same URL (the button below) actually deletes. The warning text
+is permanent and visible either way; `data-confirm` (base.html) adds a
+JS-only second check on top of it, same pattern as booking_detail.html's
+cancel form.
+
+apps/backoffice/views/readings.py:ReadingDeleteView.form_valid catches
+ProtectedError (a reading with existing bookings, or its own detail page,
+can't be deleted at the database level) and redirects back here with a
+plain-language message instead of a 500 — this page doesn't try to guess
+that in advance.
+{% endcomment %}
+{% block title %}Delete '{{ object.name }}'? — Manage — Leslie Hale Astrology{% endblock %}
+{% block content %}
+<a class="bo-back-link" href="{% url 'backoffice:reading_list' %}">&larr; Back to readings</a>
+<h1>Delete this reading?</h1>
+<p>You're about to permanently delete <strong>{{ object.name }}</strong>. This can't be undone — it will disappear from the Services page and the booking form immediately.</p>
+<p class="bo-hint">If this reading already has bookings, or has its own page, it can't be deleted this way — untick "Show on the Services page and offer in the booking form" on its edit screen instead.</p>
+<form method="post" data-confirm="Delete '{{ object.name }}'? This can't be undone.">
+  {% csrf_token %}
+  {{ form }}
+  <button class="bo-btn bo-btn-danger" type="submit">Yes, delete '{{ object.name }}'</button>
+  <a class="bo-btn" href="{% url 'backoffice:reading_list' %}">Cancel</a>
+</form>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "backoffice/base.html" %}
+{% comment %}
+Context (apps.backoffice.views.availability.AvailabilityRuleDeleteView, a
+generic Django DeleteView): form (empty), object — the AvailabilityRule
+about to be deleted. `{{ object }}` uses the model's own __str__ (bookings/
+models.py), e.g. "Monday 09:00–17:00".
+{% endcomment %}
+{% block title %}Delete this weekly window? — Manage — Leslie Hale Astrology{% endblock %}
+{% block content %}
+<a class="bo-back-link" href="{% url 'backoffice:availability' %}">&larr; Back to availability</a>
+<h1>Delete this weekly window?</h1>
+<p>You're about to permanently delete <strong>{{ object }}</strong>. Clients won't be able to book that window any more. This can't be undone — if you just want to pause it, edit it and untick "currently in use" instead.</p>
+<form method="post" data-confirm="Delete the {{ object }} window? This can't be undone.">
+  {% csrf_token %}
+  {{ form }}
+  <button class="bo-btn bo-btn-danger" type="submit">Yes, delete this window</button>
+  <a class="bo-btn" href="{% url 'backoffice:availability' %}">Cancel</a>
+</form>
+{% endblock %}

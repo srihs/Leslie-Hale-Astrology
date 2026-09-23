@@ -1,0 +1,81 @@
+{% extends "backoffice/base.html" %}
+{% comment %}
+Context (apps.backoffice.views.availability.AvailabilityView): rules —
+every AvailabilityRule (bookings.models), ordered by (weekday, start_time);
+exceptions — every AvailabilityException, ordered by date.
+
+Task brief item 1: this screen must read like "I see clients on Tuesdays,
+10am to 4pm" and "I'm away on 3 October", and make the relationship between
+the two kinds of row visible — a recurring weekly pattern, and one-off
+dates that override it. The two sections below are ordered and labelled to
+say exactly that ("Exceptions" intro line states the override relationship
+in words, not just by page position).
+
+{% regroup %} relies on `rules` already being ordered by weekday then
+start_time (AvailabilityView.queryset) — regroup only groups CONSECUTIVE
+items sharing a value, it doesn't sort.
+{% endcomment %}
+{% block title %}Availability — Manage — Leslie Hale Astrology{% endblock %}
+{% block content %}
+<h1>Availability</h1>
+<p class="bo-lede">This is when clients can book a reading with you. Exceptions below always override your weekly pattern for that one date.</p>
+
+<section aria-labelledby="weekly-heading">
+  <div class="bo-section-header">
+    <h2 id="weekly-heading">Your weekly pattern</h2>
+    <a class="bo-btn bo-btn-primary" href="{% url 'backoffice:availability_rule_create' %}">Add a weekly window</a>
+  </div>
+
+  {% regroup rules by get_weekday_display as day_groups %}
+  {% if day_groups %}
+  <ul class="bo-availability-list">
+    {% for day in day_groups %}
+    <li>
+      <h3>{{ day.grouper }}</h3>
+      <ul class="bo-availability-windows">
+        {% for rule in day.list %}
+        <li class="bo-availability-window{% if not rule.is_active %} bo-availability-window--off{% endif %}">
+          <span>{{ rule.start_time|time:"g:ia" }}–{{ rule.end_time|time:"g:ia" }}{% if not rule.is_active %} (switched off){% endif %}</span>
+          <span class="bo-row-actions">
+            <a href="{% url 'backoffice:availability_rule_update' rule.pk %}">Edit</a>
+            <a href="{% url 'backoffice:availability_rule_delete' rule.pk %}">Delete</a>
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="bo-empty">You haven't set any weekly availability yet — clients won't be able to book anything until you add at least one window.</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="exceptions-heading">
+  <div class="bo-section-header">
+    <h2 id="exceptions-heading">Exceptions to your weekly pattern</h2>
+    <a class="bo-btn bo-btn-primary" href="{% url 'backoffice:availability_exception_create' %}">Add a one-off exception</a>
+  </div>
+  <p class="bo-hint">Use this for a single day off, a public holiday, or special hours that replace your usual weekly pattern just for that date.</p>
+
+  {% if exceptions %}
+  <ul class="bo-availability-list">
+    {% for exception in exceptions %}
+    <li class="bo-availability-window">
+      <span>
+        <strong>{{ exception.date|date:"l j F Y" }}</strong> —
+        {% if exception.is_closed %}closed all day{% else %}{{ exception.start_time|time:"g:ia" }}–{{ exception.end_time|time:"g:ia" }}{% endif %}
+        {% if exception.note %}<br><span class="bo-note">{{ exception.note }}</span>{% endif %}
+      </span>
+      <span class="bo-row-actions">
+        <a href="{% url 'backoffice:availability_exception_update' exception.pk %}">Edit</a>
+        <a href="{% url 'backoffice:availability_exception_delete' exception.pk %}">Delete</a>
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="bo-empty">No exceptions yet — you're following your weekly pattern every week.</p>
+  {% endif %}
+</section>
+{% endblock %}

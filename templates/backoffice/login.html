@@ -1,0 +1,45 @@
+{% extends "backoffice/base.html" %}
+{% comment %}
+Context (apps.backoffice.views.auth.BackofficeLoginView): form — a
+BackofficeLoginForm (subclasses Django's own AuthenticationForm). Wrong
+credentials and "this account has no /manage/ access" both surface as
+form.non_field_errors — apps/backoffice/views/auth.py's own docstring on
+why that refusal never reveals which case it was.
+
+No nav here — base.html only renders it for an authenticated request, and
+nobody reaching this page is one yet.
+{% endcomment %}
+{% block title %}Sign in — Manage — Leslie Hale Astrology{% endblock %}
+{% block content %}
+<div class="bo-auth">
+  <h1>Sign in</h1>
+  <p class="bo-lede">This is Leslie's own sign-in for the management area — not the same login as anywhere else on the site.</p>
+
+  <form class="bo-form" method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="bo-form-error" role="alert">
+      {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="bo-field">
+      <label for="id_username">Username</label>
+      <input type="text" id="id_username" name="username" autocomplete="username" required autofocus
+             value="{{ form.username.value|default_if_none:'' }}"
+             aria-describedby="username-err" aria-invalid="{% if form.username.errors %}true{% else %}false{% endif %}">
+      <span class="bo-err" id="username-err">{{ form.username.errors.0|default:"" }}</span>
+    </div>
+
+    <div class="bo-field">
+      <label for="id_password">Password</label>
+      <input type="password" id="id_password" name="password" autocomplete="current-password" required
+             aria-describedby="password-err" aria-invalid="{% if form.password.errors %}true{% else %}false{% endif %}">
+      <span class="bo-err" id="password-err">{{ form.password.errors.0|default:"" }}</span>
+    </div>
+
+    <input type="hidden" name="next" value="{{ next }}">
+    <button class="bo-btn bo-btn-primary" type="submit">Sign in</button>
+  </form>
+</div>
+{% endblock %}

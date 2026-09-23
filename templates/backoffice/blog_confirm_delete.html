@@ -1,0 +1,20 @@
+{% extends "backoffice/base.html" %}
+{% comment %}
+Context (apps.backoffice.views.blog.BlogPostDeleteView, hand-written since
+BlogPost is a Wagtail Page — see that view's own module docstring): post —
+the blog.BlogPost about to be deleted. No `form` var here (unlike the other
+delete-confirm screens): BlogPostDeleteView's own GET doesn't build one,
+only Django's generic DeleteViews do — the POST form below only needs its
+own CSRF token either way.
+{% endcomment %}
+{% block title %}Delete '{{ post.title }}'? — Manage — Leslie Hale Astrology{% endblock %}
+{% block content %}
+<a class="bo-back-link" href="{% url 'backoffice:blog_list' %}">&larr; Back to blog posts</a>
+<h1>Delete this post?</h1>
+<p>You're about to permanently delete <strong>{{ post.title }}</strong>{% if post.live %}, which is currently published{% endif %}. This can't be undone — if it's linked from anywhere, that link will stop working.</p>
+<form method="post" data-confirm="Delete '{{ post.title }}'? This can't be undone.">
+  {% csrf_token %}
+  <button class="bo-btn bo-btn-danger" type="submit">Yes, delete '{{ post.title }}'</button>
+  <a class="bo-btn" href="{% url 'backoffice:blog_list' %}">Cancel</a>
+</form>
+{% endblock %}

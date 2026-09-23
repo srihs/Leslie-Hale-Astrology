@@ -1,0 +1,98 @@
+{% extends "backoffice/base.html" %}
+{% comment %}
+Context (apps.backoffice.views.bookings.BookingListView): bookings (each
+with .start_at_local/.end_at_local/.display_tz_label already attached —
+see that view's `_localize`), status_choices (BookingStatus.choices),
+selected_status (the raw ?status= value, "" for "all"), site_timezone_name,
+page_obj, is_paginated. Birth data is deliberately NOT in this context —
+apps/backoffice/views/bookings.py never selects it for the list, and this
+template shows nothing beyond what's given: date/time (in Leslie's own
+timezone, named), reading, client name, status. Detail-only, per the task
+brief.
+
+htmx: the status filter and the pager below both target the SAME URL this
+view already answers to a plain GET on (?status=, ?page=) — BookingListView
+never branches on request.htmx (confirmed by reading apps/backoffice/views/
+bookings.py; it always renders the full page). So, exactly like blog/
+partials/_post_list.html's own established pattern on the public site:
+`hx-select="#booking-results"` asks htmx to pull just that element out of
+the full-page response client-side, `hx-target`/`hx-swap="outerHTML"`
+replace only it, and `hx-push-url="true"` keeps the address bar in sync.
+No server-side change was needed or made.
+
+No-JS path: the status <select> is inside a real <form method="get">, and
+the "Filter" button below it is a genuine submit control (not hidden) — a
+plain click reloads the page and BookingListView renders the same filtered,
+paginated list from scratch. The pager links are real `<a href="?page=…">`
+for the same reason.
+
+aria-live="polite" on #booking-results announces a filtered/paginated
+result to screen reader users after either interaction.
+{% endcomment %}
+{% block title %}Bookings — Manage — Leslie Hale Astrology{% endblock %}
+{% block content %}
+<h1>Bookings</h1>
+<p class="bo-lede">All times below are shown in {{ site_timezone_name }}.</p>
+
+<form class="bo-filter-form" method="get" aria-label="Filter bookings">
+  <div class="bo-field bo-field-inline">
+    <label for="status">Status</label>
+    <select id="status" name="status"
+            hx-get="{% url 'backoffice:booking_list' %}" hx-trigger="change"
+            hx-target="#booking-results" hx-select="#booking-results" hx-swap="outerHTML" hx-push-url="true">
+      <option value=""{% if not selected_status %} selected{% endif %}>All bookings</option>
+      {% for value, label in status_choices %}
+      <option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="bo-btn" type="submit">Filter</button>
+</form>
+
+<div id="booking-results" aria-live="polite">
+  {% if bookings %}
+  <table class="bo-table">
+    <caption class="bo-visually-hidden">Bookings{% if selected_status %}, filtered by status{% endif %}</caption>
+    <thead>
+      <tr>
+        <th scope="col">Date &amp; time</th>
+        <th scope="col">Reading</th>
+        <th scope="col">Client</th>
+        <th scope="col">Status</th>
+        <th scope="col"><span class="bo-visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for booking in bookings %}
+      <tr>
+        <td>{{ booking.start_at_local|date:"j M Y, g:ia" }}</td>
+        <td>{{ booking.reading.name }}</td>
+        <td>{{ booking.client_first_name }} {{ booking.client_last_name }}</td>
+        <td><span class="bo-badge bo-badge-{{ booking.status }}">{{ booking.get_status_display }}</span></td>
+        <td><a href="{% url 'backoffice:booking_detail' booking.public_ref %}">View<span class="bo-visually-hidden"> {{ booking.client_first_name }} {{ booking.client_last_name }}'s booking</span></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if is_paginated %}
+  <nav class="bo-pager" aria-label="Bookings pages">
+    {% if page_obj.has_previous %}
+    <a id="pager-prev" href="{% querystring page=page_obj.previous_page_number %}"
+       hx-get="{% querystring page=page_obj.previous_page_number %}" hx-target="#booking-results" hx-select="#booking-results" hx-swap="outerHTML" hx-push-url="true">Previous</a>
+    {% endif %}
+    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a id="pager-next" href="{% querystring page=page_obj.next_page_number %}"
+       hx-get="{% querystring page=page_obj.next_page_number %}" hx-target="#booking-results" hx-select="#booking-results" hx-swap="outerHTML" hx-push-url="true">Next</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <p class="bo-empty">
+    {% if selected_status %}No bookings with this status yet.{% else %}No bookings yet — once a client books a reading, it'll show up here.{% endif %}
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

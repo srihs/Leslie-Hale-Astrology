@@ -1,0 +1,178 @@
+{% extends "backoffice/base.html" %}
+{% comment %}
+Context (apps.backoffice.views.website_text.WebsiteTextView): form — a
+WebsiteTextForm (apps/backoffice/forms.py, a plain forms.Form, not a
+ModelForm — it writes across four different pages/settings objects, see
+that view), missing_pages — a list of "home"/"about"/"contact" for
+whichever required page hasn't been created yet (an unusual/setup-time
+state; the view already pushes a messages.error about it, rendered by
+base.html — this template additionally disables Save so Leslie can't lose
+her typing against a page that won't be there to receive it).
+
+Every field's label/help text is written to say exactly which public page
+it changes (apps/backoffice/views/website_text.py's own docstring lists
+what this screen covers and, just as deliberately, what it does NOT —
+the hero's buttons, the About page's intro/training background, and every
+homepage section besides the hero all stay Wagtail-admin-only for now).
+This template renders only the fields WebsiteTextForm actually declares —
+it doesn't add anything from that "not yet" list.
+{% endcomment %}
+{% block title %}Website text — Manage — Leslie Hale Astrology{% endblock %}
+{% block content %}
+<h1>Website text</h1>
+<p class="bo-lede">Everything here goes live on the site the moment you save — there's no draft or preview step.</p>
+
+<form class="bo-form" method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="bo-form-error" role="alert">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+  {% endif %}
+
+  <section class="bo-panel" aria-labelledby="hero-heading">
+    <h2 id="hero-heading">Homepage banner</h2>
+    <div class="bo-field">
+      <label for="id_hero_headline">{{ form.hero_headline.label }}</label>
+      <p class="bo-hint">{{ form.hero_headline.help_text }}</p>
+      <input type="text" id="id_hero_headline" name="hero_headline" required maxlength="120" value="{{ form.hero_headline.value|default_if_none:'' }}"
+             aria-describedby="hero_headline-err" aria-invalid="{% if form.hero_headline.errors %}true{% else %}false{% endif %}">
+      <span class="bo-err" id="hero_headline-err">{{ form.hero_headline.errors.0|default:"" }}</span>
+    </div>
+    <div class="bo-field">
+      <label for="id_hero_subheading">{{ form.hero_subheading.label }}</label>
+      <p class="bo-hint">{{ form.hero_subheading.help_text }}</p>
+      <input type="text" id="id_hero_subheading" name="hero_subheading" maxlength="200" value="{{ form.hero_subheading.value|default_if_none:'' }}"
+             aria-describedby="hero_subheading-err" aria-invalid="{% if form.hero_subheading.errors %}true{% else %}false{% endif %}">
+      <span class="bo-err" id="hero_subheading-err">{{ form.hero_subheading.errors.0|default:"" }}</span>
+    </div>
+  </section>
+
+  <section class="bo-panel" aria-labelledby="about-heading">
+    <h2 id="about-heading">About page</h2>
+    <div class="bo-field">
+      <label for="id_story_text">{{ form.story_text.label }}</label>
+      <p class="bo-hint">{{ form.story_text.help_text }}</p>
+      <textarea id="id_story_text" name="story_text" rows="10"
+                aria-describedby="story_text-err" aria-invalid="{% if form.story_text.errors %}true{% else %}false{% endif %}">{{ form.story_text.value|default_if_none:"" }}</textarea>
+      <span class="bo-err" id="story_text-err">{{ form.story_text.errors.0|default:"" }}</span>
+    </div>
+    <div class="bo-field">
+      <label for="id_pull_quote">{{ form.pull_quote.label }}</label>
+      <p class="bo-hint">{{ form.pull_quote.help_text }}</p>
+      <textarea id="id_pull_quote" name="pull_quote" rows="2" maxlength="300"
+                aria-describedby="pull_quote-err" aria-invalid="{% if form.pull_quote.errors %}true{% else %}false{% endif %}">{{ form.pull_quote.value|default_if_none:"" }}</textarea>
+      <span class="bo-err" id="pull_quote-err">{{ form.pull_quote.errors.0|default:"" }}</span>
+    </div>
+
+    <h3>'Three promises' section</h3>
+    <div class="bo-field">
+      <label for="id_promises_eyebrow">{{ form.promises_eyebrow.label }}</label>
+      <p class="bo-hint">{{ form.promises_eyebrow.help_text }}</p>
+      <input type="text" id="id_promises_eyebrow" name="promises_eyebrow" required maxlength="60" value="{{ form.promises_eyebrow.value|default_if_none:'' }}"
+             aria-describedby="promises_eyebrow-err" aria-invalid="{% if form.promises_eyebrow.errors %}true{% else %}false{% endif %}">
+      <span class="bo-err" id="promises_eyebrow-err">{{ form.promises_eyebrow.errors.0|default:"" }}</span>
+    </div>
+    <div class="bo-field">
+      <label for="id_promises_heading">{{ form.promises_heading.label }}</label>
+      <input type="text" id="id_promises_heading" name="promises_heading" required maxlength="100" value="{{ form.promises_heading.value|default_if_none:'' }}"
+             aria-describedby="promises_heading-err" aria-invalid="{% if form.promises_heading.errors %}true{% else %}false{% endif %}">
+      <span class="bo-err" id="promises_heading-err">{{ form.promises_heading.errors.0|default:"" }}</span>
+    </div>
+
+    {% for n in "123" %}
+    <fieldset class="bo-fieldset">
+      <legend>Promise {{ n }}</legend>
+      <div class="bo-field">
+        <label for="id_promise_{{ n }}_title">Title</label>
+        {% if n == "1" %}
+        <input type="text" id="id_promise_1_title" name="promise_1_title" required maxlength="60" value="{{ form.promise_1_title.value|default_if_none:'' }}"
+               aria-describedby="promise_1_title-err" aria-invalid="{% if form.promise_1_title.errors %}true{% else %}false{% endif %}">
+        <span class="bo-err" id="promise_1_title-err">{{ form.promise_1_title.errors.0|default:"" }}</span>
+        {% elif n == "2" %}
+        <input type="text" id="id_promise_2_title" name="promise_2_title" required maxlength="60" value="{{ form.promise_2_title.value|default_if_none:'' }}"
+               aria-describedby="promise_2_title-err" aria-invalid="{% if form.promise_2_title.errors %}true{% else %}false{% endif %}">
+        <span class="bo-err" id="promise_2_title-err">{{ form.promise_2_title.errors.0|default:"" }}</span>
+        {% else %}
+        <input type="text" id="id_promise_3_title" name="promise_3_title" required maxlength="60" value="{{ form.promise_3_title.value|default_if_none:'' }}"
+               aria-describedby="promise_3_title-err" aria-invalid="{% if form.promise_3_title.errors %}true{% else %}false{% endif %}">
+        <span class="bo-err" id="promise_3_title-err">{{ form.promise_3_title.errors.0|default:"" }}</span>
+        {% endif %}
+      </div>
+      <div class="bo-field">
+        <label for="id_promise_{{ n }}_description">Description</label>
+        {% if n == "1" %}
+        <textarea id="id_promise_1_description" name="promise_1_description" rows="2" required maxlength="250"
+                  aria-describedby="promise_1_description-err" aria-invalid="{% if form.promise_1_description.errors %}true{% else %}false{% endif %}">{{ form.promise_1_description.value|default_if_none:"" }}</textarea>
+        <span class="bo-err" id="promise_1_description-err">{{ form.promise_1_description.errors.0|default:"" }}</span>
+        {% elif n == "2" %}
+        <textarea id="id_promise_2_description" name="promise_2_description" rows="2" required maxlength="250"
+                  aria-describedby="promise_2_description-err" aria-invalid="{% if form.promise_2_description.errors %}true{% else %}false{% endif %}">{{ form.promise_2_description.value|default_if_none:"" }}</textarea>
+        <span class="bo-err" id="promise_2_description-err">{{ form.promise_2_description.errors.0|default:"" }}</span>
+        {% else %}
+        <textarea id="id_promise_3_description" name="promise_3_description" rows="2" required maxlength="250"
+                  aria-describedby="promise_3_description-err" aria-invalid="{% if form.promise_3_description.errors %}true{% else %}false{% endif %}">{{ form.promise_3_description.value|default_if_none:"" }}</textarea>
+        <span class="bo-err" id="promise_3_description-err">{{ form.promise_3_description.errors.0|default:"" }}</span>
+        {% endif %}
+      </div>
+    </fieldset>
+    {% endfor %}
+  </section>
+
+  <section class="bo-panel" aria-labelledby="contact-page-heading">
+    <h2 id="contact-page-heading">Contact page</h2>
+    <div class="bo-field">
+      <label for="id_contact_intro">{{ form.contact_intro.label }}</label>
+      <p class="bo-hint">{{ form.contact_intro.help_text }}</p>
+      <textarea id="id_contact_intro" name="contact_intro" rows="3"
+                aria-describedby="contact_intro-err" aria-invalid="{% if form.contact_intro.errors %}true{% else %}false{% endif %}">{{ form.contact_intro.value|default_if_none:"" }}</textarea>
+      <span class="bo-err" id="contact_intro-err">{{ form.contact_intro.errors.0|default:"" }}</span>
+    </div>
+  </section>
+
+  <section class="bo-panel" aria-labelledby="contact-details-heading">
+    <h2 id="contact-details-heading">Contact details</h2>
+    <p class="bo-hint">Shown across the whole site — the Contact page and booking notifications.</p>
+    <div class="bo-field">
+      <label for="id_contact_email">{{ form.contact_email.label }}</label>
+      <p class="bo-hint">{{ form.contact_email.help_text }}</p>
+      <input type="email" id="id_contact_email" name="contact_email" value="{{ form.contact_email.value|default_if_none:'' }}"
+             aria-describedby="contact_email-err" aria-invalid="{% if form.contact_email.errors %}true{% else %}false{% endif %}">
+      <span class="bo-err" id="contact_email-err">{{ form.contact_email.errors.0|default:"" }}</span>
+    </div>
+    <div class="bo-field">
+      <label for="id_contact_phone">{{ form.contact_phone.label }}</label>
+      <input type="text" id="id_contact_phone" name="contact_phone" maxlength="30" value="{{ form.contact_phone.value|default_if_none:'' }}"
+             aria-describedby="contact_phone-err" aria-invalid="{% if form.contact_phone.errors %}true{% else %}false{% endif %}">
+      <span class="bo-err" id="contact_phone-err">{{ form.contact_phone.errors.0|default:"" }}</span>
+    </div>
+    <div class="bo-field">
+      <label for="id_studio_address">{{ form.studio_address.label }}</label>
+      <p class="bo-hint">{{ form.studio_address.help_text }}</p>
+      <input type="text" id="id_studio_address" name="studio_address" maxlength="255" value="{{ form.studio_address.value|default_if_none:'' }}"
+             aria-describedby="studio_address-err" aria-invalid="{% if form.studio_address.errors %}true{% else %}false{% endif %}">
+      <span class="bo-err" id="studio_address-err">{{ form.studio_address.errors.0|default:"" }}</span>
+    </div>
+    <div class="bo-field">
+      <label for="id_instagram_url">{{ form.instagram_url.label }}</label>
+      <input type="url" id="id_instagram_url" name="instagram_url" value="{{ form.instagram_url.value|default_if_none:'' }}"
+             aria-describedby="instagram_url-err" aria-invalid="{% if form.instagram_url.errors %}true{% else %}false{% endif %}">
+      <span class="bo-err" id="instagram_url-err">{{ form.instagram_url.errors.0|default:"" }}</span>
+    </div>
+    <div class="bo-field">
+      <label for="id_facebook_url">{{ form.facebook_url.label }}</label>
+      <input type="url" id="id_facebook_url" name="facebook_url" value="{{ form.facebook_url.value|default_if_none:'' }}"
+             aria-describedby="facebook_url-err" aria-invalid="{% if form.facebook_url.errors %}true{% else %}false{% endif %}">
+      <span class="bo-err" id="facebook_url-err">{{ form.facebook_url.errors.0|default:"" }}</span>
+    </div>
+    <div class="bo-field">
+      <label for="id_years_experience_label">{{ form.years_experience_label.label }}</label>
+      <p class="bo-hint">{{ form.years_experience_label.help_text }}</p>
+      <input type="text" id="id_years_experience_label" name="years_experience_label" required maxlength="60" value="{{ form.years_experience_label.value|default_if_none:'' }}"
+             aria-describedby="years_experience_label-err" aria-invalid="{% if form.years_experience_label.errors %}true{% else %}false{% endif %}">
+      <span class="bo-err" id="years_experience_label-err">{{ form.years_experience_label.errors.0|default:"" }}</span>
+    </div>
+  </section>
+
+  <button class="bo-btn bo-btn-primary" type="submit"{% if missing_pages %} disabled{% endif %}>Save</button>
+  {% if missing_pages %}<p class="bo-hint">Saving is switched off until those pages exist — see the message above.</p>{% endif %}
+</form>
+{% endblock %}

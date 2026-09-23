@@ -1,0 +1,60 @@
+{% extends "backoffice/base.html" %}
+{% comment %}
+Context (apps.backoffice.views.availability.AvailabilityExceptionCreateView/
+UpdateView): form — an AvailabilityExceptionForm (apps/backoffice/forms.py).
+Its own `clean()` requires either "closed all day" ticked, or both special
+hours filled in — the note below the "Closed all day" checkbox says that in
+plain language; the actual enforcement stays server-side, same as every
+other form here.
+{% endcomment %}
+{% block title %}{% if form.instance.pk %}Edit exception{% else %}Add an exception{% endif %} — Manage — Leslie Hale Astrology{% endblock %}
+{% block content %}
+<a class="bo-back-link" href="{% url 'backoffice:availability' %}">&larr; Back to availability</a>
+<h1>{% if form.instance.pk %}Edit exception{% else %}Add a one-off exception{% endif %}</h1>
+<p class="bo-lede">This always overrides your weekly pattern for the one date you choose below.</p>
+
+<form class="bo-form" method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="bo-form-error" role="alert">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+  {% endif %}
+
+  <div class="bo-field">
+    <label for="id_date">{{ form.date.label }}</label>
+    <input type="date" id="id_date" name="date" required
+           value="{% if form.is_bound %}{{ form.date.value|default:'' }}{% else %}{{ form.date.value|date:'Y-m-d' }}{% endif %}"
+           aria-describedby="date-err" aria-invalid="{% if form.date.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="date-err">{{ form.date.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field bo-field--checkbox">
+    <label class="bo-checkbox-label"><input type="checkbox" id="id_is_closed" name="is_closed"{% if form.is_closed.value %} checked{% endif %}> {{ form.is_closed.label }}</label>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_start_time">{{ form.start_time.label }}</label>
+    <input type="time" id="id_start_time" name="start_time"
+           value="{% if form.is_bound %}{{ form.start_time.value|default:'' }}{% else %}{{ form.start_time.value|time:'H:i' }}{% endif %}"
+           aria-describedby="start_time-err" aria-invalid="{% if form.start_time.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="start_time-err">{{ form.start_time.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_end_time">{{ form.end_time.label }}</label>
+    <input type="time" id="id_end_time" name="end_time"
+           value="{% if form.is_bound %}{{ form.end_time.value|default:'' }}{% else %}{{ form.end_time.value|time:'H:i' }}{% endif %}"
+           aria-describedby="end_time-err" aria-invalid="{% if form.end_time.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="end_time-err">{{ form.end_time.errors.0|default:"" }}</span>
+  </div>
+
+  <div class="bo-field">
+    <label for="id_note">{{ form.note.label }}</label>
+    <input type="text" id="id_note" name="note" value="{{ form.note.value|default_if_none:'' }}"
+           aria-describedby="note-err" aria-invalid="{% if form.note.errors %}true{% else %}false{% endif %}">
+    <span class="bo-err" id="note-err">{{ form.note.errors.0|default:"" }}</span>
+  </div>
+
+  <button class="bo-btn bo-btn-primary" type="submit">Save</button>
+  <a class="bo-btn" href="{% url 'backoffice:availability' %}">Cancel</a>
+</form>
+{% endblock %}
