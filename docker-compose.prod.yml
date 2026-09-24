@@ -1,0 +1,125 @@
+# Production / test-deployment compose — NOT auto-loaded.
+#
+# Compose only ever auto-merges docker-compose.yml + (if present)
+# docker-compose.override.yml when you run a bare `docker compose up`.
+# This file has a different name specifically so that command can never
+# pick it up by accident. It must be invoked explicitly:
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#   docker compose -f docker-compose.prod.yml logs -f web
+#   docker compose -f docker-compose.prod.yml down
+#
+# It builds docker/Dockerfile's "runtime" target (not "dev" — no Chromium,
+# no pytest, no test suite in the image), has no bind-mounted source, and
+# runs no dev command override: the image's own gunicorn CMD and
+# HEALTHCHECK (docker/Dockerfile, "runtime" stage) apply unmodified.
+#
+# Requires a .env file in this directory (copy .env.example -> .env, fill
+# in real values) with DJANGO_SETTINGS_MODULE=config.settings.prod. Same
+# file the dev stack uses — see CLAUDE.md's "Local environment" section on
+# why .env.example is never renamed, moved or consumed by either compose
+# file.
+#
+# --- Media: survives a redeploy -------------------------------------
+# Leslie's portrait and the imported blog images are bind-mounted from the
+# host path in MEDIA_DIR (.env.example) straight into the container at
+# /app/media, NOT baked into the image and NOT an anonymous/ephemeral
+# volume. `docker compose ... down` (with or without --build on the next
+# `up`) never touches this host directory; only deleting it does. The
+# operator must guarantee that host path itself is durable — i.e. it must
+# live on the server's real persistent disk, not on ephemeral/scratch
+# storage that a host rebuild or container-platform migration could wipe.
+#
+# --- Postgres: a container here, deliberately, not an external/managed
+# database --------------------------------------------------------------
+# Prohosting is shared hosting (PROJECT-SCOPE.md §1), and no managed
+# Postgres offering on it is confirmed — inventing one here would violate
+# this project's own docker-infra brief ("do not assume ... a managed
+# Postgres"). Running Postgres as a container alongside "web", on
+# whatever host actually runs this compose file (this is the deliberate
+# assumption that needs confirming — see the final report), is the
+# portable choice: it depends on nothing beyond Docker itself being
+# available, which this compose file already requires for "web".
+#
+# Its data directory is bind-mounted to the host path in POSTGRES_DATA_DIR
+# (.env.example), same reasoning as MEDIA_DIR above: `docker compose down`
+# and container rebuilds never touch it, only deleting the directory does.
+#
+# BACKUP OBLIGATION (nothing below does this automatically): this compose
+# file provides durability against redeploys and container churn, NOT
+# against disk failure, accidental deletion, or a bad migration. The
+# operator must run their own periodic backup — e.g. a host-level cron
+# job outside this compose file (one process per container: the db
+# container does not also run cron) such as:
+#   docker compose -f docker-compose.prod.yml exec -T db \
+#     pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > backup-$(date +%F).sql.gz
+# taken on a schedule, copied off-host, and tested by an actual restore at
+# least once. Nothing in this repository currently defines that job.
+#
+# --- Assumption this still depends on (see final report) ----------------
+# That the actual deploy target — leslie.testground.shop today, whatever
+# Prohosting infrastructure hosts lesliehale-astrology.com at cutover —
+# can run Docker and docker compose at all. That is confirmed for
+# leslie.testground.shop (this file is meant to run there); it is NOT
+# confirmed for Prohosting's own shared hosting, which PROJECT-SCOPE.md §1
+# and this project's docker-infra brief both flag as "shared hosting
+# rather than a container platform". If Prohosting turns out not to
+# support Docker Compose, this file's design still travels (a VPS, or
+# Prohosting's own Docker/VPS tier if one exists) — but that is an open
+# question, not something this file assumes away.
+
+name: leslie-hale-astrology-prod
+
+services:
+  db:
+    image: postgres:16.6-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ${POSTGRES_DATA_DIR:-./data/postgres}:/var/lib/postgresql/data
+    # No host port published here — only "web" on this compose's own
+    # network needs to reach Postgres. Add one only if an operator
+    # genuinely needs host-level psql access to production data.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      # "runtime" is the Dockerfile's last stage and its default with no
+      # --target, but spelled out here so this file can never silently
+      # start building "dev" (the 2GB Chromium + pytest image) if the
+      # Dockerfile's stage order ever changes.
+      target: runtime
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+    # No source bind mount (unlike docker-compose.yml's dev service) — the
+    # image is run as built. Only media is mounted, and only because it
+    # must outlive the container; see the comment above.
+    volumes:
+      - ${MEDIA_DIR:-./data/media}:/app/media
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    # Same healthcheck as the image's own HEALTHCHECK (docker/Dockerfile) —
+    # repeated here only so `docker compose ps` reports status without
+    # needing `docker inspect`.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

@@ -425,16 +425,25 @@ GOOGLE_ANALYTICS_ID = env("GOOGLE_ANALYTICS_ID", required=False, default="")
 # ---------------------------------------------------------------------------
 
 # The one domain every canonical URL, sitemap entry, structured-data `url`
-# and Open Graph `og:url` is built against — apex, not `www`, matching
-# PROJECT-SCOPE.md §1 ("Domain: lesliehale-astrology.com") and this file's
-# own WAGTAILADMIN_BASE_URL default. Deliberately independent of both
+# and Open Graph `og:url` is built against — apex, not `www`, whatever that
+# apex currently is (this project is served from leslie.testground.shop
+# for testing before the PROJECT-SCOPE.md §1 cutover to
+# lesliehale-astrology.com). Deliberately independent of both
 # ALLOWED_HOSTS (a security allowlist, not a canonicalisation choice) and
 # Wagtail's own Site.hostname (editable in Wagtail admin, and if it were
 # ever left at Wagtail's "localhost" default or pointed at a staging host,
 # every page's canonical URL would silently follow it). request.get_host()
 # is used as a fallback only so local dev still renders a valid URL without
 # this being set.
-CANONICAL_DOMAIN = env("CANONICAL_DOMAIN", required=False, default="lesliehale-astrology.com")
+#
+# No hardcoded production default here, deliberately — the same reasoning
+# already applied to SECRET_KEY. A domain default that is silently wrong
+# (still lesliehale-astrology.com while actually serving
+# leslie.testground.shop, or vice versa after cutover) is worse than an
+# empty value that visibly falls back to request.get_host() below. Every
+# environment, including the real production deploy, must set this
+# explicitly — see .env.example.
+CANONICAL_DOMAIN = env("CANONICAL_DOMAIN", required=False, default="")
 
 # Drives robots.txt (apps/core/views.py:robots_txt) — NOT a static file, so
 # an environment can control it without a code change or redeploy of a
