@@ -77,3 +77,6 @@ temp/
 # Must be present at the repo root to run: manage.py import_keen
 /keen_blog_archive/
 /keen_blog_archive.zip
+
+# Chromium cert store, written at runtime by the browser test suite
+/.pki/
