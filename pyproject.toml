@@ -63,6 +63,20 @@ dev = [
     "pytest-django==4.9.0",
     "factory_boy==3.3.1",
     "freezegun==1.5.1",
+    # tests/browser/ — real-Chromium Playwright suite (see that directory's
+    # own conftest.py docstring and the root conftest.py collect_ignore
+    # gating it behind LHA_RUN_BROWSER_TESTS). Verified against the PyPI
+    # JSON API before pinning: playwright 1.48.0 is not yanked, ships
+    # win/macOS/manylinux wheels, requires-python >=3.8 (fine under this
+    # project's ==3.12.*), and pins its own greenlet==3.1.1/pyee==12.0.0.
+    # pytest-playwright 0.5.2 is not yanked, requires-python >=3.8, and its
+    # own requires_dist ("playwright>=1.18", "pytest<9.0.0,>=6.2.4") is
+    # satisfied by both the playwright pin above and this project's existing
+    # pytest==8.3.4. Neither package's pip install pulls the Chromium
+    # binary itself — that is a separate `playwright install` step, see
+    # docker/Dockerfile's "dev" stage.
+    "playwright==1.48.0",
+    "pytest-playwright==0.5.2",
 ]
 
 # This project is app code, not a distributable library — there is no

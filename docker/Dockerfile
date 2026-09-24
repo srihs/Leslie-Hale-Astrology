@@ -98,6 +98,42 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.dev
 
 COPY --from=builder-dev /opt/venv /opt/venv
 
+# tests/browser/ (Playwright + real Chromium) — installed here, at build
+# time, in the "dev" stage only. Decided deliberately, not defaulted:
+#
+#   `playwright install --with-deps chromium` needs apt (for the ~40
+#   shared libraries Chromium needs: libnss3, libatk-bridge2.0-0, libgbm1,
+#   fonts, ...), and apt needs root. This container's own USER is "app" by
+#   the time anyone would `docker compose exec` into it, and there is no
+#   sudo in this image — a "run it manually once you need it" step would
+#   actually mean "docker compose exec -u root ... && chown ... every time
+#   the container is recreated", which is exactly the setup ritual a
+#   developer forgets, and it would have to be repeated after every
+#   `docker compose up --build` since nothing outside the image persists
+#   across a rebuild. Baking it into the image at build time, where root
+#   is already the active user for the apt-requiring builder stages
+#   anyway, is the only version of this that isn't a trap.
+#
+#   The size cost is real and paid only here: roughly 400-600MB added to
+#   the "dev" stage alone (Chromium itself is ~150-300MB; the apt
+#   libraries and fonts make up the rest) — see the build-time size
+#   comparison in the deployment notes. It does not touch "runtime" below,
+#   which copies from "builder", never "builder-dev", and never runs this
+#   block.
+#
+# PLAYWRIGHT_BROWSERS_PATH points outside any per-user home directory
+# specifically so the browsers land somewhere the non-root "app" user can
+# still read after USER switches below — the `playwright install` default
+# ($HOME/.cache/ms-playwright, i.e. /root/.cache/ms-playwright while this
+# RUN is still root) is unreadable by "app" once the image drops
+# privileges, which is the exact failure this project's test-engineer hit
+# installing by hand into the running container. Verified as the "app"
+# user, not assumed — see the deployment notes.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN mkdir -p /ms-playwright \
+    && playwright install --with-deps chromium \
+    && chown -R app:app /ms-playwright
+
 # Application code, owned by app:app. Build-context is trimmed by
 # .dockerignore (.git, .venv, __pycache__, versions/, media, secrets).
 COPY --chown=app:app . .

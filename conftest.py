@@ -16,11 +16,41 @@ network. See apps/*/tests/factories.py for the model factories, and
 apps/home/tests/factories.py / apps/core/tests/factories.py for the
 StreamField-heavy Wagtail page builders every page-rendering test in
 tests/test_page_rendering.py depends on.
+
+tests/browser/ is deliberately NOT part of this suite (see the
+collect_ignore below and tests/browser/conftest.py's own docstring for
+the full reasoning). Those are real-Chromium Playwright tests for
+defects that shipped with byte-identical server output and a correct
+DOM — wrong computed opacity after GSAP runs, a pager only unsafe at the
+real ~1460-post volume, an htmx failure with no fallback — none of which
+a Django test client can see. They need the app actually running and hit
+it over real HTTP, so they are collected only when a human or CI job
+opts in with LHA_RUN_BROWSER_TESTS=1, never as a side effect of a bare
+`pytest` here. A bare `pytest` at the repo root has no testpaths
+restriction (pyproject.toml's [tool.pytest.ini_options] does not set
+one), so without this, tests/browser's own test_*.py files would be
+collected and fail immediately for anyone without Playwright + Chromium
+installed and the stack running — exactly the "slows/breaks the main
+suite" outcome this file exists to avoid.
 """
 
 from __future__ import annotations
 
+import os
 import re
+
+collect_ignore = []
+if not os.environ.get("LHA_RUN_BROWSER_TESTS"):
+    collect_ignore.append("tests/browser")
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "browser: real-Chromium Playwright regression test (tests/browser/). "
+        "Never part of the default `pytest` run — see this file's own "
+        "docstring and tests/browser/conftest.py for how to run these.",
+    )
 
 # Response-shape assertions for the no-JS/htmx branch pair every public
 # form POST must keep (FINDING 1, reviews/2026-09-22-final-build-review.md,

@@ -5,6 +5,17 @@
 #
 # Run: docker compose up --build
 # Requires: a .env file (copy .env.example -> .env and fill it in first).
+#
+# Main test suite (256 tests, no Playwright, no running stack needed):
+#     docker compose exec web pytest
+#
+# Browser suite (tests/browser/ — real Chromium, needs this stack actually
+# running and reachable; see tests/browser/conftest.py's own docstring for
+# the full story including the real ~1460-post data volume two of these
+# tests depend on). The "dev" target above already bakes Chromium + its
+# apt dependencies into the image (docker/Dockerfile's "dev" stage), so no
+# extra install step is needed:
+#     docker compose exec web bash -c "LHA_RUN_BROWSER_TESTS=1 pytest tests/browser -v"
 
 services:
   db:
