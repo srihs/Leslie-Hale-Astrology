@@ -47,6 +47,17 @@ from apps.core.ContactSettings.years_experience_label
 §8 "years of experience figure" open item (see reviews/2026-09-22-
 project-structure-scaffold.md finding 6).
 
+`currency_code` is the site's configured currency (settings.BOOKING_CURRENCY,
+e.g. "USD"), rendered as a plain ISO 4217 code rather than a symbol — "$" is
+ambiguous between USD/NZD/CAD/AUD and wrong for EUR/GBP, and this is the
+same value Booking.amount_display already renders money as ("USD 150.00"),
+so a reading's advertised price and its eventual charge read consistently.
+Not yet in context: apps.core.context_processors.seo (already registered in
+config/settings/base.py's TEMPLATES) needs one added key,
+`"currency_code": settings.BOOKING_CURRENCY`, before this renders — until
+then it's silently blank (Django's default template behaviour for an
+undefined variable), never a bare, wrongly-labelled number.
+
 Services grid: §7 describes "2-up grid: bordered card(s) + image-backed
 card"; ServicesTeaserBlock (apps/home/blocks.py) follows that spec over
 the locked mockup's own three-reading-only grid (see that block's own
@@ -121,7 +132,7 @@ base template's context), so the shared link always matches the tab title.
         <p>{{ reading.summary }}</p>
         <div class="price">
           <div>
-            {% if reading.price %}<b>${{ reading.price }}</b>{% else %}<b>{{ reading.price_note }}</b>{% endif %}
+            {% if reading.price %}<b>{{ currency_code }} {{ reading.price }}</b>{% else %}<b>{{ reading.price_note }}</b>{% endif %}
             {% if reading.duration_minutes %}<small>{{ reading.duration_minutes }} minutes</small>{% endif %}
           </div>
           {% include "includes/_page_link.html" with app_label="bookings" model="bookingpage" text="Book →" %}

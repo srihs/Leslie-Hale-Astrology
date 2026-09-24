@@ -380,6 +380,13 @@ def start_checkout(request):
 
     duration = timedelta(minutes=reading.duration_minutes)
     end_at = slot_start + duration
+    # The *100 here hardcodes a two-decimal currency (correct for
+    # settings.BOOKING_CURRENCY's confirmed value, USD, same shape as the
+    # NZD this replaced) — it is NOT derived from `CURRENCY`/`booking.currency`
+    # and would be wrong for a zero-decimal currency (e.g. JPY), where
+    # Stripe's own unit_amount is already the whole-currency amount. See
+    # config/settings/base.py's BOOKING_CURRENCY comment before ever
+    # configuring anything other than a two-decimal currency here.
     amount_minor = int((Decimal(reading.price) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
     try:

@@ -149,7 +149,7 @@ class Testimonial(models.Model):
         max_length=150,
         blank=True,
         help_text="Optional short context under the name, e.g. 'Natal Chart "
-        "Reading' or 'Auckland'.",
+        "Reading' or 'Austin, TX'.",
     )
     is_featured = models.BooleanField(
         default=False,

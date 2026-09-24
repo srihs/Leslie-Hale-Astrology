@@ -19,6 +19,16 @@ page.faq  this page's own optional FAQ StreamField (apps.core.blocks.
           already on `page`, no separate context entry. Renders nothing
           until Leslie adds one, rather than the locked mockup's static
           four-question placeholder.
+
+currency_code  the configured currency (settings.BOOKING_CURRENCY), shown
+          as a plain ISO 4217 code (e.g. "USD 150.00") rather than a "$"
+          symbol: "$" is ambiguous between USD/NZD/CAD/AUD and wrong for
+          EUR/GBP, and a code matches how Booking.amount_display already
+          formats a confirmed charge. NOT YET added to context — needs one
+          key, `"currency_code": settings.BOOKING_CURRENCY`, added to the
+          dict apps.core.context_processors.seo returns (already registered
+          in TEMPLATES, so no config/ change needed). Until that lands this
+          renders blank next to the price, never a wrongly-labelled number.
 {% endcomment %}
 
 {% comment %}
@@ -64,7 +74,7 @@ own built-in Page fields, editable under this page's Promote tab.
       {% endif %}
       <div class="meta" data-reveal>
         <div>
-          {% if reading.price %}<b>${{ reading.price }}</b>{% else %}<b>{{ reading.price_note }}</b>{% endif %}
+          {% if reading.price %}<b>{{ currency_code }} {{ reading.price }}</b>{% else %}<b>{{ reading.price_note }}</b>{% endif %}
           {% if reading.duration_minutes %}<small>{{ reading.duration_minutes }} minutes</small>{% endif %}
         </div>
         {% if reading.detail_page %}<a class="link" href="{% pageurl reading.detail_page %}">Learn more</a>{% endif %}

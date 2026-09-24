@@ -44,14 +44,17 @@ def resolve_timezone(tz_name: str | None) -> ZoneInfo:
 
 def tz_label(tz: ZoneInfo, at: datetime | None = None) -> str:
     """
-    A short, human label for a timezone, e.g. 'NZDT' or 'NZST' — always
+    A short, human label for a timezone, e.g. 'EDT' or 'EST' — always
     shown next to a time in this app, per the SCOPE correctness rule that
     the timezone must be visible in the UI and in every confirmation
     email. `at` should be the actual instant being labelled (an
     appointment's start time), not left to default to now — daylight
     saving means the correct abbreviation can differ between "today" and
-    the appointment date (e.g. Pacific/Auckland moves from NZST to NZDT
-    in late September each year).
+    the appointment date (e.g. America/New_York moves from EST to EDT
+    in mid-March each year). This is generic to whatever IANA zone is
+    passed in — it is not specific to the site's own `settings.TIME_ZONE`
+    (see test_availability.py, which exercises this with Pacific/Auckland
+    directly, independent of whatever the site's own zone is).
     """
     reference = at if at is not None else timezone.now()
     return reference.astimezone(tz).tzname() or str(tz)

@@ -6,6 +6,11 @@ already select_related. Every reading here drives BOTH the public Services
 page and the booking page's list of choosable readings (see
 apps/backoffice/forms.py:ReadingForm's own docstring) — the intro line and
 each row's labels say so, rather than leaving Leslie to guess.
+
+currency_code — the configured currency (settings.BOOKING_CURRENCY), an
+ISO 4217 code (e.g. "USD") rather than a hardcoded "NZD" literal, which was
+the agency's own country leaking into Leslie's price list. Same rationale
+and same pending context-processor addition as readings/index.html.
 {% endcomment %}
 {% block title %}Readings & prices — Manage — Leslie Hale Astrology{% endblock %}
 {% block content %}
@@ -25,7 +30,7 @@ each row's labels say so, rather than leaving Leslie to guess.
       <h2>{{ reading.name }}{% if not reading.is_active %} <span class="bo-badge bo-badge-hidden">Hidden</span>{% endif %}{% if reading.is_most_booked %} <span class="bo-badge bo-badge-featured">Most booked</span>{% endif %}</h2>
       <p>{{ reading.summary }}</p>
       <p class="bo-hint">
-        {% if reading.price %}{{ reading.price_note|default:"" }} {{ reading.price }} NZD{% else %}{{ reading.price_note|default:"Price on enquiry" }}{% endif %}
+        {% if reading.price %}{{ reading.price_note|default:"" }} {{ currency_code }} {{ reading.price }}{% else %}{{ reading.price_note|default:"Price on enquiry" }}{% endif %}
         {% if reading.duration_minutes %} · {{ reading.duration_minutes }} minutes{% endif %}
       </p>
       {% if reading.detail_page %}<p class="bo-hint">Has its own page: <a href="{{ reading.detail_page.url }}">{{ reading.detail_page.title }}</a></p>{% endif %}

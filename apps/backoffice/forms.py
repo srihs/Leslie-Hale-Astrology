@@ -76,7 +76,7 @@ class ReadingForm(forms.ModelForm):
             "summary": "Short description (Services page card and homepage)",
             "description": "Full description (this reading's own page, if it has one)",
             "duration_minutes": "Duration in minutes (used to build the booking calendar's time slots)",
-            "price": "Price in NZD (shown on the Services page; charged when a client books)",
+            "price": "Price in USD (shown on the Services page; charged when a client books)",
             "price_note": "Price note (shown instead of, or alongside, the price above — e.g. 'Price on enquiry')",
             "order": "Display order (lower numbers appear first, on the Services page and the booking form)",
             "is_active": "Show on the Services page and offer in the booking form",

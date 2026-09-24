@@ -35,4 +35,12 @@ def seo(request):
         "canonical_url": f"{origin}{request.path}",
         "seo_site_origin": origin,
         "default_og_image": DEFAULT_OG_IMAGE,
+        # Not an SEO value — riding along here only because this is the one
+        # context processor already registered in TEMPLATES (config/settings/
+        # base.py), and registering a second one is a config/ change outside
+        # seo-analytics' territory (docker-infra owns config/). Public
+        # templates and templates/backoffice/reading_list.html both read
+        # {{ currency_code }} against settings.BOOKING_CURRENCY (see that
+        # setting's own comment) rather than a hardcoded symbol.
+        "currency_code": settings.BOOKING_CURRENCY,
     }

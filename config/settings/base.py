@@ -89,9 +89,23 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # The booking feature stores and compares appointment times; every datetime
 # must be timezone-aware end to end.
+#
+# Default is America/New_York because Leslie is US-based — this was
+# previously Pacific/Auckland, the agency's own timezone, not the
+# client's (same defect class as BOOKING_CURRENCY below, and as the
+# hardcoded domain fixed in 4309631). apps/bookings/availability.py's
+# `SITE_ZONE = ZoneInfo(settings.TIME_ZONE)` and everywhere else that
+# reads `settings.TIME_ZONE` already take this from settings rather than
+# a second hardcoded literal, so this one default change is what actually
+# moves the site — no other code change was needed for the zone itself.
+# `apps/bookings/availability.py:tz_label` computes the DST abbreviation
+# (e.g. 'EST'/'EDT') from the appointment's *own instant*
+# (`reference.astimezone(tz).tzname()`), never from "now" — the same fix
+# already applied for Auckland's NZST/NZDT split applies unchanged to
+# Eastern's EST/EDT split.
 USE_TZ = True
-TIME_ZONE = env("DJANGO_TIME_ZONE", required=False, default="Pacific/Auckland")
-LANGUAGE_CODE = env("DJANGO_LANGUAGE_CODE", required=False, default="en-nz")
+TIME_ZONE = env("DJANGO_TIME_ZONE", required=False, default="America/New_York")
+LANGUAGE_CODE = env("DJANGO_LANGUAGE_CODE", required=False, default="en-us")
 USE_I18N = True
 
 
@@ -404,6 +418,42 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", required=False, default="")
 STRIPE_PUBLISHABLE_KEY = env("STRIPE_PUBLISHABLE_KEY", required=False, default="")
 STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", required=False, default="")
 STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", required=False, default="")
+
+# ISO 4217 code new bookings are priced and charged in
+# (apps.bookings.models.Booking.currency's default, and the value stamped
+# onto every new Booking row in apps.bookings.views.start_checkout).
+# Previously a bare `CURRENCY = "NZD"` literal in apps/bookings/models.py
+# — the agency building this site is NZ-based, and that fact leaked into
+# money, not a decision Leslie ever made. Same defect class as a
+# hardcoded domain: a fact about the deployment baked into code instead
+# of read from it. Defaults to USD (Leslie is US-based) so an absent env
+# var fails toward the client's actual country, not the agency's.
+#
+# §8 still lists "the final list of readings and their prices" as open
+# with the client; this is the other side of that same open item (which
+# currency those prices are IN) and is exactly why it belongs here, not
+# as a second hardcoded literal — the next currency change is now a
+# config edit, not a code edit.
+#
+# CAUTION — zero-decimal currencies: USD is two-decimal, the same shape
+# as NZD, so `Booking.amount_minor` staying integer cents is correct for
+# this change, and Stripe's Checkout `unit_amount` for USD is already
+# exactly `amount_minor` with no conversion (see
+# apps/bookings/payments/stripe_provider.py's own docstring). That is
+# NOT true for every ISO 4217 code: Stripe defines a fixed list of
+# "zero-decimal currencies" (e.g. JPY, KRW, VND) whose smallest unit has
+# no subdivision, where its `unit_amount` is already the whole-currency
+# amount. apps/bookings/views.py's `amount_minor = int((Decimal(reading
+# .price) * 100)...)` hardcodes a *100 multiplication for every currency,
+# and `Booking.amount_display` hardcodes a divmod-by-100 to redisplay it
+# — neither is derived from this setting. If BOOKING_CURRENCY is ever set
+# to a zero-decimal currency without also changing both of those, every
+# real charge sent to Stripe would be exactly 100x the intended amount —
+# silently, since Stripe would accept and charge it. This setting only
+# makes the currency configurable for a same-shape currency (USD, the
+# confirmed decision); it does not add zero-decimal support, and must
+# not be read as having done so.
+BOOKING_CURRENCY = env("BOOKING_CURRENCY", required=False, default="USD")
 
 
 # ---------------------------------------------------------------------------

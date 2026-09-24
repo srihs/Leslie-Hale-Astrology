@@ -14,6 +14,7 @@ description and for direct linking (SEO, booking deep-links) — its
 short summary and price still come from the linked `Reading` snippet.
 """
 
+from django.conf import settings
 from django.db import models
 from wagtail import blocks
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
@@ -74,8 +75,22 @@ class Reading(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="Price in NZD. Leave blank until pricing is confirmed — the "
-        "note below will be shown instead of a number.",
+        # No currency named here deliberately: this string is frozen into a
+        # migration the moment it's written, but `settings.BOOKING_CURRENCY`
+        # (config/settings/base.py, env-backed) is exactly the kind of value
+        # that can change without a schema change, and a literal here would
+        # go stale the same way the old "Price in NZD" wording did (that was
+        # the agency's own country leaking into what Leslie reads while
+        # typing a price — see apps/bookings/models.py's CURRENCY comment
+        # for the sibling fix on the booking side). The currency Leslie
+        # actually sees while editing is supplied below, on the FieldPanel,
+        # which reads the same setting when this module is imported (once,
+        # at process startup, same as any other settings-derived constant)
+        # but is never serialised into migration state the way this field's
+        # own kwargs are — so a currency change is a one-line config edit
+        # and a restart, not a migration.
+        help_text="Leave blank until pricing is confirmed — the note below "
+        "will be shown instead of a number.",
     )
     price_note = models.CharField(
         max_length=60,
@@ -117,7 +132,18 @@ class Reading(models.Model):
             [FieldPanel("description"), FieldPanel("features"), FieldPanel("duration_minutes")],
             heading="Details",
         ),
-        MultiFieldPanel([FieldPanel("price"), FieldPanel("price_note")], heading="Pricing"),
+        MultiFieldPanel(
+            [
+                FieldPanel(
+                    "price",
+                    help_text=f"Price in {settings.BOOKING_CURRENCY}. Leave "
+                    "blank until pricing is confirmed — the note below will "
+                    "be shown instead of a number.",
+                ),
+                FieldPanel("price_note"),
+            ],
+            heading="Pricing",
+        ),
         MultiFieldPanel(
             [FieldPanel("order"), FieldPanel("is_active"), FieldPanel("is_most_booked")],
             heading="Display",

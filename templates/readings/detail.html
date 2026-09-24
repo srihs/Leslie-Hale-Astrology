@@ -18,6 +18,12 @@ Context (ReadingDetailPage.get_context — see apps/readings/models.py):
                    reading (or None if this reading isn't currently active)
   other_readings  queryset of the other active Reading snippets, same
                    shape as readings/index.html, for "Other readings"
+  currency_code   the configured currency (settings.BOOKING_CURRENCY), an
+                   ISO 4217 code rather than a "$" symbol — see
+                   readings/index.html's own comment for why. NOT YET added
+                   to context (needs one key added to the already-registered
+                   apps.core.context_processors.seo) — renders blank, not a
+                   bare unlabelled number, until that lands.
 {% endcomment %}
 
 {% comment %}
@@ -65,7 +71,7 @@ on this page).
       {% if page.body %}{% include_block page.body %}{% endif %}
       <div class="meta" data-reveal>
         <div>
-          {% if page.reading.price %}<b>${{ page.reading.price }}</b>{% else %}<b>{{ page.reading.price_note }}</b>{% endif %}
+          {% if page.reading.price %}<b>{{ currency_code }} {{ page.reading.price }}</b>{% else %}<b>{{ page.reading.price_note }}</b>{% endif %}
           {% if page.reading.duration_minutes %}<small>{{ page.reading.duration_minutes }} minutes</small>{% endif %}
         </div>
         {% include "includes/_page_link.html" with app_label="bookings" model="bookingpage" text="Book this reading" css_class="btn btn-solid" %}
@@ -85,7 +91,7 @@ on this page).
         <p>{{ other.summary }}</p>
         <div class="price">
           <div>
-            {% if other.price %}<b>${{ other.price }}</b>{% else %}<b>{{ other.price_note }}</b>{% endif %}
+            {% if other.price %}<b>{{ currency_code }} {{ other.price }}</b>{% else %}<b>{{ other.price_note }}</b>{% endif %}
             {% if other.duration_minutes %}<small>{{ other.duration_minutes }} minutes</small>{% endif %}
           </div>
           {% if other.detail_page %}<a href="{% pageurl other.detail_page %}">View →</a>{% endif %}

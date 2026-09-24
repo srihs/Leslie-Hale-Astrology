@@ -60,6 +60,7 @@ from __future__ import annotations
 
 import uuid
 
+from django.conf import settings
 from django.contrib.postgres.constraints import ExclusionConstraint
 from django.contrib.postgres.fields import RangeOperators
 from django.db import models
@@ -74,12 +75,17 @@ from wagtail.snippets.models import register_snippet
 # only ever reads it.
 from apps.readings.models import Reading
 
-# The currency this business already assumes elsewhere in the codebase:
-# apps/readings/models.py's own `Reading.price` help text says "Price in
-# NZD" (wagtail-backend's assumption, not a new guess introduced here).
-# Kept as one named constant, not hardcoded at each call site, so a
-# confirmed currency change is a one-line fix.
-CURRENCY = "NZD"
+# The currency new bookings are priced and charged in. Read from
+# `settings.BOOKING_CURRENCY` (config/settings/base.py, env-backed,
+# default "USD") rather than hardcoded here — this used to be a bare
+# `CURRENCY = "NZD"` literal, which was the agency's own timezone/country
+# leaking into money, not a fact about Leslie's business. See
+# config/settings/base.py's own comment for the zero-decimal-currency
+# caution (JPY, KRW, VND, ...) before this is ever changed to anything
+# other than a two-decimal currency like USD. Kept as one named constant,
+# not read from settings at each call site, so call sites (views.py) stay
+# unchanged and a currency change is still a one-line/config-only fix.
+CURRENCY = settings.BOOKING_CURRENCY
 
 # Minutes a slot is held, unpaid, before it's treated as abandoned and
 # released back to availability. Not a §8 item (it's an operational
@@ -133,7 +139,7 @@ class AvailabilityRule(models.Model):
     (Snippets → Availability rules) without any technical help — this is
     what makes "Leslie must be able to define when she is available"
     (task item 1) true. Times are in the site's own local time zone
-    (`settings.TIME_ZONE`, Pacific/Auckland) because that's how Leslie
+    (`settings.TIME_ZONE`, America/New_York) because that's how Leslie
     will naturally think about her week; `apps/bookings/availability.py`
     converts to UTC when turning these into bookable slots.
     """
@@ -280,7 +286,7 @@ class Booking(models.Model):
     display_timezone = models.CharField(
         max_length=64,
         help_text="The IANA timezone name shown to the client when they chose "
-        "this slot (e.g. 'Pacific/Auckland'), so confirmation emails describe "
+        "this slot (e.g. 'America/New_York'), so confirmation emails describe "
         "the same time the client actually saw and clicked, not a re-derived one.",
     )
 
@@ -423,7 +429,7 @@ class Booking(models.Model):
 
     @property
     def amount_display(self) -> str:
-        """`amount_minor`/`currency` formatted for display, e.g. "NZD
+        """`amount_minor`/`currency` formatted for display, e.g. "USD
         150.00". `amount_minor` stays an integer minor-unit field on the
         model (never a float or Decimal dollars) — this only formats it
         for reading, using integer division/modulo (never a float
@@ -431,7 +437,15 @@ class Booking(models.Model):
         exact cents figure a client was charged) — the same conversion
         booking_detail.html previously did itself with
         stringformat/slice/add template filters. Money arithmetic
-        belongs here, not in a template."""
+        belongs here, not in a template.
+
+        The divmod-by-100 below assumes a two-decimal currency, same as
+        `settings.BOOKING_CURRENCY`'s own docstring caution and the
+        `amount_minor` calculation in views.py: correct for USD/NZD, and
+        NOT currency-aware. A zero-decimal currency (JPY, KRW, VND, ...)
+        would need this changed too, in the same pass as that setting's
+        caution — it is not handled by `currency` alone being
+        configurable."""
         dollars, cents = divmod(self.amount_minor, 100)
         return f"{self.currency} {dollars}.{cents:02d}"
 
