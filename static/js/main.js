@@ -54,6 +54,37 @@
      against this comment before it ships a third instance of the same
      bug. */
 
+  /* ---------- htmx class/attribute-settle rule (read this too, before adding a handler below) ----------
+     A SEPARATE trap from the one above, and one `e.target` does not fix:
+     `e.target` on `htmx:afterSwap` is the right, live, attached element —
+     but its CLASS ATTRIBUTE is not yet the response's real one. htmx
+     keeps the pre-swap class on the incoming element (plus its own
+     transient `htmx-swapping` / `htmx-added` / `htmx-settling` classes)
+     for the whole swap step, precisely so a CSS transition has an old
+     class and a new class to animate between, and only writes the
+     response's actual class list once settle runs. Confirmed live
+     (instrumented both events on the same page): a swapped `#post-list`'s
+     `className` at `afterSwap` reads `"htmx-swapping htmx-added
+     htmx-settling"`; the same element's `className` at `afterSettle`
+     reads whatever the response actually sent. Any other attribute the
+     response set directly on the swapped element — `id` included — is
+     already correct at `afterSwap`; children and their own attributes
+     (`querySelector`, `[data-reveal]`, tag names, text content) are
+     already correct too, since they arrived with the swap, not with the
+     settle step. Only the swapped element's OWN class is deferred.
+
+     So: read the swapped ELEMENT off `e.target` on `afterSwap` (rule
+     above), but a check that depends on the response's CLASS on that
+     element — `.matches('form.sent')`, `.classList.contains(...)`, any
+     selector with a class in it applied to `e.target` itself — must wait
+     for `htmx:afterSettle` instead, or it will silently and permanently
+     read the pre-swap class. This has now shipped once from this file:
+     the form.sent focus handler below tested `target.matches('form.sent')`
+     on `afterSwap` and was therefore always false, even after that
+     handler's own `e.target` fix (f989c39) — necessary, not sufficient.
+     If you're adding a handler that branches on `e.target`'s own class,
+     check it against this comment first. */
+
   /* ---------- htmx: fall back to a real navigation when a request fails ----------
      ROOT CAUSE of "the blog category filters don't work" (reproduced live
      with Playwright: aborting the XHR for one `?category=` click leaves
@@ -100,8 +131,22 @@
      set hx-target to their own id), so `e.detail.target` was the old,
      pre-submission form: never `.sent`, so `target.matches('form.sent')`
      was always false and this handler never fired. Found in the same
-     sweep as the blog-filter reveal bug below; same fix. */
-  document.body.addEventListener('htmx:afterSwap', function (e) {
+     sweep as the blog-filter reveal bug below; same fix.
+
+     LISTENS ON afterSettle, not afterSwap — see the htmx class/attribute
+     rule above. `target.matches('form.sent')` needs the RESPONSE's own
+     class attribute on the swapped-in form, and htmx does not apply that
+     until settle: at afterSwap time the form still carries its
+     pre-submission class (plus the transient htmx-swapping/htmx-settling
+     classes htmx adds for the swap), so `.matches('form.sent')` was still
+     always false even after the e.target fix above. Confirmed live by
+     test-engineer instrumenting both events on the same page: switching
+     this one handler to afterSettle is what makes
+     tests/browser/test_form_focus.py pass. This was necessary but not
+     sufficient the first time around — recorded as its own thing below
+     because it is a different failure mode from the e.target one, not a
+     restatement of it. */
+  document.body.addEventListener('htmx:afterSettle', function (e) {
     var target = e.target;
     if (target && target.matches && target.matches('form.sent')) {
       var ok = target.querySelector('.ok');
@@ -133,7 +178,19 @@
      detected by focus having fallen through to <body> — and lands on the
      swapped-in panel's own first heading instead, with a managed
      tabindex so it's a genuine, announced landing point rather than
-     leaving the visitor's keyboard position undefined. */
+     leaving the visitor's keyboard position undefined.
+
+     CORRECT on afterSwap, checked against the class/attribute-settle rule
+     above: this handler reads `target.id` (an attribute the response set
+     directly, not `target`'s class) and `target.querySelector('h2, h3')`
+     (child elements that arrive with the swap). Verified live on both
+     `#post-list` and `#booking-panel`: `headingFound`/`headingText` from
+     `target.querySelector('h2, h3')` were identical at `afterSwap` and at
+     `afterSettle` in every trial, while `target.className` in the same
+     trials was the transient `htmx-swapping htmx-added htmx-settling` at
+     `afterSwap` and only the response's real value at `afterSettle`. This
+     handler never reads that class, so it isn't exposed to the deferral
+     and afterSwap is the right event for it. */
   document.body.addEventListener('htmx:afterSwap', function (e) {
     var target = e.target;
     if (!target || !target.id || (target.id !== 'booking-panel' && target.id !== 'post-list')) return;
@@ -162,7 +219,19 @@
      `gsap.set(..., {opacity:1})` made THOSE visible while the new cards,
      still governed by `[data-reveal]{opacity:0}` in _base.css, stayed
      invisible on screen. Fixed to `e.target`, matching the working
-     booking-panel/post-list focus handler above. */
+     booking-panel/post-list focus handler above.
+
+     CORRECT on afterSwap, checked against the class/attribute-settle rule
+     above: this handler reads `[data-reveal]` — a data attribute on
+     `e.target`'s CHILDREN, not a class on `e.target` itself — and sets
+     `opacity`/`y` directly as inline style via `gsap.set`, never
+     consulting `e.target`'s own class either to decide whether to run or
+     to compute the value. Verified live on `#post-list`: the swapped
+     tiles' `[data-reveal]` count was identical (9) at `afterSwap` and at
+     `afterSettle` in the same trial where `e.target.className` differed
+     between those two events exactly as the rule above describes. Nothing
+     this handler reads is deferred, so afterSwap is the right event for
+     it. */
   document.body.addEventListener('htmx:afterSwap', function (e) {
     if (!window.gsap || reduced) return;
     var items = e.target ? e.target.querySelectorAll('[data-reveal]') : [];
