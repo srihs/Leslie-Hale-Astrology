@@ -1,0 +1,122 @@
+# nginx server block template for this deployment — committed, documented,
+# NOT live config. Copy it to wherever this host's nginx expects site
+# configs (e.g. /etc/nginx/sites-available/leslie.conf, then symlink into
+# sites-enabled/), replace every EXAMPLE.PLACEHOLDER below with the real
+# domain for whichever deploy this is, and reload nginx.
+#
+# The placeholder domain here is EXAMPLE.PLACEHOLDER, deliberately not
+# leslie.testground.shop or lesliehale-astrology.com — this file is a
+# template, not the record of what any one host currently runs. Fill in
+# the real domain per host, the same way .env.example's values are blank
+# or obviously fake rather than a real credential.
+#
+# This is the other half of docker-compose.prod.yml's deployment: that
+# file binds the "web" container to 127.0.0.1:${WEB_PORT} only (see its
+# own comments) precisely so that nginx, running on the same host, is the
+# only thing the internet ever talks to directly. Four things this block
+# does that the app container cannot do for itself:
+#
+#   1. TLS termination via certbot (Let's Encrypt) — the container speaks
+#      plain HTTP only.
+#   2. The plain-HTTP :80 -> HTTPS redirect.
+#   3. X-Forwarded-Proto and X-Forwarded-For on the proxied request.
+#      Without X-Forwarded-Proto specifically, config/settings/prod.py's
+#      SECURE_PROXY_SSL_HEADER never sees "https" on a request that
+#      genuinely arrived over TLS at nginx, so SECURE_SSL_REDIRECT
+#      concludes every request is still plain HTTP and redirects it to
+#      https again — which the browser already followed — producing a
+#      redirect loop. This header is not optional decoration; the app
+#      will not work without it.
+#   4. Serving /media/ directly from the host path bind-mounted into the
+#      container at MEDIA_DIR (.env.example, docker-compose.prod.yml).
+#      Django does not serve media itself once DEBUG=False
+#      (config/urls.py only wires up django.conf.urls.static when
+#      settings.DEBUG is true), so without this location block every
+#      image on the site 404s in production even though the files are
+#      sitting right there on disk. /static/ needs no equivalent block —
+#      Whitenoise serves hashed static assets from inside the Django
+#      process itself.
+#
+# client_max_body_size below is set above nginx's own 1MB default
+# specifically because Wagtail's image upload limit
+# (WAGTAILIMAGES_MAX_UPLOAD_SIZE, config/settings/base.py) is 10MB — at
+# nginx's default, every upload between 1MB and 10MB would still pass
+# Wagtail's own check and then get rejected by nginx with a 413 before it
+# ever reached gunicorn.
+#
+# MEDIA_DIR below must be the SAME host path given to docker-compose.prod.yml
+# as MEDIA_DIR in .env — nginx and the container need to agree on where
+# media actually lives on disk. Set it to an absolute path when you copy
+# this template; ./data/media (the .env.example default) is relative to
+# wherever `docker compose` is invoked from and nginx has no reason to
+# share that working directory.
+
+# --- Plain HTTP: ACME challenge + redirect to HTTPS -------------------
+server {
+    listen 80;
+    listen [::]:80;
+    server_name EXAMPLE.PLACEHOLDER www.EXAMPLE.PLACEHOLDER;
+
+    # certbot's webroot plugin drops its challenge files here; keep this
+    # reachable over plain HTTP even after HTTPS is otherwise enforced, or
+    # certificate renewal breaks.
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# --- HTTPS: the real site, reverse-proxied to the app container --------
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name EXAMPLE.PLACEHOLDER www.EXAMPLE.PLACEHOLDER;
+
+    # certbot (Let's Encrypt) manages these two files; paths shown are
+    # certbot's own default layout. Run certbot for this domain before
+    # this server block is enabled, or nginx will fail to start.
+    ssl_certificate     /etc/letsencrypt/live/EXAMPLE.PLACEHOLDER/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/EXAMPLE.PLACEHOLDER/privkey.pem;
+
+    # Wagtail's image upload limit is 10MB (WAGTAILIMAGES_MAX_UPLOAD_SIZE,
+    # config/settings/base.py). nginx's own default is 1MB and would 413
+    # any upload above that before Wagtail ever sees it. A little headroom
+    # above 10MB for multipart/form overhead.
+    client_max_body_size 12M;
+
+    # Media: user-uploaded content (Leslie's portrait, blog images),
+    # bind-mounted into the app container from this same host path — see
+    # docker-compose.prod.yml's MEDIA_DIR. Served directly by nginx, never
+    # proxied to gunicorn, because Django itself does not serve media when
+    # DEBUG=False (config/urls.py).
+    #
+    # This path MUST match the MEDIA_DIR value in this host's .env for
+    # docker-compose.prod.yml — set both to the same absolute path.
+    location /media/ {
+        alias /absolute/path/to/MEDIA_DIR/;
+        add_header Cache-Control "public, max-age=3600";
+    }
+
+    # Everything else: reverse-proxy to the app container, which
+    # docker-compose.prod.yml publishes on loopback only
+    # (127.0.0.1:${WEB_PORT}, default 8000) precisely so nginx is the only
+    # thing that can reach it. Change the port here if WEB_PORT is
+    # non-default on this host.
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host              $host;
+        # Required — see the file-level comment above. Without this,
+        # SECURE_SSL_REDIRECT in config/settings/prod.py cannot tell this
+        # request arrived over TLS and will redirect-loop it.
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP         $remote_addr;
+
+        proxy_redirect off;
+    }
+}

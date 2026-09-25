@@ -1,5 +1,28 @@
 # Production / test-deployment compose — NOT auto-loaded.
 #
+# *** NEVER run docker-compose.yml (the dev stack) on a server. ***
+# It has already happened once: the dev stack was started on the
+# leslie.testground.shop server by accident and failed with a port
+# conflict on Postgres, because docker-compose.yml publishes 5432 to
+# 0.0.0.0 for local psql/GUI convenience (fine on a laptop, wrong on a
+# server) and this file's "db" was already holding that port. The two
+# stacks cannot collide with EACH OTHER — this file sets a distinct
+# `name: leslie-hale-astrology-prod` below precisely so Compose treats
+# them as separate projects — but nothing stops a person running the
+# wrong ONE of the two on a given host.
+#
+# How to tell which is running, on any host:
+#   docker compose ls
+# The dev stack's project name is the directory name (Compose's default
+# when a file sets no `name:`, e.g. "leslie-hale-astrology" or whatever
+# the checkout directory is called); this file's project is always
+# exactly "leslie-hale-astrology-prod" (see the `name:` key below). If
+# `docker compose ls` shows anything other than
+# "leslie-hale-astrology-prod" on a server, that is the dev stack and it
+# should not be there. Equivalently, `docker compose -f
+# docker-compose.prod.yml ps` only ever reports containers started with
+# THIS file, regardless of what else is running.
+#
 # Compose only ever auto-merges docker-compose.yml + (if present)
 # docker-compose.override.yml when you run a bare `docker compose up`.
 # This file has a different name specifically so that command can never
@@ -56,6 +79,21 @@
 # taken on a schedule, copied off-host, and tested by an actual restore at
 # least once. Nothing in this repository currently defines that job.
 #
+# --- The nginx half of this deployment -----------------------------------
+# This file only ever binds "web" to 127.0.0.1:${WEB_PORT} (see the "web"
+# service's "ports" comment below) — it deliberately does not terminate
+# TLS or serve media itself. nginx on the same host is the other half and
+# is required, not optional, for this to work correctly:
+#   - It must set X-Forwarded-Proto on the proxied request, or
+#     prod.py's SECURE_PROXY_SSL_HEADER-driven SECURE_SSL_REDIRECT never
+#     sees "https" and redirect-loops every request.
+#   - It must serve /media/ itself from the MEDIA_DIR host path. Django
+#     does not serve media with DEBUG=False (config/urls.py), so without
+#     this, every image 404s in production even though the files are
+#     sitting right there in MEDIA_DIR.
+# See deploy/nginx/leslie.conf.example for a template covering both, plus
+# TLS and the upload size limit Wagtail's image field needs.
+#
 # --- Assumption this still depends on (see final report) ----------------
 # That the actual deploy target — leslie.testground.shop today, whatever
 # Prohosting infrastructure hosts lesliehale-astrology.com at cutover —
@@ -109,8 +147,20 @@ services:
     # must outlive the container; see the comment above.
     volumes:
       - ${MEDIA_DIR:-./data/media}:/app/media
+    # Bound to loopback only — nginx (or whatever reverse proxy is on this
+    # host) is the only intended caller. Publishing this on 0.0.0.0 (a bare
+    # "${WEB_PORT}:8000", no host IP) would let anyone who finds the port
+    # talk straight to gunicorn over plain HTTP, bypassing nginx's TLS,
+    # HSTS/security headers and any rate limiting entirely. On such a
+    # direct request, prod.py's SECURE_SSL_REDIRECT still fires and 301s to
+    # https — which looks like a security control but is not one; the
+    # request already reached gunicorn in the clear. WEB_PORT itself stays
+    # configurable (the operator needs to change the port number when it
+    # conflicts on the host), only the bind address is fixed. See
+    # deploy/nginx/leslie.conf.example for the nginx side that proxies to
+    # this loopback port.
     ports:
-      - "${WEB_PORT:-8000}:8000"
+      - "127.0.0.1:${WEB_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
