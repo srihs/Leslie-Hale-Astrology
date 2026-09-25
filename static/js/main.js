@@ -20,7 +20,23 @@
 (function () {
   document.body.classList.remove('no-js');
   var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduced) document.body.classList.add('reduced');
+  /* [data-reveal]{opacity:0} (static/css/_base.css) is only ever cleared by
+     .no-js/.reduced (the CSS escape hatch, for the no-JS and reduced-motion
+     cases) or by the GSAP timelines further down this file. .no-js is
+     removed UNCONDITIONALLY, one line up, because the mobile-menu
+     progressive enhancement right below doesn't need GSAP at all — so if
+     the GSAP <script> tags in base.html fail to load (CDN down,
+     ad-blocked, offline: a real, not hypothetical, failure mode for a
+     third-party script tag), window.gsap is undefined, .no-js is already
+     gone, .reduced never gets added (prefers-reduced-motion is false for
+     most visitors), and everything from "hero intro" onward below exits
+     at the `if (reduced || !window.gsap) return;` guard before touching a
+     single [data-reveal] element — every one of them would stay at its
+     CSS opacity:0 forever, sitewide, with nothing in the console to say
+     why. Treating "GSAP didn't load" the same as "reduced motion" for
+     this one CSS class closes that: it's the same class _base.css already
+     uses to mean "skip the animation, just show it". */
+  if (reduced || !window.gsap) document.body.classList.add('reduced');
 
   /* ---------- mobile menu ---------- */
   var mb = document.querySelector('.menu-btn'), menu = document.getElementById('menu');
@@ -269,13 +285,27 @@
     h.innerHTML = html;
   });
 
+  /* claimed — every [data-reveal] element handed to a GSAP timeline by the
+     hero-intro pass or the section-reveal pass immediately below. Read by
+     the orphan safety net that follows both: see its own comment for why
+     this tracking exists rather than the more obvious "read the element's
+     current opacity back" — a scroll-triggered `.to()` tween doesn't
+     apply its end state at creation time (it's waiting on the trigger),
+     so an as-yet-untriggered section item and a genuinely-unclaimed
+     orphan are indistinguishable by computed style alone at this point in
+     the script; they are not indistinguishable by whether a timeline
+     above already took them. */
+  var claimed = new Set();
+
   /* ---------- hero intro ---------- */
   var hero = document.querySelector('.hero, .page-hero');
   if (hero) {
     var tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
     var words = hero.querySelectorAll('h1 .w');
     if (words.length) tl.from(words, { yPercent: 60, opacity: 0, duration: 0.9, stagger: 0.05 }, 0);
-    tl.to(hero.querySelectorAll('[data-reveal]'), { opacity: 1, y: 0, duration: 0.8, stagger: 0.08 }, 0.35);
+    var heroReveals = hero.querySelectorAll('[data-reveal]');
+    tl.to(heroReveals, { opacity: 1, y: 0, duration: 0.8, stagger: 0.08 }, 0.35);
+    heroReveals.forEach(function (el) { claimed.add(el); });
   }
 
   /* ---------- section reveals ---------- */
@@ -284,7 +314,40 @@
     if (!words.length && !items.length) return;
     var t = gsap.timeline({ scrollTrigger: { trigger: s, start: 'top 90%', once: true } });
     if (words.length) t.from(words, { yPercent: 50, opacity: 0, duration: 0.7, stagger: 0.04, ease: 'power3.out' }, 0);
-    if (items.length) t.to(items, { opacity: 1, y: 0, duration: 0.7, stagger: 0.1, ease: 'power3.out' }, 0.15);
+    if (items.length) {
+      t.to(items, { opacity: 1, y: 0, duration: 0.7, stagger: 0.1, ease: 'power3.out' }, 0.15);
+      items.forEach(function (el) { claimed.add(el); });
+    }
+  });
+
+  /* ---------- orphan safety net: reveal anything neither pass above claimed ----------
+     ROOT CAUSE of "the blog post hero image and share links never appear"
+     (confirmed live: `figure.article-hero` and `div.share` in
+     templates/blog/post.html sit inside a `<div class="wrap article">`
+     that is a SIBLING of `<section class="page-hero">`, not a descendant
+     of it, and is itself neither a `section`, `.detail` nor `footer` — so
+     neither pass above, each scoped to a fixed, named list of containers,
+     ever selects it): [data-reveal]{opacity:0} (static/css/_base.css)
+     leaves every element carrying the attribute invisible until SOME
+     GSAP timeline tweens it to opacity:1, with no error and no console
+     warning when nothing does — indistinguishable from a broken image or
+     missing content. The fix in this one template is one line
+     (`.wrap.article` added to the container list); the actual defect is
+     that the list is exhaustive by construction and every miss looks
+     identical and silent. This has now shipped twice (see the
+     `htmx:afterSwap` reveal handler above for the first).
+     Rather than extend the list again and wait for the next miss, this
+     sweeps every [data-reveal] in the document once both passes above
+     have finished BUILDING their timelines (not playing them — their
+     ScrollTriggers still fire on their own scroll position, per element,
+     exactly as before) and gives anything neither pass claimed its own
+     scroll-triggered reveal. A future template can put a [data-reveal]
+     element anywhere — inside a recognised container, outside all of
+     them, doesn't matter — and it will still resolve to visible; nothing
+     needs to be told about a new container shape again. */
+  document.querySelectorAll('[data-reveal]').forEach(function (el) {
+    if (claimed.has(el)) return;
+    gsap.to(el, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 95%', once: true } });
   });
 
   /* ---------- hero media parallax ---------- */
