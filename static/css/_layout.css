@@ -19,7 +19,23 @@
 /* NAV */
 .nav{position:sticky;top:0;z-index:50;background:rgba(11,21,38,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 .nav .wrap{display:flex;align-items:center;justify-content:space-between;height:72px}
-.brand{font-family:var(--serif);letter-spacing:.28em;text-transform:uppercase;font-size:15px;text-decoration:none;font-weight:600}
+/* Wordmark font: "Dorian Gray" (see _base.css's @font-face), self-hosted,
+   wordmark-only — never var(--serif)/var(--sans) elsewhere. Re-tuned from
+   the locked source's Cormorant Garamond values (15px/.28em/600) rather
+   than reused verbatim: that tracking and size were fitted to Cormorant's
+   metrics, and Dorian Gray is a narrower, all-caps-shaped display face
+   (its lowercase glyphs render at cap height) — .28em read as sparse gap-
+   toothed spacing on it, and no 600/bold weight exists in this single-
+   weight family, so keeping 600 would have made the browser synthesise a
+   fake bold. 18px/.1em/400 was chosen by rendering the actual wordmark
+   ("Leslie Hale" nav, "Leslie Hale Astrology" footer) at a range of
+   sizes/tracking and reading each — see the design-system agent's report
+   for the screenshots. Also idiosyncratic to this face: its capital "I"
+   is drawn with a dot (visible in "LesLIe"/"HALE"'s I), which persists
+   under text-transform:uppercase — a deliberate glyph design in the font
+   file itself, not a rendering bug, left as shipped per the brief's
+   instruction to be conservative about touching the font. */
+.brand{font-family:"Dorian Gray",var(--serif);letter-spacing:.1em;text-transform:uppercase;font-size:18px;text-decoration:none;font-weight:400}
 .nav ul{display:flex;gap:26px;list-style:none}
 .nav ul a{font-size:13px;text-decoration:none;color:var(--muted);letter-spacing:.04em;padding:6px 0;display:inline-block}
 .nav ul a:hover,.nav ul a[aria-current]{color:var(--ink);border-bottom:1px solid var(--gold)}

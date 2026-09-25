@@ -237,6 +237,19 @@
   gap:.75rem 1.5rem;
 }
 
+/* Deliberately plain Inter/sans, NOT the public site's self-hosted Dorian
+   Gray wordmark font (static/css/_base.css's @font-face, applied to
+   .brand). Two independent reasons, both already argued above for this
+   file as a whole: (1) this screen is legibility-first, not brand-first —
+   Leslie reads this header every working day, and a low-x-height display
+   face costs recognition speed for a "premium" feel she doesn't need
+   here; (2) Dorian Gray ships one static weight (400, regular). This rule
+   sets font-weight:700 for header prominence against --bo-cream — on a
+   single-weight family that would force the browser to synthesise a fake
+   bold, which is exactly the failure mode the font brief warns against.
+   The navy header + gold accent already carry the brand association
+   (see the DESIGN DECISION note above); the wordmark face is not needed
+   to make this "feel like Leslie's site". */
 .bo-brand{
   color:var(--bo-cream);
   font-weight:700;

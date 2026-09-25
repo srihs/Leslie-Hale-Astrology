@@ -29,6 +29,29 @@ h1 em,h2 em{font-style:italic;color:var(--gold)}
 .lead{color:var(--muted);font-size:clamp(17px,1.4vw,19px);max-width:56ch}
 blockquote{font-family:var(--serif);font-style:italic;font-size:clamp(22px,2vw,26px);line-height:1.35;color:var(--ink);border-left:1px solid var(--gold);padding-left:22px;margin:26px 0 30px}
 
+/* WORDMARK FONT — self-hosted, wordmark-only. Not part of the locked
+   v1-ephemeris source or §7's --serif/--sans tokens: this is a new,
+   deliberately narrow addition, scoped to .brand (nav + footer wordmark,
+   see _layout.css) only. Deliberately NOT applied to .bo-brand in
+   static/css/backoffice.css — see that file's own comment above .bo-brand
+   for why. Single static weight (regular, no italic, no bold) — never
+   assign it to body text or headings, and never apply font-weight other
+   than 400, or the browser will synthesise a bold/italic that does not
+   exist in the file and will look visibly wrong. Licence: "Freeware font
+   by Alphabet & Type (c) 2012", P.A.Vannucci — adjudicated already, not
+   re-litigated here. font-display:swap avoids invisible text while the
+   16.6KB file loads; the fallback is var(--serif) itself (Cormorant
+   Garamond, already loaded on every page, then Georgia/Times New
+   Roman/serif) so a slow or failed load falls back to the exact locked
+   wordmark treatment this replaces, not a generic system serif. */
+@font-face{
+  font-family:"Dorian Gray";
+  src:url("../fonts/dorian-gray.woff") format("woff");
+  font-weight:400;
+  font-style:normal;
+  font-display:swap;
+}
+
 /* MOTION — reveal-on-scroll hook + reduced-motion / no-js escape hatches.
    .post and .btn selectors below are defined in _pages.css / _components.css
    respectively; the reduced-motion rule still applies globally regardless
