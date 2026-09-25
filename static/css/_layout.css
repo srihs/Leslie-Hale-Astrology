@@ -34,8 +34,26 @@
    is drawn with a dot (visible in "LesLIe"/"HALE"'s I), which persists
    under text-transform:uppercase — a deliberate glyph design in the font
    file itself, not a rendering bug, left as shipped per the brief's
-   instruction to be conservative about touching the font. */
-.brand{font-family:"Dorian Gray",var(--serif);letter-spacing:.1em;text-transform:uppercase;font-size:18px;text-decoration:none;font-weight:400}
+   instruction to be conservative about touching the font.
+
+   2026-09-25: size overridden to 25px on the client's direct instruction,
+   overruling the 18px tuned above. Verified against the running site at
+   1440/900/360px (Playwright, see the design-system agent's report of
+   that date for the screenshots and measurements): the single-line
+   wordmark sits centred inside the 72px nav with visible headroom at both
+   desktop and 900px, and the gap to the nav links/"Book a Reading" is
+   effectively unchanged from 18px at every width the flexbox negotiates
+   (measured, not eyeballed — the two-flex-item row always shrinks to fill
+   available width regardless of font-size, so the gap tracks the button/
+   menu content, not the wordmark). At 360px the wordmark still wraps to
+   two lines exactly as it did at 18px; the wrapped block's line-box is
+   nominally ~10px taller than the 72px nav (72px was tuned against a
+   single line), but the actual glyph ink — including the capital "I"'s
+   dot — stays inside the bar with clear headroom top and bottom in every
+   screenshot; nothing clips or touches the border-bottom hairline. Left
+   the 72px nav height and .1em tracking untouched — flagged for the
+   client's call, not altered, per the same instruction. */
+.brand{font-family:"Dorian Gray",var(--serif);letter-spacing:.1em;text-transform:uppercase;font-size:25px;text-decoration:none;font-weight:400}
 .nav ul{display:flex;gap:26px;list-style:none}
 .nav ul a{font-size:13px;text-decoration:none;color:var(--muted);letter-spacing:.04em;padding:6px 0;display:inline-block}
 .nav ul a:hover,.nav ul a[aria-current]{color:var(--ink);border-bottom:1px solid var(--gold)}
