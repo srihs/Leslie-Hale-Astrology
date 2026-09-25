@@ -53,6 +53,34 @@
 # live on the server's real persistent disk, not on ephemeral/scratch
 # storage that a host rebuild or container-platform migration could wipe.
 #
+# This is a DIFFERENT location from local dev's media. docker-compose.yml
+# does not bind-mount media to a host path at all — its "web" service
+# mounts a named Docker volume ("media") at /app/media, which lives inside
+# Docker's own storage, not at <repo>/media on the host (the bind-mounted
+# `.:/app` in that file is shadowed at the /app/media subpath by the named
+# volume). Looking at <repo>/media on a dev machine, or at the wrong
+# host's MEDIA_DIR, tells you nothing about whether this file's media is
+# actually there — inspect the directory this file's MEDIA_DIR (in .env,
+# on THIS host) actually points at, not "the media folder" in the
+# abstract.
+#
+# THE HOST DIRECTORY MUST BE OWNED BY THE CONTAINER'S UID:GID, NOT
+# WHOEVER CREATED IT. docker/Dockerfile creates the "app" user with
+# `adduser --system`, no explicit --uid/--gid, so its actual numeric
+# uid:gid is whatever the base image's next free system id happens to be
+# at build time — observed as 100:101 on the current build (`docker
+# compose -f docker-compose.prod.yml exec web id`). On the host, a
+# directory freshly created by an operator's own login (commonly uid
+# 1000) will NOT match, and every write into it from the container
+# — i.e. every new upload through Wagtail — fails silently: Django's
+# storage backend logs nothing fatal, the request appears to succeed, and
+# the file is simply not there. Before first use:
+#   docker compose -f docker-compose.prod.yml exec web id -u   # confirm uid
+#   docker compose -f docker-compose.prod.yml exec web id -g   # confirm gid
+#   sudo chown -R <uid>:<gid> "$MEDIA_DIR"                     # e.g. 100:101
+# Re-check this after any base-image rebuild — see docker/Dockerfile's own
+# comment on why that uid:gid is not actually pinned.
+#
 # --- Postgres: a container here, deliberately, not an external/managed
 # database --------------------------------------------------------------
 # Prohosting is shared hosting (PROJECT-SCOPE.md §1), and no managed

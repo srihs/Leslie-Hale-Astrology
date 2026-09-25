@@ -82,4 +82,15 @@ volumes:
   # down` and rebuilds. This named volume covers local dev; production on
   # Prohosting needs its own persistent path or object storage — see the
   # deployment notes for the open assumption this still depends on.
+  #
+  # This is NOT the same location as production media. This named volume
+  # lives inside Docker's own storage (`docker volume inspect
+  # <project>_media`), not at <repo>/media on the host, even though `.:/app`
+  # above bind-mounts the whole repo — the named volume mount at
+  # /app/media takes precedence over the bind mount for that one subpath.
+  # docker-compose.prod.yml instead bind-mounts a real host directory
+  # (MEDIA_DIR) straight to /app/media with no named volume in between —
+  # see its own "Media: survives a redeploy" comment. Checking <repo>/media
+  # on a dev machine, expecting to find live dev media there, finds
+  # nothing live; use `docker compose exec web ls /app/media` instead.
   media:

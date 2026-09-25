@@ -37,6 +37,41 @@
 #      Whitenoise serves hashed static assets from inside the Django
 #      process itself.
 #
+# --- Directory permissions nginx needs for /media/ (read this before
+# assuming a 404 means a missing file) --------------------------------
+# nginx runs as www-data (or whatever `user` directive this host's
+# nginx.conf sets) and needs EXECUTE permission on every directory in the
+# path from / down to each media file, not just read permission on the
+# leaf directory. Recent Ubuntu creates /home/<user> as drwxr-x--- (no
+# "other" access at all), so if MEDIA_DIR lives under a home directory —
+# e.g. /home/ubuntu/leslie-hale-astrology/data/media — every one of these
+# needs o+x, or www-data cannot descend into it even though it can read
+# files once it gets there:
+#   chmod o+x /home/ubuntu
+#   chmod o+x /home/ubuntu/leslie-hale-astrology
+#   chmod o+x /home/ubuntu/leslie-hale-astrology/data
+#   chmod o+x /home/ubuntu/leslie-hale-astrology/data/media
+# Missing this on an intermediate directory (data/ and data/media/ are
+# easy to forget — they did not exist until docker-compose.prod.yml's
+# first `up` created them) produces the exact same symptom as a missing
+# file: nginx returns 404, not 403, for a traversal failure. A 404 on a
+# media URL is not evidence the file is absent — check the permission
+# chain before the database or the import.
+#
+# The obvious-looking check is misleading and will tell you the wrong
+# thing:
+#   sudo -u www-data test -r /path/to/data/media      # OK — proves NOTHING
+# `-r` on a directory tests whether www-data can LIST it, which only
+# needs the read bit. Opening a specific file inside it needs the
+# execute (traversal) bit, a different permission, tested separately.
+# This command can print no error while every file inside is still
+# unreachable. Use one of these instead, against a real file that exists:
+#   sudo -u www-data test -r /path/to/data/media/original_images/leslie.jpg
+#   namei -l /path/to/data/media/original_images/leslie.jpg
+# `namei -l` is the more useful of the two — it prints the permission
+# bits of every path segment on one line, so a missing o+x anywhere in
+# the chain is visible at a glance instead of a bare pass/fail.
+#
 # client_max_body_size below is set above nginx's own 1MB default
 # specifically because Wagtail's image upload limit
 # (WAGTAILIMAGES_MAX_UPLOAD_SIZE, config/settings/base.py) is 10MB — at
@@ -50,6 +85,20 @@
 # this template; ./data/media (the .env.example default) is relative to
 # wherever `docker compose` is invoked from and nginx has no reason to
 # share that working directory.
+#
+# Nothing checks that this file's `alias` and .env's MEDIA_DIR actually
+# agree — they are the same fact typed twice in two files with no shared
+# source, and nginx will not warn you if they drift. Also note both must
+# end in a trailing slash (the `alias` value below AND MEDIA_DIR in .env):
+# `location /media/ { alias /path/to/media; }` (no trailing slash) has
+# nginx append the URI onto "media" instead of "media/", producing a
+# wrong path and a 404 — the identical symptom as the permission problem
+# above, and identical to pointing alias at the wrong directory entirely.
+# When a media URL 404s, check in this order: (1) the file actually
+# exists at MEDIA_DIR on the host, (2) this file's `alias` is the exact
+# same absolute path as MEDIA_DIR, both trailing-slashed, (3) the
+# permission chain with `namei -l` above. All three produce a 404; only
+# one produces a "file genuinely missing."
 
 # --- Plain HTTP: ACME challenge + redirect to HTTPS -------------------
 server {
@@ -71,6 +120,14 @@ server {
 
 # --- HTTPS: the real site, reverse-proxied to the app container --------
 server {
+    # Keep the combined `listen ... ssl http2;` form below. nginx's newer
+    # syntax splits this into a separate `http2 on;` directive, which
+    # reads more "current" and it is tempting to "modernise" it on sight —
+    # do not. `http2 on;` requires nginx 1.25.1+, and the deploy host
+    # (leslie.testground.shop, and Prohosting until confirmed otherwise)
+    # runs an older nginx where that directive is a hard config-test
+    # failure, not a silent fallback. Confirm the host's nginx version
+    # (`nginx -v`) before ever changing this.
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
     server_name EXAMPLE.PLACEHOLDER www.EXAMPLE.PLACEHOLDER;
@@ -120,3 +177,10 @@ server {
         proxy_redirect off;
     }
 }
+
+# --- After reloading nginx: verify, don't assume ------------------------
+# Run deploy/verify-media.sh on the host after any deploy or nginx change
+# that touches media. It checks the permission chain, the container's
+# actual media uid/gid, which media directory is live, and fetches a real
+# media URL expecting 200 — the four things above that each produce a
+# 404/blank image while looking like something else is wrong.

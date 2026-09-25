@@ -23,6 +23,17 @@ A database that already had Keen posts imported *before*
 `blog.KeenImportedImage` existed needs `manage.py backfill_keen_image_map`
 run once first — otherwise the next --write run here would think every
 already-correct image is missing and re-copy all of them.
+
+Running this against docker-compose.prod.yml: the archive_path argument
+must be a path INSIDE the container, and the archive has to get there
+first — docker-compose.prod.yml bind-mounts only MEDIA_DIR to /app/media
+(see its own comment), not the repo, so a host path like
+./keen_blog_archive passed straight to this command does not exist from
+the container's point of view and fails immediately. Copy the archive in
+first, then reference the copied path:
+    docker compose -f docker-compose.prod.yml cp ./keen_blog_archive web:/tmp/keen_blog_archive
+    docker compose -f docker-compose.prod.yml exec web \
+        python manage.py import_keen /tmp/keen_blog_archive --write
 """
 
 from __future__ import annotations

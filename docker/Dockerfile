@@ -81,6 +81,22 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && addgroup --system app \
     && adduser --system --ingroup app --home /app --no-create-home app
+# NOTE — this app user's numeric uid:gid is NOT pinned. `adduser --system`
+# with no --uid/--gid assigns whatever system id is next free on this base
+# image at build time (observed as 100:101 against python:3.12.7-slim-
+# bookworm on the leslie.testground.shop build — rendered on the host as
+# dhcpcd:messagebus, those being the names Ubuntu happens to have at ids
+# 100/101 in ITS OWN id space, which is a coincidence of two unrelated
+# numbering schemes, not a meaningful association). A future base-image
+# bump that adds or removes a system package earlier in that image's own
+# user list can shift this container's uid:gid without anything in this
+# Dockerfile changing, silently breaking write access to any host
+# directory that was chown'd to the old value (see docker-compose.prod.yml's
+# media section for the chown this depends on). Pinning explicit
+# --uid/--gid values here (and matching docker-compose.prod.yml's chown
+# instructions to whatever is chosen) would remove this drift risk
+# entirely; flagged here rather than changed, since it is not blocking the
+# current deploy and the fix touches a working container's identity.
 
 WORKDIR /app
 
