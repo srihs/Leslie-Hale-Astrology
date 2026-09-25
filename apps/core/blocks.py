@@ -92,6 +92,7 @@ class CaptionedImageBlock(blocks.StructBlock):
     class Meta:
         label = "Image"
         icon = "image"
+        template = "blocks/captioned_image.html"
 
 
 class BodyTextBlock(blocks.RichTextBlock):

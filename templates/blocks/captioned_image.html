@@ -1,0 +1,53 @@
+{% load wagtailimages_tags %}
+{% comment %}
+CaptionedImageBlock (apps/core/blocks.py) — a single in-body image with an
+optional caption, used inside a blog post's StreamField body. This is the
+block's Meta.template; {% include_block %} renders it directly, wrapping
+nothing else, so it stays a bare fragment like every other block template.
+
+Renders nothing when the block has no image — a StructBlock sub-block is
+never guaranteed populated — rather than an empty <figure>.
+
+Width: width-1200. templates/blog/post.html wraps the body in
+<div class="wrap article">, and static/css/_pages.css sets
+`.article{max-width:72ch}` on that element itself, which inherits the
+body's 16px (not the 18px `.article p` uses for running text) — so the
+column renders at roughly 650px on desktop. 1200 gives a ~2x pixel-density
+screen real headroom without reaching for the 1400 the full-bleed
+`.article-hero` crop uses; that image is cropped hard by
+`object-fit:cover` against a fixed 21/9 aspect-ratio box and needs the
+extra native pixels to survive that crop, while this block renders the
+image at its natural aspect ratio with no crop.
+
+Alt text: self.caption when the editor supplied one — it is the only
+human-written description this block ever has. When there is none (the
+Keen import rarely captured a caption), this deliberately renders alt=""
+rather than self.image.title. The Keen importer set every image's title to
+its source filename (e.g. "2cc835076a6311f9"), and a filename hash read
+aloud by a screen reader sounds like a description without being one —
+worse than silence. alt="" is the honest fallback when no real description
+exists. This is a different justification from the related-posts
+thumbnails' alt="" elsewhere in blog/post.html (A11Y FINDING 7,
+reviews/2026-09-22-final-accessibility-audit.md) — there, a visible
+heading right below names the image, so nothing is lost. Here there is no
+such stand-in: a body image with no caption is a real, if minor, content
+gap, left for an editor to close by adding one rather than papered over
+with an invented description.
+
+Motion: data-reveal, matching figure.article-hero and the post-grid cards
+immediately above and below this block in blog/post.html — the same
+fade-up-on-scroll treatment every other figure in the article gets, so an
+in-body photo doesn't look like the one image on the page that motion
+forgot. static/js/main.js's orphan safety net now gives any unclaimed
+[data-reveal] element its own ScrollTrigger regardless of which container
+it sits in (the article-hero bug fixed an hour before this file was
+written was exactly a [data-reveal] element no pass claimed), so this no
+longer depends on this block landing inside a container main.js already
+recognises.
+{% endcomment %}
+{% if self.image %}
+<figure data-reveal>
+  {% image self.image width-1200 alt=self.caption|default:"" %}
+  {% if self.caption %}<figcaption>{{ self.caption }}</figcaption>{% endif %}
+</figure>
+{% endif %}
