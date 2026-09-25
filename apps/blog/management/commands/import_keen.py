@@ -10,6 +10,19 @@ this command expects the directory that directly contains `index.html`,
 See `apps.blog.keen_import` for the actual parse/sanitise/import logic;
 this file is deliberately thin — argument parsing and console reporting,
 mirroring `import_blogger`'s own shape.
+
+Re-running with --write is always safe, including to *repair* posts
+whose images failed on an earlier run (an unwritable media directory
+being the known real-world cause) — see the "Repaired" count in this
+command's own output, and `apps.blog.keen_import.importer`'s module
+docstring for the mechanism. If the media directory isn't writable,
+this command still imports every post (text intact) and says so loudly,
+top and bottom of its output, rather than failing the whole run.
+
+A database that already had Keen posts imported *before*
+`blog.KeenImportedImage` existed needs `manage.py backfill_keen_image_map`
+run once first — otherwise the next --write run here would think every
+already-correct image is missing and re-copy all of them.
 """
 
 from __future__ import annotations

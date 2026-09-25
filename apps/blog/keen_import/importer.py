@@ -21,9 +21,9 @@ Idempotency (binding, per the migration rules this app operates under):
 - Matching is on `BlogPost.keen_post_id` (the numeric ID at the end of
   each post's original keen.com URL), never on title or slug.
 - A content fingerprint (`BlogPost.keen_content_hash`) is compared
-  *before* any write or image copy, so a second run over an unchanged
-  archive does nothing at all to that post beyond confirming it is
-  unchanged — reported separately as "unchanged", not "updated".
+  *before* any write, so a second run over an unchanged archive rewrites
+  nothing — no new revision, no field changes — reported separately as
+  "unchanged", not "updated".
 - A post whose parsed content genuinely differs from what is stored is
   updated in place — same page, same URL, same `keen_post_id` — never
   duplicated.
@@ -31,9 +31,32 @@ Idempotency (binding, per the migration rules this app operates under):
   filename, which — Keen's own convention — is already a content hash
   like `ff89d795bce6c539.jpg`, not a display name) is reused rather than
   copied again, so a second run copies zero new image files.
+- The content hash covers *content*, not "did the image copy actually
+  succeed" — deliberately: media landing is an environment fact (disk
+  space, directory permissions), not a content fact, and folding it into
+  the fingerprint would mean a purely environmental failure permanently
+  reads as "content changed" and forces a real rewrite/new revision every
+  time it's checked. So a hash match is treated as "content is right",
+  and is then checked *again*, separately and every run, against what
+  images this post's own content says it should have. Any of those
+  missing from Wagtail are retried right there — repairing a post that
+  lost its images to something like an unwritable media directory,
+  without touching (or re-revisioning) a single field of a post whose
+  images already landed. See `_process_entry`'s hash-match branch and
+  `ImportReport.repaired`.
 - Nothing already in the database is ever deleted. A post/image/redirect
   that cannot be reconciled is logged (`failed`/`skipped`/`notes`) and the
   run moves on to the next entry.
+- `--write` checks up front whether the media directory looks writable
+  (`KeenImporter.check_media_root_writable`) and says so loudly if not —
+  but keeps going rather than refusing to run. A post's text still
+  matters even when its images can't land right now, and a post that
+  imports text-only here is exactly what the repair mechanism above
+  fixes on the next `--write`, once the directory is writable again.
+  Deliberately not a hard abort: this importer already treats "can't
+  reconcile one thing" as "log it and move on" everywhere else, and an
+  unwritable media directory is that same situation at the scale of a
+  whole run rather than one post.
 
 Images: the task scope is explicit — "Import the 779 local images into
 Wagtail images and rewrite references... a file copy, not a download."
@@ -52,11 +75,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from bs4 import BeautifulSoup
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -68,6 +93,15 @@ from apps.blog.keen_import.parser import KeenEntry, parse_archive
 EXCERPT_MAX_LENGTH = 300
 DEFAULT_AUTHOR = "Leslie Hale"  # matches BlogPost.author_name's own model default
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
+
+#: Substring tagged onto an images_failed reason when the cause is the
+#: destination (the media directory) refusing the write, as opposed to a
+#: problem with the source data (a corrupt/non-image file, an oversized
+#: file, ...). `ImportReport.write_summary` greps for this to surface a
+#: single loud environment banner instead of N indistinguishable
+#: per-image failure lines. See `KeenImporter._copy_image` and
+#: `_check_media_root_writable`.
+_PERMISSION_MARKER = "PERMISSION DENIED"
 
 #: Magic-byte sniffing for the handful of archived images whose filename
 #: extension does not match their real format (confirmed against the real
@@ -124,6 +158,13 @@ class ImportReport:
     imported: list[str] = field(default_factory=list)
     updated: list[str] = field(default_factory=list)
     unchanged: list[str] = field(default_factory=list)
+    #: Content matched (same hash) but at least one image this post
+    #: should have was missing from Wagtail and got copied in on *this*
+    #: run — distinct from `updated` (content changed) and `unchanged`
+    #: (nothing to do), so an operator can see repair happened rather
+    #: than inferring it from `images_copied` alone. See the module
+    #: docstring's "Idempotency" section.
+    repaired: list[str] = field(default_factory=list)
     skipped: list[tuple[str, str]] = field(default_factory=list)
     failed: list[tuple[str, str]] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
@@ -133,10 +174,25 @@ class ImportReport:
     redirects_created: int = 0
     redirects_updated: int = 0
     uncategorised_no_label: int = 0
+    #: Set once, up front, by `KeenImporter.check_media_root_writable`
+    #: when the media directory doesn't look writable — `None` means the
+    #: check passed (or wasn't run, i.e. this was a dry run). Printed
+    #: first, ahead of every count, so it can't be missed the way a
+    #: single missing-images signal buried in 1460 posts' worth of output
+    #: could be.
+    media_root_warning: str | None = None
 
     def write_summary(self, out) -> None:
+        if self.media_root_warning:
+            out("!" * 78)
+            out("MEDIA DIRECTORY NOT WRITABLE — read this before the counts below:")
+            out(self.media_root_warning)
+            out("!" * 78)
+            out("")
+
         out(f"Imported (new posts):     {len(self.imported)}")
         out(f"Updated (changed):        {len(self.updated)}")
+        out(f"Repaired (image(s) restored, content unchanged): {len(self.repaired)}")
         out(f"Unchanged (no-op):        {len(self.unchanged)}")
         out(f"Skipped:                  {len(self.skipped)}")
         out(f"Failed:                   {len(self.failed)}")
@@ -146,6 +202,30 @@ class ImportReport:
         out(f"Redirects created:        {self.redirects_created}")
         out(f"Redirects updated:        {self.redirects_updated}")
         out(f"Posts with no label at all (imports uncategorised): {self.uncategorised_no_label}")
+
+        permission_failures = [item for item in self.images_failed if _PERMISSION_MARKER in item[1]]
+        if permission_failures:
+            out("")
+            out("=" * 78)
+            out(
+                f"ENVIRONMENT PROBLEM: {len(permission_failures)} of {len(self.images_failed)} "
+                "failed image(s) failed because the media directory is not writable by this "
+                "process — not because of anything wrong with those images or posts."
+            )
+            out(
+                "This is almost always a uid/permission mismatch on a bind-mounted media "
+                "directory. Fix its ownership/permissions so this process can write to it, then "
+                "re-run with --write: every post above still imported (text-only), and the "
+                "importer will repair each one's missing image(s) on that next run without "
+                "re-doing anything that already succeeded."
+            )
+            out("=" * 78)
+
+        if self.repaired:
+            out("")
+            out("Repaired (content unchanged, image(s) restored):")
+            for identifier in self.repaired:
+                out(f"  - {identifier}")
 
         if self.skipped:
             out("")
@@ -190,17 +270,25 @@ class KeenImporter:
         self.limit = limit
         self.index_page = index_page
         self._category_cache: dict[str, object | None] = {}
-        #: filename (as it appears in the archive's images/ directory) ->
-        #: already-saved wagtail Image, built once per run so a file
-        #: referenced by many posts is only ever copied once, and so a
-        #: second run over the same archive finds everything already
-        #: copied in run 1 and copies nothing again.
+        #: keyed by the archive's own filename (e.g. `ff89d795bce6c539.jpg`)
+        #: -> already-saved wagtail Image, seeded from `KeenImportedImage`
+        #: (see that model's docstring for why *that* table, and not
+        #: Wagtail's own stored filename, is the source of truth) and
+        #: added to in-run as `_copy_image` succeeds. Built once per run
+        #: so a file referenced by many posts is only ever copied once,
+        #: and so a second run over the same archive finds everything
+        #: already copied in run 1 and copies nothing again. Also doubles,
+        #: this task, as the thing a hash-matched post's images are
+        #: checked against to decide whether it needs repairing.
         self._image_cache: dict[str, object] | None = None
 
     # -- top level ---------------------------------------------------
 
     def run(self, archive_path: str) -> ImportReport:
         report = ImportReport()
+        if self.write:
+            report.media_root_warning = self.check_media_root_writable()
+
         index_page = self._resolve_index_page()
         archive = Path(archive_path)
 
@@ -211,8 +299,12 @@ class KeenImporter:
         if self.limit is not None:
             entries = entries[: self.limit]
 
-        if self.write:
-            self._image_cache = self._build_image_cache()
+        # Built in dry-run mode too (harmless — it's a read of already-
+        # saved Image rows, no file I/O), because the hash-match branch in
+        # `_process_entry` needs it to preview which already-imported
+        # posts are missing an image and would be repaired by --write,
+        # not just which posts are new/changed.
+        self._image_cache = self._build_image_cache()
 
         for entry in entries:
             identifier = f"{entry.title!r} ({entry.keen_post_id})"
@@ -239,14 +331,59 @@ class KeenImporter:
         return index_page
 
     def _build_image_cache(self) -> dict[str, object]:
-        from wagtail.images import get_image_model
-        import os
+        from apps.blog.models import KeenImportedImage
 
-        ImageModel = get_image_model()
-        cache: dict[str, object] = {}
-        for image in ImageModel.objects.all():
-            cache[os.path.basename(image.file.name)] = image
-        return cache
+        return {
+            mapping.archive_filename: mapping.image
+            for mapping in KeenImportedImage.objects.select_related("image").all()
+        }
+
+    def check_media_root_writable(self) -> str | None:
+        """
+        A whole-run precondition, not a per-post concern: if the media
+        directory can't be written to, *every* local image copy this run
+        attempts will fail identically, for the same one reason — the
+        real defect this guards against is a container running as one
+        uid against a bind-mounted media directory owned by another.
+        Checked once, up front, rather than only being discoverable by
+        noticing it 500+ times over in a per-image failure list.
+
+        Deliberately a loud warning, not a refusal to run: a post's text
+        still matters even when its images can't land right now (this is
+        the same call this module already makes per-image — "log it and
+        move on" — just made once, for the whole run, instead of guessing
+        the run should be blocked entirely. Posts imported text-only here
+        are exactly what `_handle_unchanged_content`'s repair path exists
+        to fix on the next `--write`, once the directory is writable
+        again, without re-doing anything that already succeeded.
+
+        A real trial write-then-delete is used rather than an `os.access`
+        permission-bit check, because bit checks don't reliably predict
+        whether *this* process can write here — the failure mode on
+        record is a uid mismatch inside a container, which permission
+        bits alone won't surface. An actual write is the only check that
+        can't lie. The probe file never touches real content and is
+        removed immediately.
+
+        Returns a human-readable diagnostic if the directory is not
+        writable, or `None` if it is.
+        """
+        probe_name = f"_keen_import_write_check_{uuid.uuid4().hex}.tmp"
+        try:
+            saved_name = default_storage.save(probe_name, ContentFile(b"keen import write check"))
+            default_storage.delete(saved_name)
+        except OSError as exc:
+            return (
+                "The media directory does not appear to be writable by this process (writing a "
+                f"harmless test file failed: {exc.__class__.__name__}: {exc}). Every local image "
+                "copy in this run is expected to fail for this one reason. This is almost always "
+                "a uid/permission mismatch on a bind-mounted media volume (check the container's "
+                "user against the media directory's ownership). The run is continuing — posts "
+                "will still import with their text intact — but fix this and re-run with --write "
+                "once it's fixed: the importer will repair every post's missing image(s) without "
+                "re-doing anything that already succeeded."
+            )
+        return None
 
     # -- per entry -----------------------------------------------------
 
@@ -282,7 +419,7 @@ class KeenImporter:
         )
 
         if existing is not None and existing.keen_content_hash == content_hash:
-            report.unchanged.append(identifier)
+            self._handle_unchanged_content(identifier, existing, local_images, sanitized, archive, report)
             return
 
         if external_image_count:
@@ -370,6 +507,85 @@ class KeenImporter:
 
         self._append_content_notes(identifier, sanitized, report)
         self._upsert_redirect(entry, post, report)
+
+    def _handle_unchanged_content(
+        self,
+        identifier: str,
+        existing,
+        local_images: list["_LocalImage"],
+        sanitized,
+        archive: Path,
+        report: ImportReport,
+    ) -> None:
+        """
+        `existing.keen_content_hash` already matches — the post's content
+        is right. But the hash is deliberately blind to whether media
+        actually landed (see the module docstring), so that is checked
+        here, separately, on *every* run: every local image this post's
+        own content references is looked up in `self._image_cache`.
+
+        - None missing: a true no-op — `unchanged`, nothing touched.
+        - Some missing, dry run: previewed and counted as `repaired`,
+          nothing written.
+        - Some missing, write mode: retried right here (already-present
+          images are a cache hit inside `_copy_image` — no re-read, no
+          re-copy); if that fixes at least one, the post's body/featured
+          image are patched in and a revision saved — reported as
+          `repaired`, distinct from `updated` (which means content
+          changed) and from `unchanged`. If nothing was actually fixed
+          (e.g. the media directory is still unwritable), the post stays
+          `unchanged` — the images_failed entries already say why, loudly
+          — rather than being reported as a repair that didn't happen.
+        """
+        missing = [
+            image for image in local_images
+            if image.filename not in self._image_cache
+        ]
+        if not missing:
+            report.unchanged.append(identifier)
+            return
+
+        if not self.write:
+            missing_names = ", ".join(image.filename for image in missing)
+            report.notes.append(
+                f"{identifier}: DRY RUN — content unchanged, but {len(missing)} image(s) this "
+                f"post should have ({missing_names}) are missing from Wagtail and would be "
+                "retried by --write, without changing this post's content."
+            )
+            report.repaired.append(identifier)
+            return
+
+        copied_images: list[object | None] = []
+        any_newly_copied = False
+        for image in local_images:
+            was_cached = image.filename in self._image_cache
+            wagtail_image, err = self._copy_image(image, archive)
+            if err:
+                report.images_failed.append((f"{identifier}: {image.filename}", err))
+                copied_images.append(None)
+            else:
+                copied_images.append(wagtail_image)
+                if was_cached:
+                    report.images_reused += 1
+                else:
+                    report.images_copied += 1
+                    any_newly_copied = True
+
+        if not any_newly_copied:
+            report.unchanged.append(identifier)
+            return
+
+        new_body = _build_streamfield_body(sanitized.blocks, local_images, copied_images)
+        if new_body:
+            # Never let a still-partially-broken repair attempt wipe out
+            # content that was already there (never-delete rule) — only
+            # replace the body if the rebuild actually produced one.
+            existing.body = new_body
+        if existing.featured_image is None:
+            existing.featured_image = next((img for img in copied_images if img is not None), None)
+        existing.save()
+        existing.save_revision(log_action=False)
+        report.repaired.append(identifier)
 
     def _new_post(
         self,
@@ -490,9 +706,33 @@ class KeenImporter:
         try:
             wagtail_image = ImageModel(title=title, file=ContentFile(data, name=filename))
             wagtail_image.save()
+        except PermissionError as exc:
+            # Tagged distinctly (see `_PERMISSION_MARKER`) so the report
+            # can surface this as one loud environment problem rather
+            # than N indistinguishable per-image failures. Reaching this
+            # per-image path at all means the up-front
+            # `_check_media_root_writable` probe passed but this later
+            # write still failed — e.g. permissions changed mid-run, or a
+            # subdirectory Wagtail creates under the media root has
+            # different ownership than the root itself.
+            return None, (
+                f"{_PERMISSION_MARKER} writing to the media directory: {exc}. This is an "
+                "environment problem (the media directory, or a subdirectory of it, is not "
+                "writable by this process), not a problem with this image or post."
+            )
         except Exception as exc:  # noqa: BLE001 - a bad single image must not fail the whole post
             return None, f"could not save into Wagtail: {exc.__class__.__name__}: {exc}"
 
+        # Recorded under the *archive's* filename (never Wagtail's saved
+        # `filename`, which can differ — see KeenImportedImage's
+        # docstring) so this identity survives a storage-name collision
+        # rename and is still found correctly on the next run.
+        from apps.blog.models import KeenImportedImage
+
+        KeenImportedImage.objects.update_or_create(
+            archive_filename=image.filename,
+            defaults={"image": wagtail_image},
+        )
         self._image_cache[image.filename] = wagtail_image
         return wagtail_image, None
 

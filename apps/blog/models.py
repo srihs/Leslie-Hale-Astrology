@@ -266,6 +266,62 @@ class BlogIndexPage(Page):
         return context
 
 
+class KeenImportedImage(models.Model):
+    """
+    Durable filename -> Wagtail Image identity map, written to and read
+    from *only* by `apps.blog.keen_import.importer.KeenImporter`, so a
+    later run can tell "this archive file was already copied in" apart
+    from "never copied" without depending on what Wagtail actually
+    named the file on disk.
+
+    That distinction is not free: Wagtail's storage does not promise to
+    keep an uploaded file's name. It renames on a storage-name collision
+    (Django's `get_available_name` appends a random suffix), and the
+    Keen importer itself deliberately corrects one archived file's
+    extension (`_corrected_filename` in importer.py — a `.aspx` file
+    that is really a `.gif`). Either way, `image.file.name`'s basename
+    can permanently stop matching the filename the archive's own
+    `<img src>` will always reference it by. An earlier version of this
+    importer inferred the map from the saved file's name instead of
+    recording it — confirmed broken in the field (a stale leftover file
+    with the same name was enough to make Wagtail rename a newly-copied
+    image, which then made this exact importer wrongly conclude the
+    image had never been copied). A small table the importer writes
+    itself, keyed on the one filename that never changes — the
+    archive's own — isn't vulnerable to that.
+
+    Not a Wagtail custom image model swap (`WAGTAILIMAGES_IMAGE_MODEL`):
+    nothing else about how the site handles images needs to change, and
+    swapping the site's image model this late in the project is its own
+    large, unrelated migration risk. This is purely additive.
+
+    A database that already has Keen-imported posts from *before* this
+    model existed needs `manage.py backfill_keen_image_map` run once —
+    see that command's docstring.
+    """
+
+    archive_filename = models.CharField(
+        max_length=255,
+        unique=True,
+        help_text="The exact filename this image had in the Keen archive's "
+        "images/ directory (e.g. 'ff89d795bce6c539.jpg') — never the filename "
+        "actually stored in Wagtail, which can differ (a corrected extension, "
+        "or a rename Wagtail applies to avoid a storage-name collision).",
+    )
+    image = models.ForeignKey(
+        "wagtailimages.Image",
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+
+    class Meta:
+        verbose_name = "Keen imported image"
+        verbose_name_plural = "Keen imported images"
+
+    def __str__(self):
+        return self.archive_filename
+
+
 class BlogPost(Page):
     """A single blog article."""
 

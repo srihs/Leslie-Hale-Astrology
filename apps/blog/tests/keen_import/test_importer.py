@@ -16,11 +16,17 @@ from __future__ import annotations
 import base64
 
 import pytest
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from wagtail.contrib.redirects.models import Redirect
 from wagtail.images import get_image_model
 
-from apps.blog.keen_import.importer import KeenImporter
-from apps.blog.models import BlogCategory, BlogPost
+from apps.blog.keen_import.importer import (
+    _PERMISSION_MARKER,
+    ImportReport,
+    KeenImporter,
+)
+from apps.blog.models import BlogCategory, BlogPost, KeenImportedImage
 from apps.blog.tests.factories import make_blog_index_page
 from apps.home.tests.factories import make_home_page
 
@@ -325,3 +331,228 @@ def test_original_category_label_preserves_every_label_even_though_one_bucket_is
     assert post.original_category_label == "Jupiter, Relationships and love"
     # "relationships" outranks "transits" in BUCKET_PRIORITY.
     assert post.category.slug == "relationships"
+
+
+# ---------------------------------------------------------------------------
+# Repair: a post whose content is unchanged but whose image(s) previously
+# failed to copy (e.g. an unwritable media directory at the time) gets its
+# image(s) on a later run, without a rewrite of content that already
+# succeeded. This is the defect this module's own task fixed.
+# ---------------------------------------------------------------------------
+
+
+def test_image_that_failed_to_copy_is_repaired_on_a_later_run(tmp_path, index_page):
+    # First run: the archive file under images/ is not a real image (the
+    # same "archived error page" case as test_broken_local_image_is_
+    # skipped_and_post_still_imports) — the post still imports, but with
+    # no image, exactly as this task's real-world trigger (every image
+    # copy failing) played out for content.
+    (tmp_path / "images").mkdir(exist_ok=True)
+    (tmp_path / "images" / "photo.jpg").write_text("<!DOCTYPE html><html>404</html>", encoding="utf-8")
+    _write_article(
+        tmp_path, "1001", title="Post Needing Repair",
+        body='<img src="../images/photo.jpg"/><p>Real text survives.</p>',
+    )
+
+    report1 = _run(tmp_path, index_page)
+    assert report1.imported == ["'Post Needing Repair' (1001)"]
+    assert len(report1.images_failed) == 1
+    post = BlogPost.objects.get(keen_post_id="1001")
+    assert post.featured_image is None
+    hash_after_run1 = post.keen_content_hash
+
+    # "Fix the environment": the same archive filename now resolves to a
+    # real image. Content (title, text, labels, filenames referenced) is
+    # completely unchanged, so the content hash will not change either —
+    # this is exactly the case the content hash is blind to.
+    (tmp_path / "images" / "photo.jpg").write_bytes(_TINY_GIF)
+
+    report2 = _run(tmp_path, index_page)
+
+    assert report2.imported == []
+    assert report2.updated == []
+    assert report2.unchanged == []
+    assert report2.repaired == ["'Post Needing Repair' (1001)"]
+    assert report2.images_copied == 1
+
+    post.refresh_from_db()
+    assert post.keen_content_hash == hash_after_run1  # content itself never changed
+    assert post.featured_image is not None
+    assert "Real text survives" in str(post.body)
+    assert KeenImportedImage.objects.filter(archive_filename="photo.jpg").exists()
+
+
+def test_repair_does_not_touch_a_post_whose_image_is_still_broken(tmp_path, index_page):
+    """Content unchanged, image still failing (media directory still
+    unwritable, say) — must stay a genuine no-op on the DB side, not be
+    reported as a repair that didn't happen."""
+    (tmp_path / "images").mkdir(exist_ok=True)
+    (tmp_path / "images" / "photo.jpg").write_text("<!DOCTYPE html><html>404</html>", encoding="utf-8")
+    _write_article(
+        tmp_path, "1001", title="Still Broken",
+        body='<img src="../images/photo.jpg"/><p>Text.</p>',
+    )
+    _run(tmp_path, index_page)
+    post = BlogPost.objects.get(keen_post_id="1001")
+    revision_count_before = post.revisions.count()
+
+    report2 = _run(tmp_path, index_page)  # image file is still the broken one
+
+    assert report2.repaired == []
+    assert report2.unchanged == ["'Still Broken' (1001)"]
+    assert len(report2.images_failed) == 1
+    post.refresh_from_db()
+    assert post.revisions.count() == revision_count_before
+    assert post.featured_image is None
+
+
+def test_rerun_after_a_repair_is_a_true_no_op(tmp_path, index_page):
+    (tmp_path / "images").mkdir(exist_ok=True)
+    (tmp_path / "images" / "photo.jpg").write_text("<!DOCTYPE html><html>404</html>", encoding="utf-8")
+    _write_article(
+        tmp_path, "1001", title="Repaired Then Stable",
+        body='<img src="../images/photo.jpg"/><p>Text.</p>',
+    )
+    _run(tmp_path, index_page)
+    (tmp_path / "images" / "photo.jpg").write_bytes(_TINY_GIF)
+    _run(tmp_path, index_page)  # the repair run
+
+    post = BlogPost.objects.get(keen_post_id="1001")
+    revision_count_after_repair = post.revisions.count()
+    last_published_after_repair = post.last_published_at
+    images_before = get_image_model().objects.count()
+
+    report3 = _run(tmp_path, index_page)
+
+    assert report3.repaired == []
+    assert report3.unchanged == ["'Repaired Then Stable' (1001)"]
+    assert report3.imported == []
+    assert report3.updated == []
+    assert report3.images_copied == 0
+    post.refresh_from_db()
+    assert post.revisions.count() == revision_count_after_repair
+    assert post.last_published_at == last_published_after_repair
+    assert get_image_model().objects.count() == images_before
+
+
+def test_dry_run_previews_a_repair_without_writing_anything(tmp_path, index_page):
+    (tmp_path / "images").mkdir(exist_ok=True)
+    (tmp_path / "images" / "photo.jpg").write_text("<!DOCTYPE html><html>404</html>", encoding="utf-8")
+    _write_article(
+        tmp_path, "1001", title="Preview Repair",
+        body='<img src="../images/photo.jpg"/><p>Text.</p>',
+    )
+    _run(tmp_path, index_page)
+    (tmp_path / "images" / "photo.jpg").write_bytes(_TINY_GIF)
+    images_before = get_image_model().objects.count()
+
+    report = _run(tmp_path, index_page, write=False)
+
+    assert report.repaired == ["'Preview Repair' (1001)"]
+    assert any("DRY RUN" in note and "photo.jpg" in note for note in report.notes)
+    post = BlogPost.objects.get(keen_post_id="1001")
+    assert post.featured_image is None  # nothing actually written
+    assert get_image_model().objects.count() == images_before
+
+
+def test_cross_run_dedup_survives_a_wagtail_storage_rename(tmp_path, index_page):
+    """
+    Regression test for the defect found while building the repair path:
+    Wagtail's storage renames a file on a storage-name collision, which
+    broke the pre-existing cross-run "already copied, don't copy again"
+    guarantee for any archive filename that happens to collide with
+    something already on disk. KeenImportedImage removes the dependency
+    on Wagtail's own stored filename, so this must keep working even
+    when a rename happens.
+    """
+    default_storage.save("original_images/collide.gif", ContentFile(_TINY_GIF))
+
+    _write_local_image(tmp_path, "collide.gif")
+    _write_article(tmp_path, "1001", title="Post One", body='<img src="../images/collide.gif"/><p>One.</p>')
+
+    before = get_image_model().objects.count()
+    _run(tmp_path, index_page)
+    assert get_image_model().objects.count() - before == 1
+
+    _write_article(tmp_path, "1002", title="Post Two", body='<img src="../images/collide.gif"/><p>Two.</p>')
+    report2 = _run(tmp_path, index_page)
+
+    assert report2.images_copied == 0
+    assert report2.images_reused == 1
+    assert get_image_model().objects.count() - before == 1
+
+
+# ---------------------------------------------------------------------------
+# Up-front media-root writability check. A loud warning, not a refusal to
+# run — a post's text still matters even when its images can't land right
+# now, and this run's own posts are exactly what a later repair run fixes.
+# ---------------------------------------------------------------------------
+
+
+def test_write_mode_warns_up_front_when_media_root_is_not_writable_but_still_imports(
+    tmp_path, index_page, monkeypatch
+):
+    from apps.blog.keen_import import importer as importer_module
+
+    def _boom(name, content, max_length=None):
+        raise PermissionError("Permission denied (simulated)")
+
+    monkeypatch.setattr(importer_module.default_storage, "save", _boom)
+    _write_article(tmp_path, "1001", title="Still Imports As Text")
+
+    report = KeenImporter(write=True, index_page=index_page).run(str(tmp_path))
+
+    assert report.media_root_warning is not None
+    assert "not" in report.media_root_warning and "writable" in report.media_root_warning
+    assert report.imported == ["'Still Imports As Text' (1001)"]
+    assert BlogPost.objects.filter(keen_post_id="1001").exists()
+
+    lines: list[str] = []
+    report.write_summary(lines.append)
+    assert "MEDIA DIRECTORY NOT WRITABLE" in lines[1]
+
+
+def test_dry_run_does_not_check_media_root_writability(tmp_path, index_page, monkeypatch):
+    from apps.blog.keen_import import importer as importer_module
+
+    def _boom(name, content, max_length=None):
+        raise PermissionError("Permission denied (simulated)")
+
+    monkeypatch.setattr(importer_module.default_storage, "save", _boom)
+    _write_article(tmp_path, "1001", title="Preview Only")
+
+    report = KeenImporter(write=False, index_page=index_page).run(str(tmp_path))
+
+    assert report.media_root_warning is None
+    assert report.imported == ["'Preview Only' (1001)"]
+
+
+# ---------------------------------------------------------------------------
+# Reporting: a permission-flavoured image failure must be unmissable, not
+# just one more line among many indistinguishable ones.
+# ---------------------------------------------------------------------------
+
+
+def test_write_summary_calls_out_permission_failures_loudly():
+    report = ImportReport()
+    report.images_failed.append(
+        ("'Some Post' (1001): photo.jpg", f"{_PERMISSION_MARKER} writing to the media directory: boom")
+    )
+
+    lines: list[str] = []
+    report.write_summary(lines.append)
+
+    text = "\n".join(lines)
+    assert "ENVIRONMENT PROBLEM" in text
+    assert "not writable" in text
+
+
+def test_write_summary_says_nothing_extra_when_failures_are_not_permission_related():
+    report = ImportReport()
+    report.images_failed.append(("'Some Post' (1001): photo.jpg", "not a valid image file"))
+
+    lines: list[str] = []
+    report.write_summary(lines.append)
+
+    text = "\n".join(lines)
+    assert "ENVIRONMENT PROBLEM" not in text
