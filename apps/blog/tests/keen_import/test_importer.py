@@ -556,3 +556,183 @@ def test_write_summary_says_nothing_extra_when_failures_are_not_permission_relat
 
     text = "\n".join(lines)
     assert "ENVIRONMENT PROBLEM" not in text
+
+
+# ---------------------------------------------------------------------------
+# Hero/body duplicate. templates/blog/post.html renders `featured_image` as
+# `figure.article-hero` and then renders the body with `{% include_block %}`
+# — an image promoted to `featured_image` must not also survive as an
+# in-body CaptionedImageBlock, or it prints twice on the page. Covers both
+# the forward fix (a fresh import never creates the duplicate) and the
+# repair of a post already written with it before that fix existed, which
+# a re-run over an unchanged archive must still find and fix (the content
+# hash matches, so nothing else about the hash-match path would catch it).
+# ---------------------------------------------------------------------------
+
+
+def _image_blocks(post):
+    return [entry for entry in post.body.raw_data if entry.get("type") == "image"]
+
+
+def _inject_pre_fix_duplicate(post):
+    """
+    Hand-simulates exactly the shape a post imported before the forward
+    fix was left in: its hero image also sitting in the body as its own
+    CaptionedImageBlock. Used instead of re-running an old importer
+    version — there isn't one to run — to exercise the repair path
+    against the real defect shape, on a post whose keen_content_hash is
+    untouched (the same as every one of the real 1460 posts: the source
+    archive never changed, so a hash match is all a re-run ever sees).
+    """
+    raw = list(post.body.raw_data)
+    raw.append({"type": "image", "value": {"image": post.featured_image_id, "caption": ""}, "id": "dup"})
+    post.body = raw
+    post.save()
+
+
+def test_new_import_does_not_duplicate_the_hero_image_in_the_body(tmp_path, index_page):
+    _write_local_image(tmp_path, "hero.gif")
+    _write_article(
+        tmp_path, "1001", title="One Image Post",
+        body='<img src="../images/hero.gif" alt="A description"/><p>Text after image.</p>',
+    )
+
+    _run(tmp_path, index_page)
+
+    post = BlogPost.objects.get(keen_post_id="1001")
+    assert post.featured_image is not None
+    assert _image_blocks(post) == []
+    assert "Text after image" in str(post.body)
+
+
+def test_new_import_keeps_a_second_distinct_image_in_the_body(tmp_path, index_page):
+    """Only the image promoted to hero is ever left out of the body — a
+    genuinely distinct second image is real content and is kept."""
+    _write_local_image(tmp_path, "hero.gif")
+    _write_local_image(tmp_path, "second.gif")
+    _write_article(
+        tmp_path, "1001", title="Two Image Post",
+        body=(
+            '<img src="../images/hero.gif" alt="First"/><p>Middle text.</p>'
+            '<img src="../images/second.gif" alt="Second"/>'
+        ),
+    )
+
+    _run(tmp_path, index_page)
+
+    post = BlogPost.objects.get(keen_post_id="1001")
+    image_blocks = _image_blocks(post)
+    assert len(image_blocks) == 1
+    assert image_blocks[0]["value"]["image"] != post.featured_image_id
+
+
+def test_repair_removes_a_pre_fix_duplicate_hero_from_the_body(tmp_path, index_page):
+    _write_local_image(tmp_path, "hero.gif")
+    _write_article(
+        tmp_path, "1001", title="Pre-Fix Duplicate Post",
+        body='<img src="../images/hero.gif" alt="A description"/><p>Text after image.</p>',
+    )
+    _run(tmp_path, index_page)
+
+    post = BlogPost.objects.get(keen_post_id="1001")
+    assert post.featured_image is not None
+    hash_before = post.keen_content_hash
+    last_published_before = post.last_published_at
+    revision_count_before = post.revisions.count()
+
+    _inject_pre_fix_duplicate(post)
+    assert len(_image_blocks(post)) == 1  # sanity: duplicate now present
+
+    report = _run(tmp_path, index_page)
+
+    assert report.repaired == ["'Pre-Fix Duplicate Post' (1001)"]
+    assert report.updated == []
+    assert report.unchanged == []
+    assert report.imported == []
+
+    post.refresh_from_db()
+    assert _image_blocks(post) == []  # duplicate removed
+    assert post.featured_image is not None  # hero untouched — never imageless
+    assert post.keen_content_hash == hash_before  # content itself never changed
+    assert post.last_published_at == last_published_before  # import date preserved
+    assert post.revisions.count() == revision_count_before + 1
+    assert "Text after image" in str(post.body)  # real content untouched
+
+
+def test_rerun_after_duplicate_repair_is_a_true_no_op(tmp_path, index_page):
+    _write_local_image(tmp_path, "hero.gif")
+    _write_article(
+        tmp_path, "1001", title="Repaired Then Stable",
+        body='<img src="../images/hero.gif" alt="A description"/><p>Text.</p>',
+    )
+    _run(tmp_path, index_page)
+    post = BlogPost.objects.get(keen_post_id="1001")
+    _inject_pre_fix_duplicate(post)
+
+    _run(tmp_path, index_page)  # the repair run
+    post.refresh_from_db()
+    revision_count_after_repair = post.revisions.count()
+    last_published_after_repair = post.last_published_at
+
+    report = _run(tmp_path, index_page)
+
+    assert report.repaired == []
+    assert report.unchanged == ["'Repaired Then Stable' (1001)"]
+    assert report.imported == []
+    assert report.updated == []
+    post.refresh_from_db()
+    assert post.revisions.count() == revision_count_after_repair
+    assert post.last_published_at == last_published_after_repair
+    assert _image_blocks(post) == []
+
+
+def test_dry_run_previews_a_duplicate_repair_without_writing(tmp_path, index_page):
+    _write_local_image(tmp_path, "hero.gif")
+    _write_article(
+        tmp_path, "1001", title="Preview Duplicate Repair",
+        body='<img src="../images/hero.gif" alt="A description"/><p>Text.</p>',
+    )
+    _run(tmp_path, index_page)
+    post = BlogPost.objects.get(keen_post_id="1001")
+    _inject_pre_fix_duplicate(post)
+
+    report = _run(tmp_path, index_page, write=False)
+
+    assert report.repaired == ["'Preview Duplicate Repair' (1001)"]
+    assert any("duplicat" in note.lower() for note in report.notes)
+    post.refresh_from_db()
+    assert len(_image_blocks(post)) == 1  # nothing actually written yet
+
+
+def test_hand_edited_post_is_not_auto_repaired(tmp_path, index_page):
+    """A post whose last_published_at no longer matches its original
+    import date looks like it was edited and republished in Wagtail admin
+    since the last import — never auto-touched, even when it also happens
+    to carry the duplicate-hero shape a repair run would otherwise fix."""
+    from django.utils import timezone as dj_timezone
+
+    _write_local_image(tmp_path, "hero.gif")
+    _write_article(
+        tmp_path, "1001", title="Hand Edited Post",
+        body='<img src="../images/hero.gif" alt="A description"/><p>Text.</p>',
+    )
+    _run(tmp_path, index_page)
+    post = BlogPost.objects.get(keen_post_id="1001")
+    _inject_pre_fix_duplicate(post)
+    post.last_published_at = dj_timezone.now()  # simulate a real Wagtail "Publish" since import
+    post.save()
+    revision_count_before = post.revisions.count()
+
+    report = _run(tmp_path, index_page)
+
+    assert report.repaired == []
+    assert report.unchanged == []
+    assert any("1001" in identifier for identifier, _reason in report.skipped)
+    assert any(
+        "republish" in reason.lower() or "hand" in reason.lower() or "edit" in reason.lower()
+        for _identifier, reason in report.skipped
+    )
+
+    post.refresh_from_db()
+    assert len(_image_blocks(post)) == 1  # left untouched
+    assert post.revisions.count() == revision_count_before

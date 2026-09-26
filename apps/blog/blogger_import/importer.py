@@ -21,6 +21,14 @@ Idempotency (binding, per the migration rules this app operates under):
 - Nothing already in the database is ever deleted. A post/image/redirect
   that cannot be reconciled is logged (`failed`/`skipped`/`notes`) and the
   run moves on to the next entry.
+- `_build_streamfield_body` never leaves the image promoted to
+  `featured_image` also sitting in the body (see that function's own
+  docstring) — this importer was never run against real content (the
+  live import path is `apps.blog.keen_import`, see
+  `apps/blog/models.py`'s module docstring), so there is no equivalent
+  "repair posts already written with the duplicate" mechanism here the
+  way `apps.blog.keen_import.importer` has one: nothing has ever written
+  that duplicate through this path for a repair mechanism to fix.
 """
 
 from __future__ import annotations
@@ -529,8 +537,23 @@ def _truncate(text: str, limit: int) -> str:
 
 
 def _build_streamfield_body(blocks, downloaded_images):
+    """
+    The *first* successfully downloaded image is the one `_process_entry`
+    promotes to `BlogPost.featured_image` (`next((img for img in
+    downloaded_images if img is not None), None)`, aligned with this
+    function's own walk over `downloaded_images` in the same document
+    order). That image is deliberately left OUT of the body here:
+    templates/blog/post.html renders `featured_image` as
+    `figure.article-hero` and then the body with `{% include_block %}`,
+    so leaving it in the body too printed the same photo twice on every
+    post that had one (see apps.blog.keen_import.importer's identical
+    fix, which this mirrors). Only the first occurrence of the promoted
+    image is skipped — a post that legitimately repeats its own hero
+    image further down the article keeps that later occurrence.
+    """
     image_iter = iter(downloaded_images)
     body = []
+    promoted_to_hero_already_skipped = False
     for kind, value in blocks:
         if kind == "text":
             body.append(("text", value))
@@ -539,6 +562,9 @@ def _build_streamfield_body(blocks, downloaded_images):
             if wagtail_image is None:
                 # Download failed — already logged in images_failed; drop
                 # just this block rather than fail the whole post.
+                continue
+            if not promoted_to_hero_already_skipped:
+                promoted_to_hero_already_skipped = True
                 continue
             body.append(("image", {"image": wagtail_image, "caption": ""}))
     return body

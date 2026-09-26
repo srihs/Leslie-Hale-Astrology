@@ -332,3 +332,45 @@ def test_second_run_downloads_no_images_for_an_unchanged_post_with_an_image(tmp_
         report2 = _run(index_page, source)
         assert urlopen.call_count == 0
         assert report2.unchanged == ["'Post With Image' (post-1)"]
+
+
+def test_new_import_does_not_duplicate_the_hero_image_in_the_body(tmp_path, index_page):
+    """templates/blog/post.html renders featured_image as the article hero
+    and then the body — an image promoted to featured_image must not also
+    survive as an in-body CaptionedImageBlock, or it prints twice."""
+    xml = _atom_feed(
+        _atom_entry(
+            post_id="1",
+            title="Post With Image",
+            content='<p>Before</p><img src="https://old-blog.example.com/photo.jpg" alt="A photo"><p>After</p>',
+            published="2020-06-01T08:00:00.000-07:00",
+        )
+    )
+    source = _write_export(tmp_path, xml)
+
+    fake_image_bytes = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00"
+        b"\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\xcf\xc0\x00\x00\x03\x01\x01\x00\x18\xdd\x8d\xb0"
+        b"\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+
+    class _FakeResponse:
+        headers = {"Content-Type": "image/png"}
+
+        def read(self, *a, **k):
+            return fake_image_bytes
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    with patch("urllib.request.urlopen", return_value=_FakeResponse()):
+        _run(index_page, source)
+
+    post = BlogPost.objects.get(blogger_post_id="post-1")
+    assert post.featured_image is not None
+    image_blocks = [entry for entry in post.body.raw_data if entry.get("type") == "image"]
+    assert image_blocks == []
+    assert "Before" in str(post.body) and "After" in str(post.body)

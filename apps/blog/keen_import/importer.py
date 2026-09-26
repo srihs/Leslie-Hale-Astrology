@@ -44,6 +44,27 @@ Idempotency (binding, per the migration rules this app operates under):
   without touching (or re-revisioning) a single field of a post whose
   images already landed. See `_process_entry`'s hash-match branch and
   `ImportReport.repaired`.
+- A hash match is, for the same reason, also checked against one more
+  structural fact the hash can't see: whether `existing.body` still
+  contains the same image as `existing.featured_image`. Every post
+  imported before `_build_streamfield_body` stopped creating that
+  duplicate has exactly this shape — the image promoted to
+  `featured_image` was *also* left as a body block, so
+  templates/blog/post.html's hero figure and `{% include_block %}` both
+  rendered it. `_body_duplicates_featured_image` /
+  `_strip_duplicate_hero_block` detect and fix this the same way the
+  missing-image check does: every run, on a hash match, never touching
+  `featured_image` itself (the hero always survives), reported as
+  `repaired`. See `_handle_unchanged_content`.
+- Both of those repairs are skipped — logged to `skipped`, not silently
+  applied — for a post whose `last_published_at` no longer matches the
+  archive's own published date for it. The importer pins that field to
+  the archive date on every write it makes and never touches it again
+  outside of a genuine content change; Wagtail's own "Publish" action in
+  the admin sets it to the current time. A mismatch means a human edited
+  and republished this post since the last import write, and whatever
+  this method would otherwise "fix" might be exactly what that edit
+  intended — never overwrite content a human may have edited.
 - Nothing already in the database is ever deleted. A post/image/redirect
   that cannot be reconciled is logged (`failed`/`skipped`/`notes`) and the
   run moves on to the next entry.
@@ -158,11 +179,13 @@ class ImportReport:
     imported: list[str] = field(default_factory=list)
     updated: list[str] = field(default_factory=list)
     unchanged: list[str] = field(default_factory=list)
-    #: Content matched (same hash) but at least one image this post
-    #: should have was missing from Wagtail and got copied in on *this*
-    #: run — distinct from `updated` (content changed) and `unchanged`
-    #: (nothing to do), so an operator can see repair happened rather
-    #: than inferring it from `images_copied` alone. See the module
+    #: Content matched (same hash) but something structural still needed
+    #: fixing: at least one image this post should have was missing from
+    #: Wagtail and got copied in on *this* run, and/or the body still
+    #: duplicated the hero image and had that duplicate removed —
+    #: distinct from `updated` (content changed) and `unchanged` (nothing
+    #: to do), so an operator can see repair happened rather than
+    #: inferring it from `images_copied` alone. See the module
     #: docstring's "Idempotency" section.
     repaired: list[str] = field(default_factory=list)
     skipped: list[tuple[str, str]] = field(default_factory=list)
@@ -192,7 +215,7 @@ class ImportReport:
 
         out(f"Imported (new posts):     {len(self.imported)}")
         out(f"Updated (changed):        {len(self.updated)}")
-        out(f"Repaired (image(s) restored, content unchanged): {len(self.repaired)}")
+        out(f"Repaired (image(s) restored and/or duplicate hero removed, content unchanged): {len(self.repaired)}")
         out(f"Unchanged (no-op):        {len(self.unchanged)}")
         out(f"Skipped:                  {len(self.skipped)}")
         out(f"Failed:                   {len(self.failed)}")
@@ -223,7 +246,7 @@ class ImportReport:
 
         if self.repaired:
             out("")
-            out("Repaired (content unchanged, image(s) restored):")
+            out("Repaired (content unchanged, image(s) restored and/or duplicate hero removed):")
             for identifier in self.repaired:
                 out(f"  - {identifier}")
 
@@ -419,7 +442,9 @@ class KeenImporter:
         )
 
         if existing is not None and existing.keen_content_hash == content_hash:
-            self._handle_unchanged_content(identifier, existing, local_images, sanitized, archive, report)
+            self._handle_unchanged_content(
+                identifier, existing, local_images, sanitized, archive, report, published
+            )
             return
 
         if external_image_count:
@@ -516,24 +541,53 @@ class KeenImporter:
         sanitized,
         archive: Path,
         report: ImportReport,
+        published,
     ) -> None:
         """
         `existing.keen_content_hash` already matches — the post's content
-        is right. But the hash is deliberately blind to whether media
-        actually landed (see the module docstring), so that is checked
-        here, separately, on *every* run: every local image this post's
-        own content references is looked up in `self._image_cache`.
+        is right. But the hash is deliberately blind to two structural
+        facts about what's actually stored, so both are checked here,
+        separately, on *every* run:
 
-        - None missing: a true no-op — `unchanged`, nothing touched.
-        - Some missing, dry run: previewed and counted as `repaired`,
+        1. Missing images: every local image this post's own content
+           references is looked up in `self._image_cache` (unchanged from
+           the mechanism 32e1b56 built).
+        2. A duplicated hero: whether `existing.body` still contains a
+           CaptionedImageBlock referencing the same image as
+           `existing.featured_image` — the shape the promote-to-hero-but-
+           leave-it-in-the-body defect left behind on every post imported
+           before `_build_streamfield_body` stopped creating it. See
+           `_body_duplicates_featured_image`.
+
+        - Neither present: a true no-op — `unchanged`, nothing touched.
+        - Either present, but `existing.last_published_at` no longer
+          matches this entry's own `published` date: left alone entirely,
+          reported as `skipped`, not `repaired`. The importer pins
+          `last_published_at` to the archive's own published date on
+          every write it makes (see `_process_entry`/`_new_post`) and
+          never touches it again outside of that; Wagtail's own "Publish"
+          action in the admin sets it to the current time. A value other
+          than `published` is the signal that a human has edited and
+          republished this post in Wagtail since the last import write —
+          never auto-repaired, since the "duplicate" or "missing image"
+          this method would otherwise fix might be exactly what that
+          human edit intended (removed the duplicate a different way,
+          swapped the hero, rearranged body images, ...). Never overwrite
+          content a human may have edited.
+        - Either present, dry run: previewed and counted as `repaired`,
           nothing written.
-        - Some missing, write mode: retried right here (already-present
-          images are a cache hit inside `_copy_image` — no re-read, no
-          re-copy); if that fixes at least one, the post's body/featured
-          image are patched in and a revision saved — reported as
-          `repaired`, distinct from `updated` (which means content
-          changed) and from `unchanged`. If nothing was actually fixed
-          (e.g. the media directory is still unwritable), the post stays
+        - Either present, write mode: missing images are retried right
+          here (already-present images are a cache hit inside
+          `_copy_image` — no re-read, no re-copy); a duplicated hero has
+          its one duplicate block removed from the body via
+          `_strip_duplicate_hero_block` (never touches `featured_image`
+          itself, so the hero survives even when this empties the body of
+          image blocks entirely — a repaired post is never left with no
+          image at all). If either fix actually changed something, the
+          post's body/featured image are patched in and a revision saved
+          — reported as `repaired`, distinct from `updated` (content
+          changed) and `unchanged`. If nothing was actually fixed (e.g.
+          the media directory is still unwritable), the post stays
           `unchanged` — the images_failed entries already say why, loudly
           — rather than being reported as a repair that didn't happen.
         """
@@ -541,48 +595,91 @@ class KeenImporter:
             image for image in local_images
             if image.filename not in self._image_cache
         ]
-        if not missing:
+        duplicate_hero = _body_duplicates_featured_image(existing)
+
+        if not missing and not duplicate_hero:
             report.unchanged.append(identifier)
             return
 
+        if existing.last_published_at != published:
+            reasons = []
+            if missing:
+                reasons.append(f"{len(missing)} image(s) missing")
+            if duplicate_hero:
+                reasons.append("hero image duplicated in the body")
+            report.skipped.append((
+                identifier,
+                "needs repair (" + "; ".join(reasons) + ") but this post's last_published_at "
+                "no longer matches its original import date — it looks like it was edited and "
+                "republished in Wagtail admin since the last import run, so it was left "
+                "untouched rather than auto-repaired. Review and fix by hand."
+            ))
+            return
+
         if not self.write:
-            missing_names = ", ".join(image.filename for image in missing)
+            notes = []
+            if missing:
+                missing_names = ", ".join(image.filename for image in missing)
+                notes.append(
+                    f"{len(missing)} image(s) this post should have ({missing_names}) are "
+                    "missing from Wagtail and would be retried"
+                )
+            if duplicate_hero:
+                notes.append(
+                    "its hero image is also duplicated as an in-body image block and that "
+                    "duplicate would be removed from the body (the hero itself is untouched)"
+                )
             report.notes.append(
-                f"{identifier}: DRY RUN — content unchanged, but {len(missing)} image(s) this "
-                f"post should have ({missing_names}) are missing from Wagtail and would be "
-                "retried by --write, without changing this post's content."
+                f"{identifier}: DRY RUN — content unchanged, but " + "; ".join(notes) +
+                " — by --write, without changing this post's text content."
             )
             report.repaired.append(identifier)
             return
 
-        copied_images: list[object | None] = []
-        any_newly_copied = False
-        for image in local_images:
-            was_cached = image.filename in self._image_cache
-            wagtail_image, err = self._copy_image(image, archive)
-            if err:
-                report.images_failed.append((f"{identifier}: {image.filename}", err))
-                copied_images.append(None)
-            else:
-                copied_images.append(wagtail_image)
-                if was_cached:
-                    report.images_reused += 1
-                else:
-                    report.images_copied += 1
-                    any_newly_copied = True
+        any_change = False
 
-        if not any_newly_copied:
+        if missing:
+            copied_images: list[object | None] = []
+            any_newly_copied = False
+            for image in local_images:
+                was_cached = image.filename in self._image_cache
+                wagtail_image, err = self._copy_image(image, archive)
+                if err:
+                    report.images_failed.append((f"{identifier}: {image.filename}", err))
+                    copied_images.append(None)
+                else:
+                    copied_images.append(wagtail_image)
+                    if was_cached:
+                        report.images_reused += 1
+                    else:
+                        report.images_copied += 1
+                        any_newly_copied = True
+
+            if any_newly_copied:
+                # This rebuild already excludes whichever image is/becomes
+                # the hero (see _build_streamfield_body) — so a post that
+                # needed both a missing-image repair and a duplicate-hero
+                # repair gets both fixed by this one rebuild; the
+                # duplicate-strip step below then finds nothing left to do
+                # for it, harmlessly.
+                new_body = _build_streamfield_body(sanitized.blocks, local_images, copied_images)
+                if new_body:
+                    # Never let a still-partially-broken repair attempt
+                    # wipe out content that was already there (never-
+                    # delete rule) — only replace the body if the rebuild
+                    # actually produced one.
+                    existing.body = new_body
+                if existing.featured_image is None:
+                    existing.featured_image = next((img for img in copied_images if img is not None), None)
+                any_change = True
+
+        if duplicate_hero and _strip_duplicate_hero_block(existing):
+            any_change = True
+
+        if not any_change:
             report.unchanged.append(identifier)
             return
 
-        new_body = _build_streamfield_body(sanitized.blocks, local_images, copied_images)
-        if new_body:
-            # Never let a still-partially-broken repair attempt wipe out
-            # content that was already there (never-delete rule) — only
-            # replace the body if the rebuild actually produced one.
-            existing.body = new_body
-        if existing.featured_image is None:
-            existing.featured_image = next((img for img in copied_images if img is not None), None)
         existing.save()
         existing.save_revision(log_action=False)
         report.repaired.append(identifier)
@@ -883,6 +980,21 @@ def _build_streamfield_body(blocks, local_images: list[_LocalImage], copied_imag
     `local_images`/`copied_images` only cover the local subset, so each
     "image" block is matched against `local_images` by source-image
     identity rather than assumed to line up 1:1 with `sanitized.blocks`.
+
+    The *first* local image whose copy succeeds is the one `_process_entry`
+    / `_handle_unchanged_content` promote to `BlogPost.featured_image` (see
+    those methods: `next((img for img in copied_images if img is not
+    None), None)`, which — because `copied_images` is aligned with
+    `local_images` in the same document order this function walks — is
+    always the same image as the first one resolved here. That image is
+    deliberately left OUT of the body: templates/blog/post.html renders
+    `featured_image` as `figure.article-hero` and then the body with
+    `{% include_block %}`, so leaving it in too printed the same photo
+    twice on every post that had one. Every later successfully-copied
+    local image is a real, distinct body image and is kept — only the one
+    promoted to hero is ever dropped, and only its first occurrence, so a
+    post that legitimately repeats its own hero image further down the
+    article keeps that later occurrence.
     """
     # Positional queue: `local_images`/`copied_images` were derived from
     # `sanitized.images` by filtering out external ones in document order
@@ -890,6 +1002,7 @@ def _build_streamfield_body(blocks, local_images: list[_LocalImage], copied_imag
     # queue only on a *local* image placeholder keeps the two in step.
     local_iter = iter(zip(local_images, copied_images))
     body = []
+    promoted_to_hero_already_skipped = False
     for kind, value in blocks:
         if kind == "text":
             body.append(("text", value))
@@ -907,8 +1020,72 @@ def _build_streamfield_body(blocks, local_images: list[_LocalImage], copied_imag
                 # Copy failed — already logged in images_failed; drop
                 # just this block rather than fail the whole post.
                 continue
+            if not promoted_to_hero_already_skipped:
+                # This is the same image `featured_image` will be set to
+                # — see the docstring above. Skip it here so it doesn't
+                # also render as an in-body image block.
+                promoted_to_hero_already_skipped = True
+                continue
             body.append(("image", {"image": wagtail_image, "caption": ""}))
     return body
+
+
+def _body_duplicates_featured_image(existing) -> bool:
+    """
+    True when `existing.body`'s stored data still contains an "image"
+    block whose image is the same as `existing.featured_image` — the
+    shape the promote-to-hero-but-leave-it-in-the-body defect left on
+    every post imported before `_build_streamfield_body` stopped creating
+    it (see that function's docstring). Reads `StreamValue.raw_data` —
+    the field's plain JSON-ish representation, `{"type": ..., "value":
+    {"image": <pk>, "caption": ...}, "id": ...}` per block — rather than
+    resolving each block's Image object, so this is a cheap dict/int
+    comparison safe to run against every post, every run, including ones
+    with no images at all.
+    """
+    if not existing.featured_image_id:
+        return False
+    for entry in existing.body.raw_data:
+        if entry.get("type") != "image":
+            continue
+        if entry.get("value", {}).get("image") == existing.featured_image_id:
+            return True
+    return False
+
+
+def _strip_duplicate_hero_block(existing) -> bool:
+    """
+    Removes only the *first* body block whose image matches
+    `existing.featured_image_id` — mirroring exactly what
+    `_build_streamfield_body` now does on a fresh import (also only the
+    first successfully-copied local image is left out of the body). A
+    post that legitimately repeats its own hero image further down the
+    article keeps that later occurrence; only the one specific duplicate
+    this defect created is removed.
+
+    Never touches `existing.featured_image` itself — the hero survives
+    even when this empties the body of image blocks entirely, so a
+    repaired post is never left with no image at all, just with the same
+    one image it always had, shown once instead of twice.
+
+    Operates on `StreamValue.raw_data` (a plain list of dicts) rather
+    than resolving and reassembling each block's Python value, so every
+    *other* block — its exact stored HTML, caption, image, id — passes
+    through completely untouched; only the one matching list entry is
+    removed.
+
+    Returns True if a block was actually removed (the caller uses this to
+    decide whether anything changed and a save/revision is warranted).
+    """
+    if not existing.featured_image_id:
+        return False
+    raw = list(existing.body.raw_data)
+    for index, entry in enumerate(raw):
+        if entry.get("type") == "image" and entry.get("value", {}).get("image") == existing.featured_image_id:
+            del raw[index]
+            existing.body = raw
+            return True
+    return False
 
 
 def _compute_hash(*, title, entry: KeenEntry, published, category, excerpt, author_name, sanitized, local_image_filenames) -> str:
