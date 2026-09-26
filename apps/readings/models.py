@@ -232,15 +232,25 @@ class ReadingDetailPage(Page):
         help_text="Which reading this page is about. Set the reading up in "
         "Snippets → Readings first, then choose it here.",
     )
+    # FAQListBlock is deliberately NOT offered here. It already has a
+    # working home on ReadingsIndexPage.faq (rendered field-by-field —
+    # see that page's get_context docstring), and PROJECT-SCOPE.md never
+    # asks for a *per-reading* FAQ, only a site-wide one (§4, §7
+    # adaptations). Offering the same StructBlock in two places with two
+    # different rendering paths — one field-by-field, one via
+    # {% include_block %} with no Meta.template — is how it stayed a
+    # latent defect here: nothing rendered wrong until someone actually
+    # used it in this position. If a per-reading FAQ is ever wanted,
+    # that's a deliberate decision to reintroduce it here *with* a
+    # Meta.template, not a default.
     body = StreamField(
         [
             ("text", BodyTextBlock()),
             ("image", CaptionedImageBlock()),
-            ("faq", FAQListBlock()),
         ],
         blank=True,
         help_text="Extra detail for this reading beyond its short summary — "
-        "what to expect, how to prepare, or a short FAQ.",
+        "what to expect or how to prepare.",
     )
 
     # templates/readings/detail.html is the real file (FINDING 3).
